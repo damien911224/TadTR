@@ -49,6 +49,7 @@ def get_extensions():
     else:
         raise NotImplementedError('Cuda is not availabel')
 
+
     ext_modules = [
         # Temporal Deformable Attention, optional
         # CUDAExtension(
@@ -64,7 +65,6 @@ def get_extensions():
             'roi_align/src/roi_align_kernel.cu'])
     ]
     return ext_modules
-
 
 setup(
     name="TadTR_release",
