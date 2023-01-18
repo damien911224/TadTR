@@ -34,7 +34,7 @@ def get_sources(extensions_dir):
 
 def get_extensions():
     this_dir = os.path.dirname(os.path.abspath(__file__))
-   
+
     extra_compile_args = {"cxx": []}
     define_macros = []
 
@@ -48,7 +48,6 @@ def get_extensions():
         ]
     else:
         raise NotImplementedError('Cuda is not availabel')
-
 
     ext_modules = [
         # Temporal Deformable Attention, optional
@@ -65,6 +64,7 @@ def get_extensions():
             'roi_align/src/roi_align_kernel.cu'])
     ]
     return ext_modules
+
 
 setup(
     name="TadTR_release",
