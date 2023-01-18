@@ -3,7 +3,7 @@
 #include <ATen/ATen.h>
 #include <ATen/cuda/CUDAEvent.h>
 #include <ATen/cuda/CUDAContext.h>
-#include <common.hpp>
+#include "common.hpp"
 
 // #include <THC/THC.h>
 // #include <THC/THCAtomics.cuh>
