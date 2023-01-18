@@ -1,6 +1,7 @@
 // Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 // Modifies by Frost for 1D ussage
 #include <ATen/ATen.h>
+#include <ATen/cuda/CUDAEvent.h>
 #include <ATen/cuda/CUDAContext.h>
 
 // #include <THC/THC.h>
