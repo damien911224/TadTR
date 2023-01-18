@@ -3,6 +3,7 @@
 #include <ATen/ATen.h>
 #include <ATen/cuda/CUDAEvent.h>
 #include <ATen/cuda/CUDAContext.h>
+#include <ATen/cuda/DeviceUtils.cuh>
 
 // #include <THC/THC.h>
 // #include <THC/THCAtomics.cuh>
@@ -215,7 +216,7 @@ at::Tensor Align_forward_cuda(const at::Tensor& input,
   auto output_size = num_rois * pooled_height * channels;
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 
-  dim3 grid(std::min(THCCeilDiv((long)output_size, 512L), 4096L));
+  dim3 grid(std::min(at::ceil_div((long)output_size, 512L), 4096L));
   dim3 block(512);
 
   // printf("Debug main function: height:%d\n", height);
@@ -258,7 +259,7 @@ at::Tensor Align_backward_cuda(const at::Tensor& grad,
 
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 
-  dim3 grid(std::min(THCCeilDiv((long)grad.numel(), 512L), 4096L));
+  dim3 grid(std::min(at::ceil_div((long)grad.numel(), 512L), 4096L));
   dim3 block(512);
 
   // handle possibly empty gradients
