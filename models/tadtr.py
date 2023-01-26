@@ -127,6 +127,8 @@ class TadTR(nn.Module):
         self.e_embeds = nn.Embedding(T, C // 2)
         nn.init.uniform_(self.s_embeds.weight)
         nn.init.uniform_(self.e_embeds.weight)
+        self.s_embeds = self.s_embeds.weight.unsqueeze(1).repeat(1, T, 1)
+        self.e_embeds = self.e_embeds.weight.unsqueeze(0).repeat(T, 1, 1)
 
     def _to_roi_align_format(self, rois, T, scale_factor=1):
         '''Convert RoIs to RoIAlign format.
@@ -173,9 +175,7 @@ class TadTR(nn.Module):
 
         pos = [self.position_embedding(samples)]
         src, mask = samples.tensors, samples.mask
-        s_embeds = self.s_embeds.weight.unsqueeze(1).repeat(1, T, 1)
-        e_embeds = self.e_embeds.weight.unsqueeze(0).repeat(T, 1, 1)
-        pos_2d = torch.cat((s_embeds, e_embeds), dim=-1).permute(2, 0, 1).unsqueeze(0).to(src.device)
+        pos_2d = torch.cat((self.s_embeds, self.e_embeds), dim=-1).permute(2, 0, 1).unsqueeze(0).to(src.device)
         srcs = [self.input_proj[0](src)]
         masks = [mask]
 
