@@ -131,6 +131,9 @@ class TadTR(nn.Module):
         nn.init.uniform_(self.s_embeds.weight)
         nn.init.uniform_(self.e_embeds.weight)
 
+        self.level_embed = nn.Parameter(torch.Tensor(5, hidden_dim))
+        normal_(self.level_embed)
+
     def _to_roi_align_format(self, rois, T, scale_factor=1):
         '''Convert RoIs to RoIAlign format.
         Params:
@@ -185,43 +188,37 @@ class TadTR(nn.Module):
         srcs = [self.input_proj[0](src)]
         masks = [mask]
 
-        # query_embeds = self.query_embed.weight
+        query_embeds = self.query_embed.weight
         # hs, init_reference, inter_references, memory = self.transformer(
         #     srcs, masks, pos, query_embeds)
 
-        # pos_1d = []
-        # pos_2d = []
+        # T = t
+        # tgt_pos = []
         # points = []
         # scales = []
-        # anchors = []
-        # for l, feat in enumerate(features):
-        #     src = self.input_proj[l](feat)
-        #     n, c, t = src.shape
-        #     src = src.unsqueeze(-1)
-        #     pos_1d_l = F.interpolate(raw_pos_1d, size=t, mode="linear")
-        #     pos_2d_l = F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")
-        #     pos_1d.append(pos_1d_l)
-        #     pos_2d.append(pos_2d_l)
-        #     srcs.append(src)
+        # for l in range(5):
+        #     t = T / (2 ** l)
+        #     pos_1d_l = F.interpolate(raw_pos_1d, size=t, mode="linear") + self.level_embed[l].view(1, 1, -1)
+        #     tgt_pos.append(pos_1d_l)
         #     this_points = torch.linspace(0.5, t - 0.5, t, dtype=torch.float32, device=src.device) / t
         #     points.append(this_points)
-        #     this_scales = torch.ones_like(this_points) * (1.0 / (2 ** (len(features) - l - 1)))
+        #     this_scales = torch.ones_like(this_points) * (1.0 / (2 ** (5 - l - 1)))
         #     scales.append(this_scales)
-        #     this_anchors = torch.stack((torch.clamp(this_points - this_scales / 8.0, 0.0, 1.0),
-        #                                 torch.clamp(this_points + this_scales / 8.0, 0.0, 1.0)), dim=-1)
-        #     anchors.append(this_anchors)
+        #
+        # tgt_pos = torch.concat(tgt_pos, dim=1)
+        # points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
+        # scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
+        # refpoint_embed = torch.concat((anchors, points, scales), dim=-1)
+        # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+        # query_embeds = torch.cat((input_query_label, refpoint_embed), dim=2)
+        #
+        # hs, init_reference, inter_references, memory = self.transformer(
+        #     srcs, masks, pos, query_embeds, reference_points=refpoint_embed)
 
         # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
         # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
         # query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
-        # hs, init_reference, inter_references, memory = self.transformer(
-        #     srcs, masks, pos, query_embeds)
-
-        input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
-        hs, init_reference, inter_references, memory = self.transformer(
-            srcs, pos, pos_2d, query_embed=query_embeds)
+        hs, init_reference, inter_references, memory = self.transformer(srcs, pos, pos_2d, query_embed=query_embeds)
 
         outputs_classes = []
         outputs_coords = []
