@@ -42,6 +42,7 @@ def get_args_parser():
     # Other options
     parser.add_argument('opt', nargs=argparse.REMAINDER,
                         help='Command arguments that override configs')
+    parser.add_argument('output_dir', type=str)
     return parser
 
 
