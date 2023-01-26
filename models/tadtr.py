@@ -131,8 +131,8 @@ class TadTR(nn.Module):
         nn.init.uniform_(self.s_embeds.weight)
         nn.init.uniform_(self.e_embeds.weight)
 
-        self.level_embed = nn.Parameter(torch.Tensor(5, hidden_dim))
-        normal_(self.level_embed)
+        # self.level_embed = nn.Parameter(torch.Tensor(5, hidden_dim))
+        # normal_(self.level_embed)
 
     def _to_roi_align_format(self, rois, T, scale_factor=1):
         '''Convert RoIs to RoIAlign format.
