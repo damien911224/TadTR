@@ -194,7 +194,6 @@ class DeformableTransformer(nn.Module):
             spatial_shape_2d = (h, h)
             spatial_shapes_1d.append(spatial_shape_1d)
             spatial_shapes_2d.append(spatial_shape_2d)
-            print(spatial_shape_1d)
 
             src = src.flatten(2).transpose(1, 2)  # bs, hw, c
             pos_1d_embed = pos_1d_embed.flatten(2).transpose(1, 2)  # bs, hw, c
