@@ -178,7 +178,7 @@ class TadTR(nn.Module):
         e_embeds = self.e_embeds.weight.unsqueeze(0).repeat(T, 1, 1)
         raw_pos_2d = torch.cat((s_embeds, e_embeds), dim=-1).permute(2, 0, 1).unsqueeze(0).to(src.device)
         n, c, t = src.shape
-        pos_2d_l = [F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")]
+        pos_2d = [F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")]
         srcs = [self.input_proj[0](src)]
         masks = [mask]
 
