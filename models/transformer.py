@@ -123,6 +123,7 @@ class DeformableTransformer(nn.Module):
             reference_points = query_embed[..., self.d_model:].sigmoid()
             tgt = query_embed[..., :self.d_model]
             init_reference_out = reference_points
+            query_embed = None
 
         # decoder
         hs, inter_references = self.decoder(tgt, reference_points, memory,
