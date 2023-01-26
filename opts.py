@@ -150,7 +150,8 @@ cfg.lr_backbone_names = ['backbone']
 cfg.lr_backbone = 1e-5
 
 # special linear projection layers that need to use smaller lr
-cfg.lr_linear_proj_names = ['reference_points', 'sampling_offsets']
+# cfg.lr_linear_proj_names = ['reference_points', 'sampling_offsets']
+cfg.lr_linear_proj_names = []
 cfg.lr_linear_proj_mult = 0.1
 
 # which optimizer to use, choose from ['AdamW', 'Adam', 'SGD']
