@@ -15,4 +15,3 @@ test_slice_overlap: 0.25
 
 # output
 output_dir: outputs/thumos14_i3d2s_tadtr
-
