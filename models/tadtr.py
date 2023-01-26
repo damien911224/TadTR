@@ -27,8 +27,8 @@ from util.misc import (NestedTensor, nested_tensor_from_tensor_list,
 from models.matcher import build_matcher
 from models.position_encoding import build_position_encoding
 from .custom_loss import sigmoid_focal_loss
-# from .transformer import build_deformable_transformer
-from .deformable_transformer import build_deformable_transformer
+from .transformer import build_deformable_transformer
+# from .deformable_transformer import build_deformable_transformer
 from opts import cfg
 
 if not cfg.disable_cuda:
@@ -69,9 +69,9 @@ class TadTR(nn.Module):
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
-        # self.query_embed = nn.Embedding(num_queries, hidden_dim*2)
-        self.tgt_embed = nn.Embedding(num_queries, hidden_dim)  # for indicator
-        self.refpoint_embed = nn.Embedding(num_queries, 2)
+        self.query_embed = nn.Embedding(num_queries, hidden_dim*2)
+        # self.tgt_embed = nn.Embedding(num_queries, hidden_dim)  # for indicator
+        # self.refpoint_embed = nn.Embedding(num_queries, 2)
 
         self.input_proj = nn.ModuleList([
             nn.Sequential(
@@ -124,11 +124,11 @@ class TadTR(nn.Module):
                 nn.Sigmoid()
             )
 
-        T, C = 100, hidden_dim
-        self.s_embeds = nn.Embedding(T, C // 2)
-        self.e_embeds = nn.Embedding(T, C // 2)
-        nn.init.uniform_(self.s_embeds.weight)
-        nn.init.uniform_(self.e_embeds.weight)
+        # T, C = 100, hidden_dim
+        # self.s_embeds = nn.Embedding(T, C // 2)
+        # self.e_embeds = nn.Embedding(T, C // 2)
+        # nn.init.uniform_(self.s_embeds.weight)
+        # nn.init.uniform_(self.e_embeds.weight)
 
     def _to_roi_align_format(self, rois, T, scale_factor=1):
         '''Convert RoIs to RoIAlign format.
@@ -175,24 +175,30 @@ class TadTR(nn.Module):
 
         pos = [self.position_embedding(samples)]
         src, mask = samples.tensors, samples.mask
-        T = self.s_embeds.weight.size(0)
-        s_embeds = self.s_embeds.weight.unsqueeze(1).repeat(1, T, 1)
-        e_embeds = self.e_embeds.weight.unsqueeze(0).repeat(T, 1, 1)
-        raw_pos_2d = torch.cat((s_embeds, e_embeds), dim=-1).permute(2, 0, 1).unsqueeze(0).to(src.device)
-        n, c, t = src.shape
-        pos_2d = [F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")]
+        # T = self.s_embeds.weight.size(0)
+        # s_embeds = self.s_embeds.weight.unsqueeze(1).repeat(1, T, 1)
+        # e_embeds = self.e_embeds.weight.unsqueeze(0).repeat(T, 1, 1)
+        # raw_pos_2d = torch.cat((s_embeds, e_embeds), dim=-1).permute(2, 0, 1).unsqueeze(0).to(src.device)
+        # n, c, t = src.shape
+        # pos_2d = [F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")]
         srcs = [self.input_proj[0](src)]
         masks = [mask]
 
-        # query_embeds = self.query_embed.weight
+        query_embeds = self.query_embed.weight
+        hs, init_reference, inter_references, memory = self.transformer(
+            srcs, masks, pos, query_embeds)
+
+        # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
+        # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
+        # query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
         # hs, init_reference, inter_references, memory = self.transformer(
         #     srcs, masks, pos, query_embeds)
 
-        input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
-        hs, init_reference, inter_references, memory = self.transformer(
-            srcs, pos, pos_2d, query_embed=query_embeds)
+        # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
+        # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
+        # query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
+        # hs, init_reference, inter_references, memory = self.transformer(
+        #     srcs, pos, pos_2d, query_embed=query_embeds)
 
         outputs_classes = []
         outputs_coords = []
