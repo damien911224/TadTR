@@ -88,7 +88,6 @@ def main(args):
         raise NotImplementedError
 
     model, criterion, postprocessors = build_model(cfg)
-    model, criterion, postprocessors = build_model(cfg)
 
     model.to(device)
     model_without_ddp = model
