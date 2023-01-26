@@ -183,7 +183,7 @@ class TadTR(nn.Module):
         # hs, init_reference, inter_references, memory = self.transformer(
         #     srcs, masks, pos, query_embeds)
         hs, init_reference, inter_references, memory = self.transformer(
-            srcs, pos, pos_2d, query_embeds)
+            srcs, pos, pos_2d, query_embeds=query_embeds)
 
         outputs_classes = []
         outputs_coords = []
