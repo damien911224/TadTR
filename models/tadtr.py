@@ -131,8 +131,8 @@ class TadTR(nn.Module):
         nn.init.uniform_(self.s_embeds.weight)
         nn.init.uniform_(self.e_embeds.weight)
 
-        # self.level_embed = nn.Parameter(torch.Tensor(5, hidden_dim))
-        # nn.init.normal_(self.level_embed)
+        self.level_embed = nn.Parameter(torch.Tensor(5, hidden_dim))
+        nn.init.normal_(self.level_embed)
 
     def _to_roi_align_format(self, rois, T, scale_factor=1):
         '''Convert RoIs to RoIAlign format.
@@ -179,29 +179,22 @@ class TadTR(nn.Module):
 
         pos = [self.position_embedding(samples)]
         src, mask = samples.tensors, samples.mask
-        # T = self.s_embeds.weight.size(0)
-        # s_embeds = self.s_embeds.weight.unsqueeze(1).repeat(1, T, 1)
-        # e_embeds = self.e_embeds.weight.unsqueeze(0).repeat(T, 1, 1)
-        # raw_pos_2d = torch.cat((s_embeds, e_embeds), dim=-1).permute(2, 0, 1).unsqueeze(0).to(src.device)
-        # n, c, t = src.shape
-        # pos_2d = [F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")]
         srcs = [self.input_proj[0](src)]
         masks = [mask]
+
+        # query_embeds = self.query_embed.weight
 
         input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
         input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
-        # query_embeds = self.query_embed.weight
-        hs, init_reference, inter_references, memory = self.transformer(
-            srcs, masks, pos, query_embeds)
 
-        # T = t
+        # T = srcs[0].size(2)
         # tgt_pos = []
         # points = []
         # scales = []
         # for l in range(5):
         #     t = T / (2 ** l)
-        #     pos_1d_l = F.interpolate(raw_pos_1d, size=t, mode="linear") + self.level_embed[l].view(1, 1, -1)
+        #     pos_1d_l = F.interpolate(pos[0], size=t, mode="linear") + self.level_embed[l].view(1, 1, -1)
         #     tgt_pos.append(pos_1d_l)
         #     this_points = torch.linspace(0.5, t - 0.5, t, dtype=torch.float32, device=src.device) / t
         #     points.append(this_points)
@@ -214,7 +207,17 @@ class TadTR(nn.Module):
         # refpoint_embed = torch.concat((anchors, points, scales), dim=-1)
         # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
         # query_embeds = torch.cat((input_query_label, refpoint_embed), dim=2)
-        #
+
+        hs, init_reference, inter_references, memory = self.transformer(
+            srcs, masks, pos, query_embeds)
+
+        # T = self.s_embeds.weight.size(0)
+        # s_embeds = self.s_embeds.weight.unsqueeze(1).repeat(1, T, 1)
+        # e_embeds = self.e_embeds.weight.unsqueeze(0).repeat(T, 1, 1)
+        # raw_pos_2d = torch.cat((s_embeds, e_embeds), dim=-1).permute(2, 0, 1).unsqueeze(0).to(src.device)
+        # n, c, t = src.shape
+        # pos_2d = [F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")]
+
         # hs, init_reference, inter_references, memory = self.transformer(
         #     srcs, masks, pos, query_embeds, reference_points=refpoint_embed)
 
