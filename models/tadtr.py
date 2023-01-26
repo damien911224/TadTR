@@ -101,6 +101,7 @@ class TadTR(nn.Module):
                 self.segment_embed[0].layers[-1].bias.data[1:], -2.0)
             # hack implementation for segment refinement
             self.transformer.decoder.segment_embed = self.segment_embed
+            self.transformer.decoder.class_embed = self.class_embed
         else:
             nn.init.constant_(
                 self.segment_embed.layers[-1].bias.data[1:], -2.0)
