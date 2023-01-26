@@ -33,7 +33,7 @@ class DeformableTransformer(nn.Module):
                  activation="relu", return_intermediate_dec=True,
                  num_feature_levels=4, dec_n_points=4, enc_n_points=4,
                  two_stage=False, two_stage_num_proposals=300,
-                 use_dab=False, high_dim_query_update=False, no_sine_embed=False,
+                 use_dab=True, high_dim_query_update=False, no_sine_embed=False,
                  num_classes=None):
         super().__init__()
 
