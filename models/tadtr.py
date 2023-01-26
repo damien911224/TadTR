@@ -184,39 +184,39 @@ class TadTR(nn.Module):
 
         # query_embeds = self.query_embed.weight
 
-        # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        # query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
-
-        # hs, init_reference, inter_references, memory = self.transformer(
-        #     srcs, masks, pos, query_embeds)
-
-        T = srcs[0].size(2)
-        tgt_pos = []
-        points = []
-        scales = []
-        tgt_lens = []
-        for l in range(5):
-            t = T / (2 ** l)
-            pos_1d_l = F.interpolate(pos[0], size=t, mode="linear") + self.level_embed[l].view(1, 1, -1)
-            tgt_pos.append(pos_1d_l)
-            this_points = torch.linspace(0.5, t - 0.5, t, dtype=torch.float32, device=src.device) / t
-            points.append(this_points)
-            this_scales = torch.ones_like(this_points) * (1.0 / (2 ** (5 - l - 1)))
-            scales.append(this_scales)
-            tgt_lens.append(t)
-
-        tgt_pos = torch.concat(tgt_pos, dim=1)
-        tgt_lens = torch.as_tensor(tgt_lens, dtype=torch.long, device=src_flatten.device)
-        tgt_level_start_index = torch.cat((tgt_lens.new_zeros((1,)), tgt_lens.cumsum(0)[:-1]))
-        points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        refpoint_embed = torch.concat((anchors, points, scales), dim=-1)
-        input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
-        query_embeds = torch.cat((input_query_label, refpoint_embed), dim=2)
+        input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
+        input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
+        query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
 
         hs, init_reference, inter_references, memory = self.transformer(
-            srcs, masks, pos, query_embeds, tgt_pos=[tgt_pos, tgt_lens, tgt_level_start_index])
+            srcs, masks, pos, query_embeds)
+
+        # T = srcs[0].size(2)
+        # tgt_pos = []
+        # points = []
+        # scales = []
+        # tgt_lens = []
+        # for l in range(5):
+        #     t = T / (2 ** l)
+        #     pos_1d_l = F.interpolate(pos[0], size=t, mode="linear") + self.level_embed[l].view(1, 1, -1)
+        #     tgt_pos.append(pos_1d_l)
+        #     this_points = torch.linspace(0.5, t - 0.5, t, dtype=torch.float32, device=src.device) / t
+        #     points.append(this_points)
+        #     this_scales = torch.ones_like(this_points) * (1.0 / (2 ** (5 - l - 1)))
+        #     scales.append(this_scales)
+        #     tgt_lens.append(t)
+        #
+        # tgt_pos = torch.concat(tgt_pos, dim=1)
+        # tgt_lens = torch.as_tensor(tgt_lens, dtype=torch.long, device=src_flatten.device)
+        # tgt_level_start_index = torch.cat((tgt_lens.new_zeros((1,)), tgt_lens.cumsum(0)[:-1]))
+        # points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
+        # scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
+        # refpoint_embed = torch.concat((anchors, points, scales), dim=-1)
+        # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
+        # query_embeds = torch.cat((input_query_label, refpoint_embed), dim=2)
+
+        # hs, init_reference, inter_references, memory = self.transformer(
+        #     srcs, masks, pos, query_embeds, tgt_pos=[tgt_pos, tgt_lens, tgt_level_start_index])
 
         # T = self.s_embeds.weight.size(0)
         # s_embeds = self.s_embeds.weight.unsqueeze(1).repeat(1, T, 1)
