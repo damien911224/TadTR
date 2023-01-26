@@ -182,7 +182,7 @@ class TadTR(nn.Module):
         srcs = [self.input_proj[0](src)]
         masks = [mask]
 
-        # query_embeds = self.query_embed.weight
+        query_embeds = self.query_embed.weight
 
         # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
         # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
@@ -228,9 +228,9 @@ class TadTR(nn.Module):
         # hs, init_reference, inter_references, memory = self.transformer(
         #     srcs, masks, pos, query_embeds, reference_points=refpoint_embed)
 
-        input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
+        # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
+        # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
+        # query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
         hs, init_reference, inter_references, memory = self.transformer(srcs, pos, pos_2d, query_embed=query_embeds)
 
         outputs_classes = []
