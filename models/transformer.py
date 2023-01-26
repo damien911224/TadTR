@@ -127,7 +127,8 @@ class DeformableTransformer(nn.Module):
 
         # decoder
         hs, inter_references = self.decoder(tgt, reference_points, memory,
-                                            temporal_lens, level_start_index, valid_ratios, query_embed, mask_flatten)
+                                            temporal_lens, level_start_index, valid_ratios, query_embed, mask_flatten,
+                                            tgt_pos=tgt_pos)
         inter_references_out = inter_references 
         return hs, init_reference_out, inter_references_out, memory.transpose(1, 2)
 
@@ -218,7 +219,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         self.norm1 = nn.LayerNorm(d_model)
 
         # self attention
-        self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
+        # self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
+        self.self_attn = DeformAttn(d_model, 5, n_heads, n_points)
         self.dropout2 = nn.Dropout(dropout)
         self.norm2 = nn.LayerNorm(d_model)
 
@@ -240,12 +242,15 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt = self.norm3(tgt)
         return tgt
 
-    def forward(self, tgt, query_pos, reference_points, src, src_spatial_shapes, level_start_index, src_padding_mask=None):
+    def forward(self, tgt, query_pos, reference_points, src, src_spatial_shapes, level_start_index, src_padding_mask=None, tgt_pos=None):
         if not cfg.disable_query_self_att:
             # self attention
-            q = k = self.with_pos_embed(tgt, query_pos)
-
-            tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))[0].transpose(0, 1)
+            # q = k = self.with_pos_embed(tgt, query_pos)
+            # tgt2 = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))[0].transpose(0, 1)
+            tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos + tgt_pos[0]),
+                                      reference_points,
+                                      self.with_pos_embed(tgt, query_pos + tgt_pos[0]),
+                                      tgt_pos[1], tgt_pos[2])
             tgt = tgt + self.dropout2(tgt2)
             tgt = self.norm2(tgt)
 
@@ -279,7 +284,7 @@ class DeformableTransformerDecoder(nn.Module):
         self.ref_point_head = MLP(2, d_model, d_model, 3)
 
     def forward(self, tgt, reference_points, src, src_spatial_shapes, src_level_start_index, src_valid_ratios,
-                query_pos=None, src_padding_mask=None):
+                query_pos=None, src_padding_mask=None, tgt_pos=None):
         '''
         tgt: [bs, nq, C]
         reference_points: [bs, nq, 1 or 2]
@@ -296,7 +301,8 @@ class DeformableTransformerDecoder(nn.Module):
                 raw_query_pos = self.ref_point_head(reference_points_input[:, :, 0, :])
                 pos_scale = self.query_scale(output) if lid != 0 else 1
                 query_pos = pos_scale * raw_query_pos
-            output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index, src_padding_mask)
+            output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index, src_padding_mask,
+                           tgt_pos=tgt_pos)
             
             # hack implementation for segment refinement
             if self.segment_embed is not None:
