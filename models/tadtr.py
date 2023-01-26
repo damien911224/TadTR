@@ -27,8 +27,8 @@ from util.misc import (NestedTensor, nested_tensor_from_tensor_list,
 from models.matcher import build_matcher
 from models.position_encoding import build_position_encoding
 from .custom_loss import sigmoid_focal_loss
-# from .transformer import build_deformable_transformer
-from .deformable_transformer import build_deformable_transformer
+from .transformer import build_deformable_transformer
+# from .deformable_transformer import build_deformable_transformer
 from opts import cfg
 
 if not cfg.disable_cuda:
