@@ -77,6 +77,8 @@ class DeformableTransformer(nn.Module):
         #     if not self.use_dab:
         #         self.reference_points = nn.Linear(d_model, 2)
 
+        self.reference_points = nn.Linear(d_model, 2)
+
         self.num_classes = num_classes
 
         if two_stage:
