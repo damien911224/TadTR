@@ -272,6 +272,9 @@ class DeformableTransformerDecoder(nn.Module):
         self.segment_embed = None
         self.class_embed = None
 
+        self.query_scale = MLP(d_model, d_model, d_model, 2)
+        self.ref_point_head = MLP(2, d_model, d_model, 3)
+
     def forward(self, tgt, reference_points, src, src_spatial_shapes, src_level_start_index, src_valid_ratios,
                 query_pos=None, src_padding_mask=None):
         '''
@@ -286,6 +289,10 @@ class DeformableTransformerDecoder(nn.Module):
         for lid, layer in enumerate(self.layers):
             # (bs, nq, 1, 1 or 2) x (bs, 1, num_level, 1) => (bs, nq, num_level, 1 or 2)
             reference_points_input = reference_points[:, :, None] * src_valid_ratios[:, None,:, None]
+            if query_pos is None:
+                raw_query_pos = self.ref_point_head(reference_points_input[:, :, 0, :])
+                pos_scale = self.query_scale(output) if lid != 0 else 1
+                query_pos = pos_scale * raw_query_pos
             output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index, src_padding_mask)
             
             # hack implementation for segment refinement
