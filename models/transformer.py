@@ -320,8 +320,8 @@ class DeformableTransformerDecoder(nn.Module):
         output = tgt
         intermediate = []
         intermediate_reference_points = []
-        # for lid, layer in enumerate(self.layers):
-        for lid in range(self.num_layers):
+        for lid, layer in enumerate(self.layers):
+        # for lid in range(self.num_layers):
             # (bs, nq, 1, 1 or 2) x (bs, 1, num_level, 1) => (bs, nq, num_level, 1 or 2)
             reference_points_input = reference_points[:, :, None] * src_valid_ratios[:, None,:, None]
             if self.use_dab:
