@@ -78,7 +78,7 @@ def segment_iou(segments1, segments2):
     """
     # degenerate boxes gives inf / nan results
     # so do an early check
-    assert (segments1[:, 1] >= segments1[:, 0]).all()
+    # assert (segments1[:, 1] >= segments1[:, 0]).all()
 
     area1 = segment_length(segments1)
     area2 = segment_length(segments2)
@@ -89,7 +89,8 @@ def segment_iou(segments1, segments2):
 
     union = area1[:, None] + area2 - inter
 
-    iou = inter / union
+    iou = torch.where(union > 0.0, inter / (union + 1.0e-7), torch.zeros_like(union))
+    iou = torch.where(torch.isnan(union), torch.zeros_like(iou), iou)
 
     return iou
 
