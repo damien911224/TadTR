@@ -274,8 +274,10 @@ class TadTR(nn.Module):
 
             outputs_class = self.class_embed[lvl](C_hs)
 
-            S_tmp = self.S_segment_embed[lvl](S_hs)
-            E_tmp = self.E_segment_embed[lvl](E_hs)
+            # S_tmp = self.S_segment_embed[lvl](S_hs)
+            # E_tmp = self.E_segment_embed[lvl](E_hs)
+            E_tmp = self.S_segment_embed[lvl](S_hs)
+            S_tmp = self.E_segment_embed[lvl](E_hs)
             tmp = reference
             # the l-th layer (l >= 2)
             if reference.shape[-1] == 2:

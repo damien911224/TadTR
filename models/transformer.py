@@ -371,8 +371,10 @@ class DeformableTransformerDecoder(nn.Module):
                 #     new_reference_points = new_reference_points.sigmoid()
                 # reference_points = new_reference_points.detach()
 
-                S_tmp = self.S_segment_embed[lid](S_output)
-                E_tmp = self.E_segment_embed[lid](E_output)
+                # S_tmp = self.S_segment_embed[lid](S_output)
+                # E_tmp = self.E_segment_embed[lid](E_output)
+                E_tmp = self.S_segment_embed[lid](S_output)
+                S_tmp = self.E_segment_embed[lid](E_output)
                 new_reference_points = inverse_sigmoid(reference_points)
                 new_reference_points[..., 0] = S_tmp.squeeze(-1) + new_reference_points[..., 0]
                 new_reference_points[..., 1] = E_tmp.squeeze(-1) + new_reference_points[..., 1]
