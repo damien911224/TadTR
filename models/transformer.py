@@ -126,7 +126,8 @@ class DeformableTransformer(nn.Module):
             tgt = query_embed[..., :self.d_model * 3]
             init_reference_out = reference_points
             query_embed = None
-
+            print("use dab")
+        exit()
         # decoder
         hs, inter_references = self.decoder(tgt, reference_points, memory,
                                             temporal_lens, level_start_index, valid_ratios, query_embed, mask_flatten)
@@ -319,6 +320,10 @@ class DeformableTransformerDecoder(nn.Module):
 
             S_output = output[..., :self.d_model]
             S_ref_points = torch.stack((reference_points_input[..., 0], W), dim=-1)
+            if query_pos is None:
+                raw_query_pos = self.ref_point_head(reference_points_input[:, :, 0, :])
+                pos_scale = self.query_scale(S_output) if lid != 0 else 1
+                query_pos = pos_scale * raw_query_pos
             S_output = self.S_layers[lid](S_output, query_pos, S_ref_points,
                                           src, src_spatial_shapes, src_level_start_index, src_padding_mask)
 
