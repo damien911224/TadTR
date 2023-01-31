@@ -346,7 +346,6 @@ class DeformableTransformerDecoder(nn.Module):
                                           src, src_spatial_shapes, src_level_start_index, src_padding_mask)
 
             output = torch.cat((S_output, E_output, C_output), dim=-1)
-            print(output.shape)
 
             # hack implementation for segment refinement
             # if self.segment_embed is not None:
