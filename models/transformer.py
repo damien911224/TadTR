@@ -335,8 +335,8 @@ class DeformableTransformerDecoder(nn.Module):
             # output = torch.cat((S_output, E_output, C_output), dim=-1)
 
             # hack implementation for segment refinement
-            # if self.segment_embed is not None:
-            if self.S_segment_embed is not None:
+            if self.segment_embed is not None:
+            # if self.S_segment_embed is not None:
                 # update the reference point/segment of the next layer according to the output from the current layer
                 tmp = self.segment_embed[lid](output)
                 if reference_points.shape[-1] == 2:
