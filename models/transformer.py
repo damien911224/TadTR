@@ -307,8 +307,6 @@ class DeformableTransformerDecoder(nn.Module):
                 raw_query_pos = self.ref_point_head(reference_points_input[:, :, 0, :])
                 pos_scale = self.query_scale(output) if lid != 0 else 1
                 query_pos = pos_scale * raw_query_pos
-                print("use dab")
-            exit()
 
             # output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index,
             #                src_padding_mask)
@@ -338,6 +336,7 @@ class DeformableTransformerDecoder(nn.Module):
                                           src, src_spatial_shapes, src_level_start_index, src_padding_mask)
 
             output = torch.cat((S_output, E_output, C_output), dim=-1)
+            print(output.shape)
 
             # hack implementation for segment refinement
             # if self.segment_embed is not None:
