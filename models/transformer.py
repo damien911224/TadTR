@@ -273,7 +273,10 @@ class DeformableTransformerDecoderLayer(nn.Module):
         else:
             pass
         # cross attention
-        tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos),
+        # tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos),
+        #                        reference_points,
+        #                        src, src_spatial_shapes, level_start_index, src_padding_mask)
+        tgt2, _ = self.cross_attn(query_pos,
                                reference_points,
                                src, src_spatial_shapes, level_start_index, src_padding_mask)
         tgt = tgt + self.dropout1(tgt2)
