@@ -120,10 +120,10 @@ class DeformableTransformer(nn.Module):
             reference_points = self.reference_points(query_embed).sigmoid()
             init_reference_out = reference_points
         else:
-            reference_points = query_embed[..., self.d_model:].sigmoid()
-            tgt = query_embed[..., :self.d_model]
-            # reference_points = query_embed[..., self.d_model * 3:].sigmoid()
-            # tgt = query_embed[..., :self.d_model * 3]
+            # reference_points = query_embed[..., self.d_model:].sigmoid()
+            # tgt = query_embed[..., :self.d_model]
+            reference_points = query_embed[..., self.d_model * 3:].sigmoid()
+            tgt = query_embed[..., :self.d_model * 3]
             init_reference_out = reference_points
             query_embed = None
 
@@ -273,17 +273,17 @@ class DeformableTransformerDecoderLayer(nn.Module):
 class DeformableTransformerDecoder(nn.Module):
     def __init__(self, decoder_layer, num_layers, d_model, return_intermediate=False):
         super().__init__()
-        self.layers = _get_clones(decoder_layer, num_layers)
-        # self.S_layers = _get_clones(decoder_layer, num_layers)
-        # self.E_layers = _get_clones(decoder_layer, num_layers)
-        # self.C_layers = _get_clones(decoder_layer, num_layers)
+        # self.layers = _get_clones(decoder_layer, num_layers)
+        self.S_layers = _get_clones(decoder_layer, num_layers)
+        self.E_layers = _get_clones(decoder_layer, num_layers)
+        self.C_layers = _get_clones(decoder_layer, num_layers)
         self.num_layers = num_layers
         self.d_model = d_model
         self.return_intermediate = return_intermediate
         # hack implementation for iterative bounding box refinement and two-stage Deformable DETR
-        self.segment_embed = None
-        # self.S_segment_embed = None
-        # self.E_segment_embed = None
+        # self.segment_embed = None
+        self.S_segment_embed = None
+        self.E_segment_embed = None
         self.class_embed = None
 
         self.query_scale = MLP(d_model, d_model, d_model, 2)
@@ -300,8 +300,8 @@ class DeformableTransformerDecoder(nn.Module):
         output = tgt
         intermediate = []
         intermediate_reference_points = []
-        for lid, layer in enumerate(self.layers):
-        # for lid in range(self.num_layers):
+        # for lid, layer in enumerate(self.layers):
+        for lid in range(self.num_layers):
             # (bs, nq, 1, 1 or 2) x (bs, 1, num_level, 1) => (bs, nq, num_level, 1 or 2)
             reference_points_input = reference_points[:, :, None] * src_valid_ratios[:, None,:, None]
             if query_pos is None:
@@ -309,56 +309,56 @@ class DeformableTransformerDecoder(nn.Module):
                 pos_scale = self.query_scale(output) if lid != 0 else 1
                 query_pos = pos_scale * raw_query_pos
 
-            output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index,
-                           src_padding_mask)
+            # output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index,
+            #                src_padding_mask)
 
-            # reference_points_input = reference_points_input.sigmoid()
-            # W = inverse_sigmoid(torch.clamp(reference_points_input[..., 1] - reference_points_input[..., 0], 0.0, 1.0))
-            # C = inverse_sigmoid(torch.clamp(reference_points_input[..., 0] + reference_points_input[..., 1] / 2.0,
-            #                                 0.0, 1.0))
-            #
-            # S_output = output[..., :self.d_model]
-            # S_ref_points = torch.stack((reference_points_input[..., 0], W), dim=-1)
-            # S_output = self.S_layers[lid](S_output, query_pos, S_ref_points,
-            #                               src, src_spatial_shapes, src_level_start_index, src_padding_mask)
-            #
-            # E_output = output[..., self.d_model:self.d_model * 2]
-            # E_ref_points = torch.stack((reference_points_input[..., 1], W), dim=-1)
-            # E_output = self.E_layers[lid](E_output, query_pos, E_ref_points,
-            #                               src, src_spatial_shapes, src_level_start_index, src_padding_mask)
-            #
-            # C_output = output[..., self.d_model * 2:]
-            # C_ref_points = torch.stack((C, W), dim=-1)
-            # C_output = self.C_layers[lid](C_output, query_pos, C_ref_points,
-            #                               src, src_spatial_shapes, src_level_start_index, src_padding_mask)
-            #
-            # output = torch.cat((S_output, E_output, C_output), dim=-1)
+            reference_points_input = reference_points_input.sigmoid()
+            W = inverse_sigmoid(torch.clamp(reference_points_input[..., 1] - reference_points_input[..., 0], 0.0, 1.0))
+            C = inverse_sigmoid(torch.clamp(reference_points_input[..., 0] + reference_points_input[..., 1] / 2.0,
+                                            0.0, 1.0))
+
+            S_output = output[..., :self.d_model]
+            S_ref_points = torch.stack((reference_points_input[..., 0], W), dim=-1)
+            S_output = self.S_layers[lid](S_output, query_pos, S_ref_points,
+                                          src, src_spatial_shapes, src_level_start_index, src_padding_mask)
+
+            E_output = output[..., self.d_model:self.d_model * 2]
+            E_ref_points = torch.stack((reference_points_input[..., 1], W), dim=-1)
+            E_output = self.E_layers[lid](E_output, query_pos, E_ref_points,
+                                          src, src_spatial_shapes, src_level_start_index, src_padding_mask)
+
+            C_output = output[..., self.d_model * 2:]
+            C_ref_points = torch.stack((C, W), dim=-1)
+            C_output = self.C_layers[lid](C_output, query_pos, C_ref_points,
+                                          src, src_spatial_shapes, src_level_start_index, src_padding_mask)
+
+            output = torch.cat((S_output, E_output, C_output), dim=-1)
 
             # hack implementation for segment refinement
-            if self.segment_embed is not None:
-            # if self.S_segment_embed is not None:
-                # update the reference point/segment of the next layer according to the output from the current layer
-                tmp = self.segment_embed[lid](output)
-                if reference_points.shape[-1] == 2:
-                    new_reference_points = tmp + inverse_sigmoid(reference_points)
-                    new_reference_points = new_reference_points.sigmoid()
-                else:
-                    # at the 0-th decoder layer
-                    # d^(n+1) = delta_d^(n+1)
-                    # c^(n+1) = sigmoid( inverse_sigmoid(c^(n)) + delta_c^(n+1))
-                    assert reference_points.shape[-1] == 1
-                    new_reference_points = tmp
-                    new_reference_points[..., :1] = tmp[..., :1] + inverse_sigmoid(reference_points)
-                    new_reference_points = new_reference_points.sigmoid()
-                reference_points = new_reference_points.detach()
-
-                # E_tmp = self.S_segment_embed[lid](S_output)
-                # S_tmp = self.E_segment_embed[lid](E_output)
-                # new_reference_points = inverse_sigmoid(reference_points)
-                # new_reference_points[..., 0] = S_tmp.squeeze(-1) + new_reference_points[..., 0]
-                # new_reference_points[..., 1] = E_tmp.squeeze(-1) + new_reference_points[..., 1]
-                # new_reference_points = new_reference_points.sigmoid()
+            # if self.segment_embed is not None:
+            if self.S_segment_embed is not None:
+                # # update the reference point/segment of the next layer according to the output from the current layer
+                # tmp = self.segment_embed[lid](output)
+                # if reference_points.shape[-1] == 2:
+                #     new_reference_points = tmp + inverse_sigmoid(reference_points)
+                #     new_reference_points = new_reference_points.sigmoid()
+                # else:
+                #     # at the 0-th decoder layer
+                #     # d^(n+1) = delta_d^(n+1)
+                #     # c^(n+1) = sigmoid( inverse_sigmoid(c^(n)) + delta_c^(n+1))
+                #     assert reference_points.shape[-1] == 1
+                #     new_reference_points = tmp
+                #     new_reference_points[..., :1] = tmp[..., :1] + inverse_sigmoid(reference_points)
+                #     new_reference_points = new_reference_points.sigmoid()
                 # reference_points = new_reference_points.detach()
+
+                S_tmp = self.S_segment_embed[lid](S_output)
+                E_tmp = self.E_segment_embed[lid](E_output)
+                new_reference_points = inverse_sigmoid(reference_points)
+                new_reference_points[..., 0] = S_tmp.squeeze(-1) + new_reference_points[..., 0]
+                new_reference_points[..., 1] = E_tmp.squeeze(-1) + new_reference_points[..., 1]
+                new_reference_points = new_reference_points.sigmoid()
+                reference_points = new_reference_points.detach()
 
             if self.return_intermediate:
                 intermediate.append(output)
