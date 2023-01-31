@@ -69,8 +69,8 @@ class TadTR(nn.Module):
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         # self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
-        self.S_segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
-        self.E_segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
+        self.S_segment_embed = MLP(hidden_dim, hidden_dim, 1, 3)
+        self.E_segment_embed = MLP(hidden_dim, hidden_dim, 1, 3)
         self.query_embed = nn.Embedding(num_queries, hidden_dim*2)
         self.tgt_embed = nn.Embedding(num_queries, hidden_dim * 3)  # for indicator
         self.refpoint_embed = nn.Embedding(num_queries, 2)
