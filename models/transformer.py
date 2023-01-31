@@ -326,7 +326,7 @@ class DeformableTransformerDecoder(nn.Module):
 
             S_output = output[..., :self.d_model]
             S_ref_points = torch.stack((reference_points_input[..., 0], W), dim=-1)
-            if query_pos is None:
+            if self.use_dab:
                 raw_query_pos = self.S_ref_point_head(reference_points_input[:, :, 0, :])
                 pos_scale = self.S_query_scale(S_output) if lid != 0 else 1
                 query_pos = pos_scale * raw_query_pos
@@ -335,7 +335,7 @@ class DeformableTransformerDecoder(nn.Module):
 
             E_output = output[..., self.d_model:self.d_model * 2]
             E_ref_points = torch.stack((reference_points_input[..., 1], W), dim=-1)
-            if query_pos is None:
+            if self.use_dab:
                 raw_query_pos = self.E_ref_point_head(reference_points_input[:, :, 0, :])
                 pos_scale = self.E_query_scale(E_output) if lid != 0 else 1
                 query_pos = pos_scale * raw_query_pos
@@ -344,7 +344,7 @@ class DeformableTransformerDecoder(nn.Module):
 
             C_output = output[..., self.d_model * 2:]
             C_ref_points = torch.stack((C, W), dim=-1)
-            if query_pos is None:
+            if self.use_dab:
                 raw_query_pos = self.C_ref_point_head(reference_points_input[:, :, 0, :])
                 pos_scale = self.C_query_scale(C_output) if lid != 0 else 1
                 query_pos = pos_scale * raw_query_pos
