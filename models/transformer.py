@@ -247,10 +247,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         if not cfg.disable_query_self_att:
             # self attention
             q = k = self.with_pos_embed(tgt, query_pos)
-            tgt2, Q_weights = self.self_attn(query_pos.transpose(0, 1), query_pos.transpose(0, 1), tgt.transpose(0, 1))
+            tgt2, Q_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
             tgt2 = tgt2.transpose(0, 1)
-
-            print(Q_weights[0, 0])
 
             # tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos + tgt_pos[0]),
             #                           reference_points,
@@ -323,7 +321,6 @@ class DeformableTransformerDecoder(nn.Module):
             # output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index,
             #                src_padding_mask)
 
-            reference_points_input = reference_points_input.sigmoid()
             W = inverse_sigmoid(torch.clamp(reference_points_input[..., 1] - reference_points_input[..., 0], 0.0, 1.0))
             C = inverse_sigmoid(torch.clamp(reference_points_input[..., 0] + reference_points_input[..., 1] / 2.0,
                                             0.0, 1.0))
