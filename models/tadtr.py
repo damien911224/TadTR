@@ -68,11 +68,12 @@ class TadTR(nn.Module):
         self.transformer = transformer
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes)
-        # self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
-        self.S_segment_embed = MLP(hidden_dim, hidden_dim, 1, 3)
-        self.E_segment_embed = MLP(hidden_dim, hidden_dim, 1, 3)
+        self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
+        # self.S_segment_embed = MLP(hidden_dim, hidden_dim, 1, 3)
+        # self.E_segment_embed = MLP(hidden_dim, hidden_dim, 1, 3)
         self.query_embed = nn.Embedding(num_queries, hidden_dim*2)
-        self.tgt_embed = nn.Embedding(num_queries, hidden_dim * 3)  # for indicator
+        self.tgt_embed = nn.Embedding(num_queries, hidden_dim)
+        # self.tgt_embed = nn.Embedding(num_queries, hidden_dim * 3)
         self.refpoint_embed = nn.Embedding(num_queries, 2)
 
         self.input_proj = nn.ModuleList([
@@ -89,12 +90,12 @@ class TadTR(nn.Module):
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         self.class_embed.bias.data = torch.ones(num_classes) * bias_value
-        # nn.init.constant_(self.segment_embed.layers[-1].weight.data, 0)
-        # nn.init.constant_(self.segment_embed.layers[-1].bias.data, 0)
-        nn.init.constant_(self.S_segment_embed.layers[-1].weight.data, 0)
-        nn.init.constant_(self.S_segment_embed.layers[-1].bias.data, 0)
-        nn.init.constant_(self.E_segment_embed.layers[-1].weight.data, 0)
-        nn.init.constant_(self.E_segment_embed.layers[-1].bias.data, 0)
+        nn.init.constant_(self.segment_embed.layers[-1].weight.data, 0)
+        nn.init.constant_(self.segment_embed.layers[-1].bias.data, 0)
+        # nn.init.constant_(self.S_segment_embed.layers[-1].weight.data, 0)
+        # nn.init.constant_(self.S_segment_embed.layers[-1].bias.data, 0)
+        # nn.init.constant_(self.E_segment_embed.layers[-1].weight.data, 0)
+        # nn.init.constant_(self.E_segment_embed.layers[-1].bias.data, 0)
         for proj in self.input_proj:
             nn.init.xavier_uniform_(proj[0].weight, gain=1)
             nn.init.constant_(proj[0].bias, 0)
@@ -102,19 +103,19 @@ class TadTR(nn.Module):
         num_pred = transformer.decoder.num_layers
         if with_segment_refine:
             self.class_embed = _get_clones(self.class_embed, num_pred)
-            # self.segment_embed = _get_clones(self.segment_embed, num_pred)
+            self.segment_embed = _get_clones(self.segment_embed, num_pred)
+            nn.init.constant_(
+                self.segment_embed[0].layers[-1].bias.data[1:], -2.0)
+            # self.S_segment_embed = _get_clones(self.S_segment_embed, num_pred)
             # nn.init.constant_(
-            #     self.segment_embed[0].layers[-1].bias.data[1:], -2.0)
-            self.S_segment_embed = _get_clones(self.S_segment_embed, num_pred)
-            nn.init.constant_(
-                self.S_segment_embed[0].layers[-1].bias.data[1:], -2.0)
-            self.E_segment_embed = _get_clones(self.E_segment_embed, num_pred)
-            nn.init.constant_(
-                self.E_segment_embed[0].layers[-1].bias.data[1:], -2.0)
+            #     self.S_segment_embed[0].layers[-1].bias.data[1:], -2.0)
+            # self.E_segment_embed = _get_clones(self.E_segment_embed, num_pred)
+            # nn.init.constant_(
+            #     self.E_segment_embed[0].layers[-1].bias.data[1:], -2.0)
             # hack implementation for segment refinement
-            # self.transformer.decoder.segment_embed = self.segment_embed
-            self.transformer.decoder.S_segment_embed = self.S_segment_embed
-            self.transformer.decoder.E_segment_embed = self.E_segment_embed
+            self.transformer.decoder.segment_embed = self.segment_embed
+            # self.transformer.decoder.S_segment_embed = self.S_segment_embed
+            # self.transformer.decoder.E_segment_embed = self.E_segment_embed
             self.transformer.decoder.class_embed = self.class_embed
         else:
             nn.init.constant_(
@@ -257,31 +258,33 @@ class TadTR(nn.Module):
 
             reference = inverse_sigmoid(reference)
 
-            # outputs_class = self.class_embed[lvl](hs[lvl])
-            # tmp = self.segment_embed[lvl](hs[lvl])
-            # # the l-th layer (l >= 2)
-            # if reference.shape[-1] == 2:
-            #     tmp += reference
-            # # the first layer
-            # else:
-            #     assert reference.shape[-1] == 1
-            #     tmp[..., 0] += reference[..., 0]
-
-            S_hs = hs[lvl][..., :self.transformer.d_model]
-            E_hs = hs[lvl][..., self.transformer.d_model:self.transformer.d_model * 2]
-            C_hs = hs[lvl][..., self.transformer.d_model * 2:]
-
-            outputs_class = self.class_embed[lvl](C_hs)
-
-            E_tmp = self.S_segment_embed[lvl](S_hs)
-            S_tmp = self.E_segment_embed[lvl](E_hs)
-            tmp = reference
+            outputs_class = self.class_embed[lvl](hs[lvl])
+            tmp = self.segment_embed[lvl](hs[lvl])
             # the l-th layer (l >= 2)
             if reference.shape[-1] == 2:
-                tmp[..., 0] = tmp[..., 0] + S_tmp.squeeze(-1)
-                tmp[..., 1] = tmp[..., 1] + E_tmp.squeeze(-1)
+                tmp += reference
+            # the first layer
+            else:
+                assert reference.shape[-1] == 1
+                tmp[..., 0] += reference[..., 0]
 
-            outputs_coord = segment_ops.segment_t1t2_to_cw(tmp.sigmoid())
+            # S_hs = hs[lvl][..., :self.transformer.d_model]
+            # E_hs = hs[lvl][..., self.transformer.d_model:self.transformer.d_model * 2]
+            # C_hs = hs[lvl][..., self.transformer.d_model * 2:]
+            #
+            # outputs_class = self.class_embed[lvl](C_hs)
+            #
+            # E_tmp = self.S_segment_embed[lvl](S_hs)
+            # S_tmp = self.E_segment_embed[lvl](E_hs)
+            # tmp = reference
+            # # the l-th layer (l >= 2)
+            # if reference.shape[-1] == 2:
+            #     tmp[..., 0] = tmp[..., 0] + S_tmp.squeeze(-1)
+            #     tmp[..., 1] = tmp[..., 1] + E_tmp.squeeze(-1)
+
+            # outputs_coord = segment_ops.segment_t1t2_to_cw(tmp.sigmoid())
+
+            outputs_coord = tmp.sigmoid()
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
         outputs_class = torch.stack(outputs_classes)
