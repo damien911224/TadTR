@@ -321,9 +321,8 @@ class DeformableTransformerDecoder(nn.Module):
             # output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index,
             #                src_padding_mask)
 
-            W = inverse_sigmoid(torch.clamp(reference_points_input[..., 1] - reference_points_input[..., 0], 0.0, 1.0))
-            C = inverse_sigmoid(torch.clamp(reference_points_input[..., 0] + reference_points_input[..., 1] / 2.0,
-                                            0.0, 1.0))
+            W = torch.clamp(reference_points_input[..., 1] - reference_points_input[..., 0], 0.0, 1.0)
+            C = torch.clamp(reference_points_input[..., 0] + reference_points_input[..., 1] / 2.0, 0.0, 1.0)
 
             S_output = output[..., :self.d_model]
             S_ref_points = torch.stack((reference_points_input[..., 0], W), dim=-1)
