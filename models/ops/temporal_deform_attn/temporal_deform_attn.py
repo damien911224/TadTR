@@ -138,7 +138,6 @@ class DeformAttn(nn.Module):
             sampling_locations = reference_points[:, :, None, :, None, :1] \
                 + sampling_offsets / self.n_points * \
                 reference_points[:, :, None, :, None, 1:] * 0.5
-
         else:
             raise ValueError(
                 'Last dim of reference_points must be 1 or 2, but get {} instead.'.format(reference_points.shape[-1]))

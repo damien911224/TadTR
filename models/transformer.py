@@ -47,7 +47,7 @@ class DeformableTransformer(nn.Module):
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
 
-        self.reference_points = nn.Linear(d_model, 1)
+        self.reference_points = nn.Linear(d_model, 2)
 
         self._reset_parameters()
 
@@ -69,7 +69,7 @@ class DeformableTransformer(nn.Module):
         valid_ratio = valid_T.float() / T
         return valid_ratio    # shape=(bs)
 
-    def forward(self, srcs, masks, pos_embeds, query_embed=None, tgt_pos=None):
+    def forward(self, srcs, masks, pos_embeds, query_embed=None):
         '''
         Params:
             srcs: list of Tensor with shape (bs, c, t)
@@ -127,8 +127,7 @@ class DeformableTransformer(nn.Module):
 
         # decoder
         hs, inter_references = self.decoder(tgt, reference_points, memory,
-                                            temporal_lens, level_start_index, valid_ratios, query_embed, mask_flatten,
-                                            tgt_pos=tgt_pos)
+                                            temporal_lens, level_start_index, valid_ratios, query_embed, mask_flatten)
         inter_references_out = inter_references 
         return hs, init_reference_out, inter_references_out, memory.transpose(1, 2)
 
@@ -242,7 +241,7 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt = self.norm3(tgt)
         return tgt
 
-    def forward(self, tgt, query_pos, reference_points, src, src_spatial_shapes, level_start_index, src_padding_mask=None, tgt_pos=None):
+    def forward(self, tgt, query_pos, reference_points, src, src_spatial_shapes, level_start_index, src_padding_mask=None):
         if not cfg.disable_query_self_att:
             # self attention
             q = k = self.with_pos_embed(tgt, query_pos)
@@ -272,19 +271,24 @@ class DeformableTransformerDecoderLayer(nn.Module):
 class DeformableTransformerDecoder(nn.Module):
     def __init__(self, decoder_layer, num_layers, d_model, return_intermediate=False):
         super().__init__()
-        self.layers = _get_clones(decoder_layer, num_layers)
+        # self.layers = _get_clones(decoder_layer, num_layers)
+        self.S_layers = _get_clones(decoder_layer, num_layers)
+        self.E_layers = _get_clones(decoder_layer, num_layers)
+        self.C_layers = _get_clones(decoder_layer, num_layers)
         self.num_layers = num_layers
         self.d_model = d_model
         self.return_intermediate = return_intermediate
         # hack implementation for iterative bounding box refinement and two-stage Deformable DETR
         self.segment_embed = None
+        self.S_segment_embed = None
+        self.E_segment_embed = None
         self.class_embed = None
 
         self.query_scale = MLP(d_model, d_model, d_model, 2)
         self.ref_point_head = MLP(2, d_model, d_model, 3)
 
     def forward(self, tgt, reference_points, src, src_spatial_shapes, src_level_start_index, src_valid_ratios,
-                query_pos=None, src_padding_mask=None, tgt_pos=None):
+                query_pos=None, src_padding_mask=None):
         '''
         tgt: [bs, nq, C]
         reference_points: [bs, nq, 1 or 2]
@@ -294,52 +298,65 @@ class DeformableTransformerDecoder(nn.Module):
         output = tgt
         intermediate = []
         intermediate_reference_points = []
-        for lid, layer in enumerate(self.layers):
+        # for lid, layer in enumerate(self.layers):
+        for lid in range(self.num_layers):
             # (bs, nq, 1, 1 or 2) x (bs, 1, num_level, 1) => (bs, nq, num_level, 1 or 2)
             reference_points_input = reference_points[:, :, None] * src_valid_ratios[:, None,:, None]
             if query_pos is None:
                 raw_query_pos = self.ref_point_head(reference_points_input[:, :, 0, :])
                 pos_scale = self.query_scale(output) if lid != 0 else 1
                 query_pos = pos_scale * raw_query_pos
-            output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index, src_padding_mask,
-                           tgt_pos=tgt_pos)
-            
+
+            # output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index,
+            #                src_padding_mask)
+
+            reference_points_input = reference_points_input.sigmoid()
+            W = inverse_sigmoid(torch.clamp(reference_points_input[..., 1] - reference_points_input[..., 0], 0.0, 1.0))
+            C = inverse_sigmoid(torch.clamp(reference_points_input[..., 0] + reference_points_input[..., 1] / 2.0,
+                                            0.0, 1.0))
+
+            S_output = output[..., :self.d_model]
+            S_ref_points = torch.stack((reference_points_input[..., 0], W), dim=-1)
+            S_output = self.S_layers[lid](S_output, query_pos, S_ref_points,
+                                          src, src_spatial_shapes, src_level_start_index, src_padding_mask)
+
+            E_output = output[..., self.d_model:self.d_model * 2]
+            E_ref_points = torch.stack((reference_points_input[..., 1], W), dim=-1)
+            E_output = self.E_layers[lid](E_output, query_pos, E_ref_points,
+                                          src, src_spatial_shapes, src_level_start_index, src_padding_mask)
+
+            C_output = output[..., self.d_model * 2:]
+            C_ref_points = torch.stack((C, W), dim=-1)
+            C_output = self.C_layers[lid](C_output, query_pos, C_ref_points,
+                                          src, src_spatial_shapes, src_level_start_index, src_padding_mask)
+
+            output = torch.cat((S_output, E_output, C_output), dim=-1)
+
             # hack implementation for segment refinement
-            if self.segment_embed is not None:
+            # if self.segment_embed is not None:
+            if self.S_segment_embed is not None:
                 # update the reference point/segment of the next layer according to the output from the current layer
-                tmp = self.segment_embed[lid](output)
-                if reference_points.shape[-1] == 2:
-                    new_reference_points = tmp + inverse_sigmoid(reference_points)
-                    new_reference_points = new_reference_points.sigmoid()
-                else:
-                    # at the 0-th decoder layer
-                    # d^(n+1) = delta_d^(n+1)
-                    # c^(n+1) = sigmoid( inverse_sigmoid(c^(n)) + delta_c^(n+1))
-                    assert reference_points.shape[-1] == 1
-                    new_reference_points = tmp
-                    new_reference_points[..., :1] = tmp[..., :1] + inverse_sigmoid(reference_points)
-                    new_reference_points = new_reference_points.sigmoid()
+                # tmp = self.segment_embed[lid](output)
+                # if reference_points.shape[-1] == 2:
+                #     new_reference_points = tmp + inverse_sigmoid(reference_points)
+                #     new_reference_points = new_reference_points.sigmoid()
+                # else:
+                #     # at the 0-th decoder layer
+                #     # d^(n+1) = delta_d^(n+1)
+                #     # c^(n+1) = sigmoid( inverse_sigmoid(c^(n)) + delta_c^(n+1))
+                #     assert reference_points.shape[-1] == 1
+                #     new_reference_points = tmp
+                #     new_reference_points[..., :1] = tmp[..., :1] + inverse_sigmoid(reference_points)
+                #     new_reference_points = new_reference_points.sigmoid()
+                # reference_points = new_reference_points.detach()
+
+                E_tmp = self.S_segment_embed[lid](S_output)
+                S_tmp = self.E_segment_embed[lid](E_output)
+                new_reference_points = inverse_sigmoid(reference_points)
+                new_reference_points[..., 0] = S_tmp.squeeze(-1) + new_reference_points[..., 0]
+                new_reference_points[..., 1] = E_tmp.squeeze(-1) + new_reference_points[..., 1]
+                new_reference_points = new_reference_points.sigmoid()
                 reference_points = new_reference_points.detach()
-
-                boxes = segment_cw_to_t1t2(reference_points[..., :2].cpu())
-                scores, labels = torch.max(self.class_embed[lid](output).detach().cpu(), dim=-1)
-
-                valid_masks = list()
-                for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
-                    # 2: batched nms (only implemented on CPU)
-                    indices = dynamic_nms(
-                        b.contiguous(), s.contiguous(), l.contiguous(),
-                        iou_threshold=0.65,
-                        min_score=0.0,
-                        max_seg_num=1000,
-                        use_soft_nms=False,
-                        multiclass=False,
-                        sigma=0.75,
-                        voting_thresh=0.0)
-                    valid_mask = torch.isin(torch.arange(len(b)), indices).float().unsqueeze(-1)
-                    valid_masks.append(valid_mask)
-                valid_masks = torch.stack(valid_masks, dim=0).cuda()
-                output = valid_masks * output
 
             if self.return_intermediate:
                 intermediate.append(output)
