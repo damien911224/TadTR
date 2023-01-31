@@ -305,10 +305,11 @@ class DeformableTransformerDecoder(nn.Module):
         for lid in range(self.num_layers):
             # (bs, nq, 1, 1 or 2) x (bs, 1, num_level, 1) => (bs, nq, num_level, 1 or 2)
             reference_points_input = reference_points[:, :, None] * src_valid_ratios[:, None,:, None]
-            # if self.use_dab:
-            #     raw_query_pos = self.ref_point_head(reference_points_input[:, :, 0, :])
-            #     pos_scale = self.query_scale(output) if lid != 0 else 1
-            #     query_pos = pos_scale * raw_query_pos
+            if self.use_dab:
+                raw_query_pos = self.ref_point_head(reference_points_input[:, :, 0, :])
+                # pos_scale = self.query_scale(output) if lid != 0 else 1
+                pos_scale = 1
+                query_pos = pos_scale * raw_query_pos
 
             # output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index,
             #                src_padding_mask)
