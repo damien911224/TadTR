@@ -72,7 +72,7 @@ class TadTR(nn.Module):
         self.S_segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
         self.E_segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
         self.query_embed = nn.Embedding(num_queries, hidden_dim*2)
-        self.tgt_embed = nn.Embedding(num_queries, hidden_dim)  # for indicator
+        self.tgt_embed = nn.Embedding(num_queries, hidden_dim * 3)  # for indicator
         self.refpoint_embed = nn.Embedding(num_queries, 2)
 
         self.input_proj = nn.ModuleList([
