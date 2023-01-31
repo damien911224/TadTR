@@ -165,7 +165,7 @@ cfg.clip_max_norm = 0.1
 cfg.epochs = 32 # 16
 
 # when to decay lr
-cfg.lr_step = [28]
+cfg.lr_step = [28] # [14]
 # save checkpoint every N epochs. Set it to a small value if you want to save intermediate models
 cfg.ckpt_interval = 10
 # update parameters every N forward-backward passes. N=1 (default)
