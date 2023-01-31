@@ -28,7 +28,7 @@ class DeformableTransformer(nn.Module):
     def __init__(self, d_model=256, nhead=8,
                  num_encoder_layers=6, num_decoder_layers=6, dim_feedforward=1024, dropout=0.1,
                  activation="relu", return_intermediate_dec=False,
-                 num_feature_levels=4, dec_n_points=4,  enc_n_points=4, use_dab=False):
+                 num_feature_levels=4, dec_n_points=4,  enc_n_points=4, use_dab=True):
         super().__init__()
 
         self.d_model = d_model
@@ -244,11 +244,11 @@ class DeformableTransformerDecoderLayer(nn.Module):
         return tgt
 
     def forward(self, tgt, query_pos, reference_points, src, src_spatial_shapes, level_start_index, src_padding_mask=None):
-        query_pos = None
+
         if not cfg.disable_query_self_att:
             # self attention
-            q = k = self.with_pos_embed(tgt, query_pos)
-            # q = k = query_pos
+            # q = k = self.with_pos_embed(tgt, query_pos)
+            q = k = query_pos
             tgt2, Q_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
             tgt2 = tgt2.transpose(0, 1)
 
