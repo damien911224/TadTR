@@ -43,7 +43,8 @@ class DeformableTransformer(nn.Module):
         decoder_layer = DeformableTransformerDecoderLayer(d_model, dim_feedforward,
                                                           dropout, activation,
                                                           num_feature_levels, nhead, dec_n_points)
-        self.decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, d_model, return_intermediate_dec)
+        self.decoder = DeformableTransformerDecoder(decoder_layer, num_decoder_layers, d_model, return_intermediate_dec,
+                                                    use_dab=use_dab)
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
 
@@ -270,7 +271,7 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
 
 class DeformableTransformerDecoder(nn.Module):
-    def __init__(self, decoder_layer, num_layers, d_model, return_intermediate=False):
+    def __init__(self, decoder_layer, num_layers, d_model, return_intermediate=False, use_dab=False):
         super().__init__()
         # self.layers = _get_clones(decoder_layer, num_layers)
         self.S_layers = _get_clones(decoder_layer, num_layers)
