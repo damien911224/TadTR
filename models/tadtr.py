@@ -278,8 +278,8 @@ class TadTR(nn.Module):
             tmp = reference
             # the l-th layer (l >= 2)
             if reference.shape[-1] == 2:
-                tmp[..., 0] = tmp[..., 0] + S_tmp
-                tmp[..., 1] = tmp[..., 1] + E_tmp
+                tmp[..., 0] = tmp[..., 0] + S_tmp.squeeze(-1)
+                tmp[..., 1] = tmp[..., 1] + E_tmp.squeeze(-1)
 
             outputs_coord = segment_ops.segment_t1t2_to_cw(tmp.sigmoid())
             outputs_classes.append(outputs_class)
