@@ -259,14 +259,14 @@ class TadTR(nn.Module):
             reference = inverse_sigmoid(reference)
 
             outputs_class = self.class_embed[lvl](hs[lvl])
-            tmp = self.segment_embed[lvl](hs[lvl])
-            # the l-th layer (l >= 2)
-            if reference.shape[-1] == 2:
-                tmp += reference
-            # the first layer
-            else:
-                assert reference.shape[-1] == 1
-                tmp[..., 0] += reference[..., 0]
+            # tmp = self.segment_embed[lvl](hs[lvl])
+            # # the l-th layer (l >= 2)
+            # if reference.shape[-1] == 2:
+            #     tmp += reference
+            # # the first layer
+            # else:
+            #     assert reference.shape[-1] == 1
+            #     tmp[..., 0] += reference[..., 0]
 
             # S_hs = hs[lvl][..., :self.transformer.d_model]
             # E_hs = hs[lvl][..., self.transformer.d_model:self.transformer.d_model * 2]
