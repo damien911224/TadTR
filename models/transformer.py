@@ -253,8 +253,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         # query_pos = None
         if not cfg.disable_query_self_att:
             # self attention
-            # q = k = self.with_pos_embed(tgt, query_pos)
-            q = k = query_pos
+            q = k = self.with_pos_embed(tgt, query_pos)
+            # q = k = query_pos
             tgt2, Q_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
             tgt2 = tgt2.transpose(0, 1)
 
