@@ -418,9 +418,7 @@ class TransformerDecoderLayer(nn.Module):
 
             # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
             top_1_indices = torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, 0]
-            print(ref_points.shape)
-            exit()
-            print(ref_points.detach().cpu()[0][top_1_indices].numpy())
+            print(ref_points.detach().cpu()[:, 0][top_1_indices].numpy())
             # Q_weights = Q_weights.detach().cpu()
             # print(torch.argsort(-Q_weights[0, 0].detach().cpu(), dim=-1)[:10].numpy())
             # print(Q_weights[0, 0][torch.argsort(-Q_weights[0, 0], dim=-1)[:10]].numpy())
