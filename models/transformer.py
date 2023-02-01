@@ -171,7 +171,7 @@ class DeformableTransformerEncoderLayer(nn.Module):
         src2, _ = self.self_attn(self.with_pos_embed(src, pos), reference_points, src, spatial_shapes, level_start_index, padding_mask)
         # q = k = self.with_pos_embed(src, pos)
         # src2, _ = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), src.transpose(0, 1))
-        src2 = src2.transpose(0, 1)
+        # src2 = src2.transpose(0, 1)
         src = src + self.dropout1(src2)
         src = self.norm1(src)
 
