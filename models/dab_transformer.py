@@ -265,7 +265,7 @@ class TransformerDecoder(nn.Module):
                 intermediate.append(output)
 
         if self.return_intermediate:
-            if self.bbox_embed is not None:
+            if self.segment_embed is not None:
                 return [
                     torch.stack(intermediate).transpose(1, 2),
                     torch.stack(ref_points).transpose(1, 2),
