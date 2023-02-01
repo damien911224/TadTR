@@ -50,7 +50,7 @@ def get_args_parser():
 cfg = EasyDict()
 # ---- Basic option ----
 # whether to enable tensorboard
-cfg.tensorboard = False
+cfg.tensorboard = True
 # Disable CUDA extensions so that we can run the model on CPU
 cfg.disable_cuda = False
 # The backend of deformable attention, pytorch or CUDA
