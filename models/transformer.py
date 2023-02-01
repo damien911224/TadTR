@@ -247,21 +247,21 @@ class DeformableTransformerDecoderLayer(nn.Module):
         # query_pos = None
         if not cfg.disable_query_self_att:
             # self attention
-            # q = k = self.with_pos_embed(tgt, query_pos)
-            q = k = query_pos
+            q = k = self.with_pos_embed(tgt, query_pos)
+            # q = k = query_pos
             tgt2, Q_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
             tgt2 = tgt2.transpose(0, 1)
 
-            # q = k = tgt
-            # _, C_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
-            # q = k = query_pos
-            # _, P_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
-            #
-            # N, Q, _ = Q_weights.shape
-            # Q_C = torch.bmm(Q_weights.flatten(1).unsqueeze(-2), C_weights.flatten(1).unsqueeze(-1)).mean()
-            # Q_P = torch.bmm(Q_weights.flatten(1).unsqueeze(-2), P_weights.flatten(1).unsqueeze(-1)).mean()
-            #
-            # print(Q_C.detach().cpu().numpy(), Q_P.detach().cpu().numpy())
+            q = k = tgt
+            _, C_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
+            q = k = query_pos
+            _, P_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
+
+            N, Q, _ = Q_weights.shape
+            Q_C = torch.bmm(Q_weights.flatten(1).unsqueeze(-2), C_weights.flatten(1).unsqueeze(-1)).mean()
+            Q_P = torch.bmm(Q_weights.flatten(1).unsqueeze(-2), P_weights.flatten(1).unsqueeze(-1)).mean()
+
+            print(Q_C.detach().cpu().numpy(), Q_P.detach().cpu().numpy())
 
             # tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos + tgt_pos[0]),
             #                           reference_points,
@@ -273,12 +273,12 @@ class DeformableTransformerDecoderLayer(nn.Module):
         else:
             pass
         # cross attention
-        # tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos),
-        #                        reference_points,
-        #                        src, src_spatial_shapes, level_start_index, src_padding_mask)
-        tgt2, _ = self.cross_attn(query_pos,
+        tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos),
                                reference_points,
                                src, src_spatial_shapes, level_start_index, src_padding_mask)
+        # tgt2, _ = self.cross_attn(query_pos,
+        #                        reference_points,
+        #                        src, src_spatial_shapes, level_start_index, src_padding_mask)
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
 
