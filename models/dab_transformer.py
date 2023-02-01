@@ -64,7 +64,7 @@ class Transformer(nn.Module):
                  activation="relu", normalize_before=False,
                  return_intermediate_dec=False, query_dim=4,
                  keep_query_pos=False, query_scale_type='cond_elewise',
-                 num_patterns=3,
+                 num_patterns=0,
                  modulate_hw_attn=True,
                  bbox_embed_diff_each_layer=False,
                  ):
