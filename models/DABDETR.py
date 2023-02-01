@@ -168,7 +168,7 @@ class TadTR(nn.Module):
         src, mask = samples.tensors, samples.mask
 
         embedweight = self.refpoint_embed.weight
-        hs, reference = self.transformer(self.input_proj(src), mask, embedweight, pos[-1])
+        hs, reference = self.transformer(self.input_proj[0](src), mask, embedweight, pos[-1])
 
         reference_before_sigmoid = inverse_sigmoid(reference)
         tmp = self.segment_embed(hs)
