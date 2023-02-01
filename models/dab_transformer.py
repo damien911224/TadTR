@@ -241,7 +241,7 @@ class TransformerDecoder(nn.Module):
                            tgt_key_padding_mask=tgt_key_padding_mask,
                            memory_key_padding_mask=memory_key_padding_mask,
                            pos=pos, query_pos=query_pos, query_sine_embed=query_sine_embed,
-                           is_first=(layer_id == 0))
+                           is_first=(layer_id == 0), ref_points=reference_points)
 
             # iter update
             if self.segment_embed is not None:
@@ -368,14 +368,14 @@ class TransformerDecoderLayer(nn.Module):
         return tensor if pos is None else tensor + pos
 
     def forward(self, tgt, memory,
-                     tgt_mask: Optional[Tensor] = None,
-                     memory_mask: Optional[Tensor] = None,
-                     tgt_key_padding_mask: Optional[Tensor] = None,
-                     memory_key_padding_mask: Optional[Tensor] = None,
-                     pos: Optional[Tensor] = None,
-                     query_pos: Optional[Tensor] = None,
-                     query_sine_embed = None,
-                     is_first = False):
+                tgt_mask: Optional[Tensor] = None,
+                memory_mask: Optional[Tensor] = None,
+                tgt_key_padding_mask: Optional[Tensor] = None,
+                memory_key_padding_mask: Optional[Tensor] = None,
+                pos: Optional[Tensor] = None,
+                query_pos: Optional[Tensor] = None,
+                query_sine_embed=None,
+                is_first=False, ref_points=None):
                      
         # ========== Begin of Self-Attention =============
         if not self.rm_self_attn_decoder:
@@ -416,7 +416,9 @@ class TransformerDecoderLayer(nn.Module):
             #
             # print(Q_C.detach().cpu().numpy(), Q_P.detach().cpu().numpy())
 
-            print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+            # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+            top_1_indices = torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, 0]
+            print(ref_points.detach().cpu()[0][top_1_indices].numpy())
             # Q_weights = Q_weights.detach().cpu()
             # print(torch.argsort(-Q_weights[0, 0].detach().cpu(), dim=-1)[:10].numpy())
             # print(Q_weights[0, 0][torch.argsort(-Q_weights[0, 0], dim=-1)[:10]].numpy())
