@@ -65,7 +65,7 @@ class Transformer(nn.Module):
                  return_intermediate_dec=False, query_dim=4,
                  keep_query_pos=False, query_scale_type='cond_elewise',
                  num_patterns=0,
-                 modulate_hw_attn=False,
+                 modulate_hw_attn=True,
                  bbox_embed_diff_each_layer=False,
                  ):
 
@@ -171,8 +171,8 @@ class TransformerDecoder(nn.Module):
         assert query_scale_type in ['cond_elewise', 'cond_scalar', 'fix_elewise']
         self.query_scale_type = query_scale_type
         if query_scale_type == 'cond_elewise':
-            # self.query_scale = MLP(d_model, d_model, d_model // 2, 2)
-            self.query_scale = MLP(d_model, d_model, d_model, 2)
+            self.query_scale = MLP(d_model, d_model, d_model // 2, 2)
+            # self.query_scale = MLP(d_model, d_model, d_model, 2)
         elif query_scale_type == 'cond_scalar':
             self.query_scale = MLP(d_model, d_model, 1, 2)
         elif query_scale_type == 'fix_elewise':
@@ -228,8 +228,8 @@ class TransformerDecoder(nn.Module):
                 pos_transformation = self.query_scale.weight[layer_id]
 
             # apply transformation
-            # query_sine_embed = query_sine_embed[..., :self.d_model // 2] * pos_transformation
-            query_sine_embed = query_sine_embed * pos_transformation
+            query_sine_embed = query_sine_embed[..., :self.d_model // 2] * pos_transformation
+            # query_sine_embed = query_sine_embed * pos_transformation
 
             # modulated HW attentions
             if self.modulate_hw_attn:

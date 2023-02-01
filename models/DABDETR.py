@@ -77,13 +77,13 @@ class TadTR(nn.Module):
         self.random_refpoints_xy = random_refpoints_xy
         if random_refpoints_xy:
             # import ipdb; ipdb.set_trace()
-            # self.refpoint_embed.weight.data[:, :1].uniform_(0, 1)
-            # self.refpoint_embed.weight.data[:, :1] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :1])
-            # self.refpoint_embed.weight.data[:, :1].requires_grad = False
+            self.refpoint_embed.weight.data[:, :1].uniform_(0, 1)
+            self.refpoint_embed.weight.data[:, :1] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :1])
+            self.refpoint_embed.weight.data[:, :1].requires_grad = False
 
-            self.refpoint_embed.weight.data[:, :2].uniform_(0, 1)
-            self.refpoint_embed.weight.data[:, :2] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :2])
-            self.refpoint_embed.weight.data[:, :2].requires_grad = False
+            # self.refpoint_embed.weight.data[:, :2].uniform_(0, 1)
+            # self.refpoint_embed.weight.data[:, :2] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :2])
+            # self.refpoint_embed.weight.data[:, :2].requires_grad = False
 
         self.input_proj = nn.ModuleList([
             nn.Sequential(
@@ -176,7 +176,7 @@ class TadTR(nn.Module):
         reference_before_sigmoid = inverse_sigmoid(reference)
         tmp = self.segment_embed(hs)
         tmp[..., :self.query_dim] += reference_before_sigmoid
-        outputs_coord = segment_ops.segment_t1t2_to_cw(tmp.sigmoid())
+        # outputs_coord = segment_ops.segment_t1t2_to_cw(tmp.sigmoid())
 
         outputs_class = self.class_embed(hs)
 
