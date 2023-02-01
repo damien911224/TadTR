@@ -27,8 +27,7 @@ from util.misc import (NestedTensor, nested_tensor_from_tensor_list,
 from models.matcher import build_matcher
 from models.position_encoding import build_position_encoding
 from .custom_loss import sigmoid_focal_loss
-from .transformer import build_deformable_transformer
-# from .deformable_transformer import build_deformable_transformer
+from .dab_transformer import build_transformer
 from opts import cfg
 
 if not cfg.disable_cuda:
@@ -53,7 +52,7 @@ class TadTR(nn.Module):
     """ This is the TadTR module that performs temporal action detection """
 
     def __init__(self, position_embedding, transformer, num_classes, num_queries,
-                 aux_loss=True, with_segment_refine=True, with_act_reg=True,
+                 aux_loss=True, with_segment_refine=True, with_act_reg=False,
                  random_refpoints_xy=True, query_dim=2):
         """ Initializes the model.
         Parameters:
@@ -71,12 +70,17 @@ class TadTR(nn.Module):
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
-        # self.query_embed = nn.Embedding(num_queries, hidden_dim*2)
-        # self.tgt_embed = nn.Embedding(num_queries, hidden_dim)
-        # self.refpoint_embed = nn.Embedding(num_queries, 2)
 
         self.query_dim = query_dim
         self.random_refpoints_xy = random_refpoints_xy
+
+        self.refpoint_embed = nn.Embedding(num_queries, query_dim)
+        self.random_refpoints_xy = random_refpoints_xy
+        if random_refpoints_xy:
+            # import ipdb; ipdb.set_trace()
+            self.refpoint_embed.weight.data[:, :1].uniform_(0, 1)
+            self.refpoint_embed.weight.data[:, :1] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :1])
+            self.refpoint_embed.weight.data[:, :1].requires_grad = False
 
         self.input_proj = nn.ModuleList([
             nn.Sequential(
@@ -94,39 +98,14 @@ class TadTR(nn.Module):
         self.class_embed.bias.data = torch.ones(num_classes) * bias_value
         nn.init.constant_(self.segment_embed.layers[-1].weight.data, 0)
         nn.init.constant_(self.segment_embed.layers[-1].bias.data, 0)
-        # nn.init.constant_(self.S_segment_embed.layers[-1].weight.data, 0)
-        # nn.init.constant_(self.S_segment_embed.layers[-1].bias.data, 0)
-        # nn.init.constant_(self.E_segment_embed.layers[-1].weight.data, 0)
-        # nn.init.constant_(self.E_segment_embed.layers[-1].bias.data, 0)
         for proj in self.input_proj:
             nn.init.xavier_uniform_(proj[0].weight, gain=1)
             nn.init.constant_(proj[0].bias, 0)
 
         num_pred = transformer.decoder.num_layers
         if with_segment_refine:
-            self.class_embed = _get_clones(self.class_embed, num_pred)
-            self.segment_embed = _get_clones(self.segment_embed, num_pred)
-            nn.init.constant_(
-                self.segment_embed[0].layers[-1].bias.data[1:], -2.0)
-            # self.S_segment_embed = _get_clones(self.S_segment_embed, num_pred)
-            # nn.init.constant_(
-            #     self.S_segment_embed[0].layers[-1].bias.data[1:], -2.0)
-            # self.E_segment_embed = _get_clones(self.E_segment_embed, num_pred)
-            # nn.init.constant_(
-            #     self.E_segment_embed[0].layers[-1].bias.data[1:], -2.0)
             # hack implementation for segment refinement
             self.transformer.decoder.segment_embed = self.segment_embed
-            # self.transformer.decoder.S_segment_embed = self.S_segment_embed
-            # self.transformer.decoder.E_segment_embed = self.E_segment_embed
-            self.transformer.decoder.class_embed = self.class_embed
-        else:
-            nn.init.constant_(
-                self.segment_embed.layers[-1].bias.data[1:], -2.0)
-            self.class_embed = nn.ModuleList(
-                [self.class_embed for _ in range(num_pred)])
-            self.segment_embed = nn.ModuleList(
-                [self.segment_embed for _ in range(num_pred)])
-            self.transformer.decoder.segment_embed = None
 
         if with_act_reg:
             # RoIAlign params
@@ -141,15 +120,6 @@ class TadTR(nn.Module):
                 nn.Linear(hidden_dim, 1),
                 nn.Sigmoid()
             )
-
-        T, C = 100, hidden_dim
-        self.s_embeds = nn.Embedding(T, C // 2)
-        self.e_embeds = nn.Embedding(T, C // 2)
-        nn.init.uniform_(self.s_embeds.weight)
-        nn.init.uniform_(self.e_embeds.weight)
-
-        self.level_embed = nn.Parameter(torch.Tensor(5, hidden_dim))
-        nn.init.normal_(self.level_embed)
 
     def _to_roi_align_format(self, rois, T, scale_factor=1):
         '''Convert RoIs to RoIAlign format.
@@ -196,123 +166,34 @@ class TadTR(nn.Module):
 
         pos = [self.position_embedding(samples)]
         src, mask = samples.tensors, samples.mask
-        srcs = [self.input_proj[0](src)]
-        masks = [mask]
 
-        # query_embeds = self.query_embed.weight
+        embedweight = self.refpoint_embed.weight
+        hs, reference = self.transformer(self.input_proj(src), mask, embedweight, pos[-1])
 
-        input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
+        reference_before_sigmoid = inverse_sigmoid(reference)
+        tmp = self.segment_embed(hs)
+        tmp[..., :self.query_dim] += reference_before_sigmoid
+        outputs_coord = tmp.sigmoid()
 
-        hs, init_reference, inter_references, memory = self.transformer(srcs, masks, pos, query_embeds)
-
-        # T = srcs[0].size(2)
-        # tgt_pos = []
-        # points = []
-        # scales = []
-        # tgt_lens = []
-        # for l in range(5):
-        #     t = T / (2 ** l)
-        #     pos_1d_l = F.interpolate(pos[0], size=t, mode="linear") + self.level_embed[l].view(1, 1, -1)
-        #     tgt_pos.append(pos_1d_l)
-        #     this_points = torch.linspace(0.5, t - 0.5, t, dtype=torch.float32, device=src.device) / t
-        #     points.append(this_points)
-        #     this_scales = torch.ones_like(this_points) * (1.0 / (2 ** (5 - l - 1)))
-        #     scales.append(this_scales)
-        #     tgt_lens.append(t)
+        # if not self.with_act_reg:
+        #     out = {'pred_logits': outputs_class[-1],
+        #            'pred_segments': outputs_coord[-1]}
+        # else:
+        #     # perform RoIAlign
+        #     B, N = outputs_coord[-1].shape[:2]
+        #     origin_feat = memory
         #
-        # tgt_pos = torch.concat(tgt_pos, dim=1)
-        # tgt_lens = torch.as_tensor(tgt_lens, dtype=torch.long, device=src_flatten.device)
-        # tgt_level_start_index = torch.cat((tgt_lens.new_zeros((1,)), tgt_lens.cumsum(0)[:-1]))
-        # points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        # scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        # refpoint_embed = torch.concat((anchors, points, scales), dim=-1)
-        # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
-        # query_embeds = torch.cat((input_query_label, refpoint_embed), dim=2)
-
-        # hs, init_reference, inter_references, memory = self.transformer(
-        #     srcs, masks, pos, query_embeds, tgt_pos=[tgt_pos, tgt_lens, tgt_level_start_index])
-
-        # T = self.s_embeds.weight.size(0)
-        # s_embeds = self.s_embeds.weight.unsqueeze(1).repeat(1, T, 1)
-        # e_embeds = self.e_embeds.weight.unsqueeze(0).repeat(T, 1, 1)
-        # raw_pos_2d = torch.cat((s_embeds, e_embeds), dim=-1).permute(2, 0, 1).unsqueeze(0).to(src.device)
-        # n, c, t = src.shape
-        # pos_2d = [F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")]
+        #     rois = self._to_roi_align_format(
+        #         outputs_coord[-1], origin_feat.shape[2], scale_factor=1.5)
+        #     roi_features = self.roi_extractor(origin_feat, rois)
+        #     roi_features = roi_features.view((B, N, -1))
+        #     pred_actionness = self.actionness_pred(roi_features)
         #
-        # hs, init_reference, inter_references, memory = self.transformer(
-        #     srcs, masks, pos, query_embeds, reference_points=refpoint_embed)
-
-        # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        # query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
-        # hs, init_reference, inter_references, memory = self.transformer(srcs, pos, pos_2d, query_embed=query_embeds)
-
-        outputs_classes = []
-        outputs_coords = []
-        # gather outputs from each decoder layer
-        for lvl in range(hs.shape[0]):
-            if lvl == 0:
-                reference = init_reference
-            else:
-                reference = inter_references[lvl - 1]
-
-            reference = inverse_sigmoid(reference)
-
-            outputs_class = self.class_embed[lvl](hs[lvl])
-            tmp = self.segment_embed[lvl](hs[lvl])
-            # the l-th layer (l >= 2)
-            if reference.shape[-1] == 2:
-                tmp += reference
-            # the first layer
-            else:
-                assert reference.shape[-1] == 1
-                tmp[..., 0] += reference[..., 0]
-
-            # S_hs = hs[lvl][..., :self.transformer.d_model]
-            # E_hs = hs[lvl][..., self.transformer.d_model:self.transformer.d_model * 2]
-            # C_hs = hs[lvl][..., self.transformer.d_model * 2:]
-            #
-            # outputs_class = self.class_embed[lvl](C_hs)
-            #
-            # # S_tmp = self.S_segment_embed[lvl](S_hs)
-            # # E_tmp = self.E_segment_embed[lvl](E_hs)
-            # E_tmp = self.S_segment_embed[lvl](S_hs)
-            # S_tmp = self.E_segment_embed[lvl](E_hs)
-            # tmp = reference
-            # # the l-th layer (l >= 2)
-            # if reference.shape[-1] == 2:
-            #     tmp[..., 0] = tmp[..., 0] + S_tmp.squeeze(-1)
-            #     tmp[..., 1] = tmp[..., 1] + E_tmp.squeeze(-1)
-            #
-            # outputs_coord = segment_ops.segment_t1t2_to_cw(tmp.sigmoid())
-
-            outputs_coord = tmp.sigmoid()
-            outputs_classes.append(outputs_class)
-            outputs_coords.append(outputs_coord)
-        outputs_class = torch.stack(outputs_classes)
-        outputs_coord = torch.stack(outputs_coords)
-
-        if not self.with_act_reg:
-            out = {'pred_logits': outputs_class[-1],
-                   'pred_segments': outputs_coord[-1]}
-        else:
-            # perform RoIAlign
-            B, N = outputs_coord[-1].shape[:2]
-            origin_feat = memory
-
-            rois = self._to_roi_align_format(
-                outputs_coord[-1], origin_feat.shape[2], scale_factor=1.5)
-            roi_features = self.roi_extractor(origin_feat, rois)
-            roi_features = roi_features.view((B, N, -1))
-            pred_actionness = self.actionness_pred(roi_features)
-
-            last_layer_cls = outputs_class[-1]
-            last_layer_reg = outputs_coord[-1]
-
-            out = {'pred_logits': last_layer_cls,
-                   'pred_segments': last_layer_reg, 'pred_actionness': pred_actionness}
+        #     last_layer_cls = outputs_class[-1]
+        #     last_layer_reg = outputs_coord[-1]
+        #
+        #     out = {'pred_logits': last_layer_cls,
+        #            'pred_segments': last_layer_reg, 'pred_actionness': pred_actionness}
 
         if self.aux_loss:
             out['aux_outputs'] = self._set_aux_loss(
@@ -576,7 +457,7 @@ def build(args):
             raise ValueError('unknown dataset {}'.format(args.dataset_name))
 
     pos_embed = build_position_encoding(args)
-    transformer = build_deformable_transformer(args)
+    transformer = build_transformer(args)
 
     model = TadTR(
         pos_embed,
@@ -585,7 +466,7 @@ def build(args):
         num_queries=args.num_queries,
         aux_loss=args.aux_loss,
         with_segment_refine=args.seg_refine,
-        with_act_reg=args.act_reg
+        with_act_reg=False
     )
 
     matcher = build_matcher(args)
