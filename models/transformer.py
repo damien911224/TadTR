@@ -128,7 +128,7 @@ class DeformableTransformer(nn.Module):
             init_reference_out = reference_points
             query_embed = None
         # decoder
-        hs, inter_references = self.decoder(tgt, reference_points, memory,
+        hs, inter_references = self.decoder(tgt, reference_points, memory, lvl_pos_embed_flatten,
                                             temporal_lens, level_start_index, valid_ratios, query_embed, mask_flatten)
         inter_references_out = inter_references 
         return hs, init_reference_out, inter_references_out, memory.transpose(1, 2)
@@ -165,7 +165,7 @@ class DeformableTransformerEncoderLayer(nn.Module):
         return src
 
     def forward(self, src, pos, reference_points, spatial_shapes, level_start_index, padding_mask=None):
-        pos = None
+        # pos = None
         # self attention
         src2, _ = self.self_attn(self.with_pos_embed(src, pos), reference_points, src, spatial_shapes, level_start_index, padding_mask)
         src = src + self.dropout1(src2)
@@ -216,7 +216,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         super().__init__()
 
         # cross attention
-        self.cross_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
+        # self.cross_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
+        self.cross_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
         self.dropout1 = nn.Dropout(dropout)
         self.norm1 = nn.LayerNorm(d_model)
 
@@ -244,8 +245,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         tgt = self.norm3(tgt)
         return tgt
 
-    def forward(self, tgt, query_pos, reference_points, src, src_spatial_shapes, level_start_index, src_padding_mask=None):
-        query_pos = None
+    def forward(self, tgt, query_pos, reference_points, src, src_pos, src_spatial_shapes, level_start_index, src_padding_mask=None):
+        # query_pos = None
         if not cfg.disable_query_self_att:
             # self attention
             q = k = self.with_pos_embed(tgt, query_pos)
@@ -253,16 +254,16 @@ class DeformableTransformerDecoderLayer(nn.Module):
             tgt2, Q_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
             tgt2 = tgt2.transpose(0, 1)
 
-            # q = k = tgt
-            # _, C_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
-            # q = k = query_pos
-            # _, P_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
-            #
-            # N, Q, _ = Q_weights.shape
-            # Q_C = torch.bmm(Q_weights.flatten(1).unsqueeze(-2), C_weights.flatten(1).unsqueeze(-1)).mean()
-            # Q_P = torch.bmm(Q_weights.flatten(1).unsqueeze(-2), P_weights.flatten(1).unsqueeze(-1)).mean()
-            #
-            # print(Q_C.detach().cpu().numpy(), Q_P.detach().cpu().numpy())
+            q = k = tgt
+            _, C_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
+            q = k = query_pos
+            _, P_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
+
+            N, Q, _ = Q_weights.shape
+            Q_C = torch.bmm(Q_weights.flatten(1).unsqueeze(-2), C_weights.flatten(1).unsqueeze(-1)).mean()
+            Q_P = torch.bmm(Q_weights.flatten(1).unsqueeze(-2), P_weights.flatten(1).unsqueeze(-1)).mean()
+
+            print(Q_C.detach().cpu().numpy(), Q_P.detach().cpu().numpy())
 
             # tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos + tgt_pos[0]),
             #                           reference_points,
@@ -274,12 +275,16 @@ class DeformableTransformerDecoderLayer(nn.Module):
         else:
             pass
         # cross attention
-        tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos),
-                               reference_points,
-                               src, src_spatial_shapes, level_start_index, src_padding_mask)
+        # tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos),
+        #                        reference_points,
+        #                        src, src_spatial_shapes, level_start_index, src_padding_mask)
         # tgt2, _ = self.cross_attn(query_pos,
         #                        reference_points,
         #                        src, src_spatial_shapes, level_start_index, src_padding_mask)
+        tgt2 = self.cross_attn(query=self.with_pos_embed(tgt, query_pos),
+                               key=self.with_pos_embed(src, src_pos),
+                               value=src,
+                               key_padding_mask=src_padding_mask)[0]
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
 
@@ -315,7 +320,7 @@ class DeformableTransformerDecoder(nn.Module):
         # self.E_ref_point_head = MLP(2, d_model, d_model, 3)
         # self.C_ref_point_head = MLP(2, d_model, d_model, 3)
 
-    def forward(self, tgt, reference_points, src, src_spatial_shapes, src_level_start_index, src_valid_ratios,
+    def forward(self, tgt, reference_points, src, src_pos, src_spatial_shapes, src_level_start_index, src_valid_ratios,
                 query_pos=None, src_padding_mask=None):
         '''
         tgt: [bs, nq, C]
@@ -335,7 +340,7 @@ class DeformableTransformerDecoder(nn.Module):
                 pos_scale = self.query_scale(output) if lid != 0 else 1
                 query_pos = pos_scale * raw_query_pos
 
-            output = layer(output, query_pos, reference_points_input, src, src_spatial_shapes, src_level_start_index,
+            output = layer(output, query_pos, reference_points_input, src, src_pos, src_spatial_shapes, src_level_start_index,
                            src_padding_mask)
 
             # W = torch.clamp(reference_points_input[..., 1] - reference_points_input[..., 0], 0.0, 1.0)
