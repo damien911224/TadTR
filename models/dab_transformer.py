@@ -39,8 +39,8 @@ def gen_sineembed_for_position(pos_tensor):
     # n_query, bs, _ = pos_tensor.size()
     # sineembed_tensor = torch.zeros(n_query, bs, 256)
     scale = 2 * math.pi
-    dim_t = torch.arange(128, dtype=torch.float32, device=pos_tensor.device)
-    dim_t = 10000 ** (2 * (dim_t // 2) / 128)
+    dim_t = torch.arange(256, dtype=torch.float32, device=pos_tensor.device)
+    dim_t = 10000 ** (2 * (dim_t // 2) / 256)
     x_embed = pos_tensor[:, :, 0] * scale
     pos_x = x_embed[:, :, None] / dim_t
     pos_x = torch.stack((pos_x[:, :, 0::2].sin(), pos_x[:, :, 1::2].cos()), dim=3).flatten(2)
@@ -171,8 +171,7 @@ class TransformerDecoder(nn.Module):
         assert query_scale_type in ['cond_elewise', 'cond_scalar', 'fix_elewise']
         self.query_scale_type = query_scale_type
         if query_scale_type == 'cond_elewise':
-            self.query_scale = MLP(d_model, d_model, d_model // 2, 2)
-            # self.query_scale = MLP(d_model, d_model, d_model, 2)
+            self.query_scale = MLP(d_model, d_model, d_model, 2)
         elif query_scale_type == 'cond_scalar':
             self.query_scale = MLP(d_model, d_model, 1, 2)
         elif query_scale_type == 'fix_elewise':
@@ -180,7 +179,7 @@ class TransformerDecoder(nn.Module):
         else:
             raise NotImplementedError("Unknown query_scale_type: {}".format(query_scale_type))
         
-        self.ref_point_head = MLP(query_dim // 2 * d_model, d_model, d_model, 2)
+        self.ref_point_head = MLP(query_dim // 1 * d_model, d_model, d_model, 2)
         
         self.segment_embed = None
         self.d_model = d_model
@@ -228,7 +227,7 @@ class TransformerDecoder(nn.Module):
                 pos_transformation = self.query_scale.weight[layer_id]
 
             # apply transformation
-            query_sine_embed = query_sine_embed[..., :self.d_model // 2] * pos_transformation
+            query_sine_embed = query_sine_embed[..., :self.d_model] * pos_transformation
             # query_sine_embed = query_sine_embed * pos_transformation
 
             # modulated HW attentions
