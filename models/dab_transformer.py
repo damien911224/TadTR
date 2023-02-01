@@ -321,7 +321,7 @@ class TransformerDecoderLayer(nn.Module):
 
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1,
                  activation="relu", normalize_before=False, keep_query_pos=False,
-                 rm_self_attn_decoder=False):
+                 rm_self_attn_decoder=True):
         super().__init__()
         # Decoder Self-Attention
         if not rm_self_attn_decoder:
