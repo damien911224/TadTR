@@ -32,7 +32,7 @@ from datasets import build_dataset
 from engine import train_one_epoch, test
 from models import build_model
 if cfg.tensorboard:
-    from torch.utils.tensorboard import SummaryWriter
+    from tensorboardX import SummaryWriter
 
         
 
