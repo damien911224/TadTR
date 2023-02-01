@@ -393,8 +393,11 @@ class TransformerDecoderLayer(nn.Module):
             # q = torch.cat([q_content, q_pos], dim=-1)
             # k = torch.cat([k_content, k_pos], dim=-1)
 
-            q = q_content + q_pos
-            k = k_content + k_pos
+            # q = q_content + q_pos
+            # k = k_content + k_pos
+
+            q = q_pos
+            k = k_pos
 
             tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
             # ========== End of Self-Attention =============
@@ -416,9 +419,9 @@ class TransformerDecoderLayer(nn.Module):
             #
             # print(Q_C.detach().cpu().numpy(), Q_P.detach().cpu().numpy())
 
-            # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
-            top_1_indices = torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, 0]
-            print(ref_points.detach().cpu()[:, 0][top_1_indices].numpy())
+            print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+            # top_1_indices = torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, 0]
+            # print(ref_points.detach().cpu()[:, 0][top_1_indices].numpy())
             # Q_weights = Q_weights.detach().cpu()
             # print(torch.argsort(-Q_weights[0, 0].detach().cpu(), dim=-1)[:10].numpy())
             # print(Q_weights[0, 0][torch.argsort(-Q_weights[0, 0], dim=-1)[:10]].numpy())
