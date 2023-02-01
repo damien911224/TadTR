@@ -18,6 +18,8 @@ from opts import cfg
 # if not cfg.disable_cuda:
 #     from .functions import TDAFunction
 
+from ..deform_attn.functions import MSDeformAttnFunction
+
 import warnings
 import math
 import pdb
@@ -146,7 +148,9 @@ class DeformAttn(nn.Module):
             # Note that grid_sample only supports image inputs. We need to view the sequence as an image with height=1
             sampling_locations = torch.cat((sampling_locations, torch.ones_like(sampling_locations)*0.5), dim=-1)
             input_spatial_shapes = torch.stack((torch.ones_like(input_temporal_lens), input_temporal_lens), dim=-1)
-            output = deform_attn_core_pytorch(value, input_spatial_shapes, sampling_locations, attention_weights)
+            # output = deform_attn_core_pytorch(value, input_spatial_shapes, sampling_locations, attention_weights)
+            output = MSDeformAttnFunction.apply(value, input_spatial_shapes, input_level_start_index,
+                                                sampling_locations, attention_weights, self.seq2col_step)
         else:
             raise NotImplementedError
             # # CUDA implementation. You will get identical results with the pytorch implementation
