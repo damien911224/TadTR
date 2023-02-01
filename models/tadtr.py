@@ -259,7 +259,7 @@ class TadTR(nn.Module):
             reference = inverse_sigmoid(reference)
 
             outputs_class = self.class_embed[lvl](hs[lvl])
-            # tmp = self.segment_embed[lvl](hs[lvl])
+            tmp = self.segment_embed[lvl](hs[lvl])
             # # the l-th layer (l >= 2)
             # if reference.shape[-1] == 2:
             #     tmp += reference
