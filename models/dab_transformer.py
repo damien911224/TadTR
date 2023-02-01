@@ -410,7 +410,9 @@ class TransformerDecoderLayer(nn.Module):
             #                 F.normalize(P_weights.flatten(1)).unsqueeze(-1)).mean()
             #
             # print(Q_C.detach().cpu().numpy(), Q_P.detach().cpu().numpy())
-            print(torch.argsort(Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+            Q_weights = Q_weights.detach().cpu()
+            # print(torch.argsort(Q_weights[0, 0].detach().cpu(), dim=-1)[:10].numpy())
+            print(Q_weights[torch.argsort(Q_weights, dim=-1)[:10]])
 
             tgt = tgt + self.dropout1(tgt2)
             tgt = self.norm1(tgt)
