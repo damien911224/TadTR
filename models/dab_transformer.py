@@ -394,22 +394,22 @@ class TransformerDecoderLayer(nn.Module):
             tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
             # ========== End of Self-Attention =============
 
-            print(F.cross_entropy(Q_weights, Q_weights).sum(-1).mean().detach().cpu().numpy())
-
-            q = q_content
-            k = k_content
-            _, C_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
-            q = q_pos
-            k = k_pos
-            _, P_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
-
-            N, Q, _ = Q_weights.shape
-            Q_C = torch.bmm(F.normalize(Q_weights.flatten(1)).unsqueeze(-2),
-                            F.normalize(C_weights.flatten(1)).unsqueeze(-1)).mean()
-            Q_P = torch.bmm(F.normalize(Q_weights.flatten(1)).unsqueeze(-2),
-                            F.normalize(P_weights.flatten(1)).unsqueeze(-1)).mean()
-
-            print(Q_C.detach().cpu().numpy(), Q_P.detach().cpu().numpy())
+            # print(F.cross_entropy(Q_weights, Q_weights).sum(-1).mean().detach().cpu().numpy())
+            #
+            # q = q_content
+            # k = k_content
+            # _, C_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
+            # q = q_pos
+            # k = k_pos
+            # _, P_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
+            #
+            # N, Q, _ = Q_weights.shape
+            # Q_C = torch.bmm(F.normalize(Q_weights.flatten(1)).unsqueeze(-2),
+            #                 F.normalize(C_weights.flatten(1)).unsqueeze(-1)).mean()
+            # Q_P = torch.bmm(F.normalize(Q_weights.flatten(1)).unsqueeze(-2),
+            #                 F.normalize(P_weights.flatten(1)).unsqueeze(-1)).mean()
+            #
+            # print(Q_C.detach().cpu().numpy(), Q_P.detach().cpu().numpy())
 
             tgt = tgt + self.dropout1(tgt2)
             tgt = self.norm1(tgt)
