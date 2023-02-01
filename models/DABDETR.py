@@ -197,7 +197,7 @@ class TadTR(nn.Module):
         #     out = {'pred_logits': last_layer_cls,
         #            'pred_segments': last_layer_reg, 'pred_actionness': pred_actionness}
 
-        out = {'pred_logits': outputs_class[-1], 'pred_boxes': outputs_coord[-1]}
+        out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1]}
         if self.aux_loss:
             out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
 
