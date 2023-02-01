@@ -175,6 +175,8 @@ class TadTR(nn.Module):
         tmp[..., :self.query_dim] += reference_before_sigmoid
         outputs_coord = tmp.sigmoid()
 
+        outputs_class = self.class_embed(hs)
+
         # if not self.with_act_reg:
         #     out = {'pred_logits': outputs_class[-1],
         #            'pred_segments': outputs_coord[-1]}
