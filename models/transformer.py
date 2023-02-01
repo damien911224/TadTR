@@ -142,8 +142,8 @@ class DeformableTransformerEncoderLayer(nn.Module):
         super().__init__()
 
         # self attention
-        # self.self_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
-        self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
+        self.self_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
+        # self.self_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
         self.dropout1 = nn.Dropout(dropout)
         self.norm1 = nn.LayerNorm(d_model)
 
@@ -168,9 +168,9 @@ class DeformableTransformerEncoderLayer(nn.Module):
     def forward(self, src, pos, reference_points, spatial_shapes, level_start_index, padding_mask=None):
         # pos = None
         # self attention
-        # src2, _ = self.self_attn(self.with_pos_embed(src, pos), reference_points, src, spatial_shapes, level_start_index, padding_mask)
-        q = k = self.with_pos_embed(src, pos)
-        src2, _ = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), src.transpose(0, 1))
+        src2, _ = self.self_attn(self.with_pos_embed(src, pos), reference_points, src, spatial_shapes, level_start_index, padding_mask)
+        # q = k = self.with_pos_embed(src, pos)
+        # src2, _ = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), src.transpose(0, 1))
         src2 = src2.transpose(0, 1)
         src = src + self.dropout1(src2)
         src = self.norm1(src)
@@ -220,8 +220,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         super().__init__()
 
         # cross attention
-        # self.cross_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
-        self.cross_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
+        self.cross_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
+        # self.cross_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
         self.dropout1 = nn.Dropout(dropout)
         self.norm1 = nn.LayerNorm(d_model)
 
@@ -258,7 +258,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
             tgt2, Q_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
             tgt2 = tgt2.transpose(0, 1)
 
-            print(Q_weights[0, 0])
+            print(Q_weights.max().detach().cpu().numpy(), Q_weights.min().detach().cpu().numpy(),
+                  Q_weights.mean().detach().cpu().numpy())
 
             q = k = tgt
             _, C_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
@@ -266,8 +267,10 @@ class DeformableTransformerDecoderLayer(nn.Module):
             _, P_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
 
             N, Q, _ = Q_weights.shape
-            Q_C = torch.bmm(Q_weights.flatten(1).unsqueeze(-2), C_weights.flatten(1).unsqueeze(-1)).mean()
-            Q_P = torch.bmm(Q_weights.flatten(1).unsqueeze(-2), P_weights.flatten(1).unsqueeze(-1)).mean()
+            Q_C = torch.bmm(F.normalize(Q_weights.flatten(1)).unsqueeze(-2),
+                            F.normalize(C_weights.flatten(1)).unsqueeze(-1)).mean()
+            Q_P = torch.bmm(F.normalize(Q_weights.flatten(1)).unsqueeze(-2),
+                            F.normalize(P_weights.flatten(1)).unsqueeze(-1)).mean()
 
             print(Q_C.detach().cpu().numpy(), Q_P.detach().cpu().numpy())
 
@@ -277,16 +280,16 @@ class DeformableTransformerDecoderLayer(nn.Module):
         else:
             pass
         # cross attention
-        # tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos),
-        #                        reference_points,
-        #                        src, src_spatial_shapes, level_start_index, src_padding_mask)
+        tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos),
+                               reference_points,
+                               src, src_spatial_shapes, level_start_index, src_padding_mask)
         # tgt2, _ = self.cross_attn(query_pos,
         #                        reference_points,
         #                        src, src_spatial_shapes, level_start_index, src_padding_mask)
-        tgt2 = self.cross_attn(query=self.with_pos_embed(tgt, query_pos).transpose(0, 1),
-                               key=self.with_pos_embed(src, src_pos).transpose(0, 1),
-                               value=src.transpose(0, 1),
-                               key_padding_mask=src_padding_mask)[0].transpose(0, 1)
+        # tgt2 = self.cross_attn(query=self.with_pos_embed(tgt, query_pos).transpose(0, 1),
+        #                        key=self.with_pos_embed(src, src_pos).transpose(0, 1),
+        #                        value=src.transpose(0, 1),
+        #                        key_padding_mask=src_padding_mask)[0].transpose(0, 1)
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
 
@@ -297,7 +300,7 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
 
 class DeformableTransformerDecoder(nn.Module):
-    def __init__(self, decoder_layer, num_layers, d_model, return_intermediate=False, use_dab=False):
+    def __init__(self, decoder_layer, num_layers, d_model, return_intermediate=False, use_dab=True):
         super().__init__()
         self.layers = _get_clones(decoder_layer, num_layers)
         # self.S_layers = _get_clones(decoder_layer, num_layers)

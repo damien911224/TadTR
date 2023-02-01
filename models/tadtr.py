@@ -52,7 +52,7 @@ def get_norm(norm_type, dim, num_groups=None):
 class TadTR(nn.Module):
     """ This is the TadTR module that performs temporal action detection """
 
-    def __init__(self, position_embedding, transformer, num_classes, num_queries, aux_loss=True, with_segment_refine=False, with_act_reg=True):
+    def __init__(self, position_embedding, transformer, num_classes, num_queries, aux_loss=True, with_segment_refine=True, with_act_reg=True):
         """ Initializes the model.
         Parameters:
             backbone: torch module of the backbone to be used. See backbone.py
@@ -260,13 +260,13 @@ class TadTR(nn.Module):
 
             outputs_class = self.class_embed[lvl](hs[lvl])
             tmp = self.segment_embed[lvl](hs[lvl])
-            # # the l-th layer (l >= 2)
-            # if reference.shape[-1] == 2:
-            #     tmp += reference
-            # # the first layer
-            # else:
-            #     assert reference.shape[-1] == 1
-            #     tmp[..., 0] += reference[..., 0]
+            # the l-th layer (l >= 2)
+            if reference.shape[-1] == 2:
+                tmp += reference
+            # the first layer
+            else:
+                assert reference.shape[-1] == 1
+                tmp[..., 0] += reference[..., 0]
 
             # S_hs = hs[lvl][..., :self.transformer.d_model]
             # E_hs = hs[lvl][..., self.transformer.d_model:self.transformer.d_model * 2]
