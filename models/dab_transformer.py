@@ -330,8 +330,8 @@ class TransformerDecoderLayer(nn.Module):
             self.sa_kcontent_proj = nn.Linear(d_model, d_model)
             self.sa_kpos_proj = nn.Linear(d_model, d_model)
             self.sa_v_proj = nn.Linear(d_model, d_model)
-            # self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout, vdim=d_model)
-            self.self_attn = MultiheadAttention(d_model * 2, nhead, dropout=dropout, vdim=d_model)
+            self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout, vdim=d_model)
+            # self.self_attn = MultiheadAttention(d_model * 2, nhead, dropout=dropout, vdim=d_model)
 
             self.norm1 = nn.LayerNorm(d_model)
             self.dropout1 = nn.Dropout(dropout)
@@ -389,11 +389,11 @@ class TransformerDecoderLayer(nn.Module):
             num_queries, bs, n_model = q_content.shape
             hw, _, _ = k_content.shape
 
-            q = torch.cat([q_content, q_pos], dim=-1)
-            k = torch.cat([k_content, k_pos], dim=-1)
+            # q = torch.cat([q_content, q_pos], dim=-1)
+            # k = torch.cat([k_content, k_pos], dim=-1)
 
-            # q = q_content + q_pos
-            # k = k_content + k_pos
+            q = q_content + q_pos
+            k = k_content + k_pos
 
             tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
             # ========== End of Self-Attention =============
