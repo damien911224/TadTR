@@ -176,6 +176,7 @@ class TadTR(nn.Module):
         reference_before_sigmoid = inverse_sigmoid(reference)
         tmp = self.segment_embed(hs)
         tmp[..., :self.query_dim] += reference_before_sigmoid
+        outputs_coord = tmp.sigmoid()
         # outputs_coord = segment_ops.segment_t1t2_to_cw(tmp.sigmoid())
 
         outputs_class = self.class_embed(hs)
