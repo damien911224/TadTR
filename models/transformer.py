@@ -258,6 +258,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
             tgt2, Q_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
             tgt2 = tgt2.transpose(0, 1)
 
+            print(Q_weights[0, 0])
+
             q = k = tgt
             _, C_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
             q = k = query_pos
