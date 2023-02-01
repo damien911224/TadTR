@@ -228,7 +228,8 @@ class TransformerDecoder(nn.Module):
                 pos_transformation = self.query_scale.weight[layer_id]
 
             # apply transformation
-            query_sine_embed = query_sine_embed[..., :self.d_model] * pos_transformation
+            # query_sine_embed = query_sine_embed[..., :self.d_model] * pos_transformation
+            query_sine_embed = query_sine_embed * pos_transformation
 
             # modulated HW attentions
             if self.modulate_hw_attn:
