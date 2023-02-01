@@ -220,8 +220,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         super().__init__()
 
         # cross attention
-        self.cross_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
-        # self.cross_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
+        # self.cross_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
+        self.cross_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
         self.dropout1 = nn.Dropout(dropout)
         self.norm1 = nn.LayerNorm(d_model)
 
@@ -258,20 +258,20 @@ class DeformableTransformerDecoderLayer(nn.Module):
             tgt2, Q_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
             tgt2 = tgt2.transpose(0, 1)
 
-            print(F.cross_entropy(Q_weights, Q_weights).sum(-1).mean().detach().cpu().numpy())
-
-            q = k = tgt
-            _, C_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
-            q = k = query_pos
-            _, P_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
-
-            N, Q, _ = Q_weights.shape
-            Q_C = torch.bmm(F.normalize(Q_weights.flatten(1)).unsqueeze(-2),
-                            F.normalize(C_weights.flatten(1)).unsqueeze(-1)).mean()
-            Q_P = torch.bmm(F.normalize(Q_weights.flatten(1)).unsqueeze(-2),
-                            F.normalize(P_weights.flatten(1)).unsqueeze(-1)).mean()
-
-            print(Q_C.detach().cpu().numpy(), Q_P.detach().cpu().numpy())
+            # print(F.cross_entropy(Q_weights, Q_weights).sum(-1).mean().detach().cpu().numpy())
+            #
+            # q = k = tgt
+            # _, C_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
+            # q = k = query_pos
+            # _, P_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), tgt.transpose(0, 1))
+            #
+            # N, Q, _ = Q_weights.shape
+            # Q_C = torch.bmm(F.normalize(Q_weights.flatten(1)).unsqueeze(-2),
+            #                 F.normalize(C_weights.flatten(1)).unsqueeze(-1)).mean()
+            # Q_P = torch.bmm(F.normalize(Q_weights.flatten(1)).unsqueeze(-2),
+            #                 F.normalize(P_weights.flatten(1)).unsqueeze(-1)).mean()
+            #
+            # print(Q_C.detach().cpu().numpy(), Q_P.detach().cpu().numpy())
 
             tgt = tgt + self.dropout2(tgt2)
             tgt = self.norm2(tgt)
@@ -279,16 +279,16 @@ class DeformableTransformerDecoderLayer(nn.Module):
         else:
             pass
         # cross attention
-        tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos),
-                               reference_points,
-                               src, src_spatial_shapes, level_start_index, src_padding_mask)
+        # tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos),
+        #                        reference_points,
+        #                        src, src_spatial_shapes, level_start_index, src_padding_mask)
         # tgt2, _ = self.cross_attn(query_pos,
         #                        reference_points,
         #                        src, src_spatial_shapes, level_start_index, src_padding_mask)
-        # tgt2 = self.cross_attn(query=self.with_pos_embed(tgt, query_pos).transpose(0, 1),
-        #                        key=self.with_pos_embed(src, src_pos).transpose(0, 1),
-        #                        value=src.transpose(0, 1),
-        #                        key_padding_mask=src_padding_mask)[0].transpose(0, 1)
+        tgt2 = self.cross_attn(query=self.with_pos_embed(tgt, query_pos).transpose(0, 1),
+                               key=self.with_pos_embed(src, src_pos).transpose(0, 1),
+                               value=src.transpose(0, 1),
+                               key_padding_mask=src_padding_mask)[0].transpose(0, 1)
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
 
