@@ -220,8 +220,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         super().__init__()
 
         # cross attention
-        self.cross_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
-        # self.cross_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
+        # self.cross_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
+        self.cross_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
         self.dropout1 = nn.Dropout(dropout)
         self.norm1 = nn.LayerNorm(d_model)
 
