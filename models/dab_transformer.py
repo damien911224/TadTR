@@ -307,12 +307,12 @@ class TransformerEncoderLayer(nn.Module):
                      src_mask: Optional[Tensor] = None,
                      src_key_padding_mask: Optional[Tensor] = None,
                      pos: Optional[Tensor] = None):
-        q = k = self.with_pos_embed(src, pos)
+        q = k = self.with_pos_embed(src, pos * 100.0)
         # q = k = src
         src2, K_weights = self.self_attn(q, k, value=src, attn_mask=src_mask,
                                           key_padding_mask=src_key_padding_mask)
 
-        # print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
         src = src + self.dropout1(src2)
         src = self.norm1(src)
@@ -397,11 +397,11 @@ class TransformerDecoderLayer(nn.Module):
             # q = torch.cat([q_content, q_pos], dim=-1)
             # k = torch.cat([k_content, k_pos], dim=-1)
 
-            # q = q_content + q_pos
-            # k = k_content + k_pos
+            q = q_content + q_pos
+            k = k_content + k_pos
 
-            q = q_content
-            k = k_content
+            # q = q_content
+            # k = k_content
 
             tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
             # ========== End of Self-Attention =============
