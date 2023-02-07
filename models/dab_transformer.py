@@ -397,11 +397,11 @@ class TransformerDecoderLayer(nn.Module):
             # q = torch.cat([q_content, q_pos], dim=-1)
             # k = torch.cat([k_content, k_pos], dim=-1)
 
-            q = q_content + q_pos
-            k = k_content + k_pos
+            # q = q_content + q_pos
+            # k = k_content + k_pos
 
-            # q = q_content
-            # k = k_content
+            q = q_content
+            k = k_content
 
             tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
             # ========== End of Self-Attention =============
@@ -459,7 +459,8 @@ class TransformerDecoderLayer(nn.Module):
         q = q.view(num_queries, bs, self.nhead, n_model//self.nhead)
         query_sine_embed = self.ca_qpos_sine_proj(query_sine_embed)
         query_sine_embed = query_sine_embed.view(num_queries, bs, self.nhead, n_model//self.nhead)
-        q = torch.cat([q, query_sine_embed], dim=3).view(num_queries, bs, n_model * 2)
+        # q = torch.cat([q, query_sine_embed], dim=3).view(num_queries, bs, n_model * 2)
+        q = torch.cat([q, q], dim=3).view(num_queries, bs, n_model * 2)
         k = k.view(hw, bs, self.nhead, n_model//self.nhead)
         k_pos = k_pos.view(hw, bs, self.nhead, n_model//self.nhead)
         # k = torch.cat([k, k_pos], dim=3).view(hw, bs, n_model * 2)
