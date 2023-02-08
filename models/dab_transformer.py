@@ -144,11 +144,10 @@ class TransformerEncoder(nn.Module):
         for layer_id, layer in enumerate(self.layers):
             # rescale the content and pos sim
             pos_scales = self.query_scale(output)
-            print(torch.max(output).detach().cpu().numpy())
-            print(torch.max(pos).detach().cpu().numpy())
-            print(torch.max(pos_scales).detach().cpu().numpy())
+            # output = layer(output, src_mask=mask,
+            #                src_key_padding_mask=src_key_padding_mask, pos=pos*pos_scales)
             output = layer(output, src_mask=mask,
-                           src_key_padding_mask=src_key_padding_mask, pos=pos*pos_scales)
+                           src_key_padding_mask=src_key_padding_mask, pos=pos)
 
         if self.norm is not None:
             output = self.norm(output)
@@ -313,7 +312,7 @@ class TransformerEncoderLayer(nn.Module):
         # q = k = src
         src2, K_weights = self.self_attn(q, k, value=src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)
 
-        # print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
         src = src + self.dropout1(src2)
         src = self.norm1(src)
