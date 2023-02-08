@@ -523,6 +523,8 @@ class TransformerDecoderLayer(nn.Module):
                                            key_padding_mask=memory_key_padding_mask)
 
             Q_weights = torch.bmm(QK_weights, KQ_weights)
+            print(Q_weights.shape)
+            exit()
 
             print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
