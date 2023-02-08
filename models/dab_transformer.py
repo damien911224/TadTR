@@ -487,12 +487,12 @@ class TransformerDecoderLayer(nn.Module):
                                            value=v, attn_mask=tgt_mask,
                                            key_padding_mask=tgt_key_padding_mask)
 
-            # src = memory + self.dropout0(src)
-            # src = self.norm0(src)
+            memory = memory + self.dropout0(src)
+            memory = self.norm0(memory)
 
             q_content = self.sa_KQ_qcontent_proj(tgt)
-            k_content = self.sa_KQ_kcontent_proj(src)
-            v = self.sa_KQ_v_proj(src)
+            k_content = self.sa_KQ_kcontent_proj(memory)
+            v = self.sa_KQ_v_proj(memory)
 
             num_queries, bs, n_model = q_content.shape
             hw, _, _ = k_content.shape
