@@ -346,6 +346,9 @@ class TransformerDecoderLayer(nn.Module):
             self.sa_QK_qpos_sine_proj = nn.Linear(d_model, d_model)
             self.QK_attn = MultiheadAttention(d_model * 2, nhead, dropout=dropout, vdim=d_model)
 
+            self.norm0 = nn.LayerNorm(d_model)
+            self.dropout0 = nn.Dropout(dropout)
+
             self.sa_KQ_qcontent_proj = nn.Linear(d_model, d_model)
             self.sa_KQ_qpos_proj = nn.Linear(d_model, d_model)
             self.sa_KQ_kcontent_proj = nn.Linear(d_model, d_model)
@@ -483,6 +486,9 @@ class TransformerDecoderLayer(nn.Module):
                                            key=q,
                                            value=v, attn_mask=tgt_mask,
                                            key_padding_mask=tgt_key_padding_mask)
+
+            src = memory + self.dropout1(src)
+            src = self.norm1(src)
 
             q_content = self.sa_KQ_qcontent_proj(tgt)
             k_content = self.sa_KQ_kcontent_proj(src)
