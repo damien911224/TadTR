@@ -487,7 +487,7 @@ class TransformerDecoderLayer(nn.Module):
                                            value=v, attn_mask=tgt_mask,
                                            key_padding_mask=tgt_key_padding_mask)
 
-            print(torch.argsort(-QK_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+            # print(torch.argsort(-QK_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
             src = memory + self.dropout0(src)
             src = self.norm0(src)
