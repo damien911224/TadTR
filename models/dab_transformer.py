@@ -381,7 +381,7 @@ class TransformerDecoderLayer(nn.Module):
                 is_first=False, ref_points=None):
                      
         # ========== Begin of Self-Attention =============
-        if not self.rm_self_attn_decoder and False:
+        if not self.rm_self_attn_decoder:
             # Apply projections here
             # shape: num_queries x batch_size x 256
             q_content = self.sa_qcontent_proj(tgt)      # target is the input of the first decoder layer. zero by default.
