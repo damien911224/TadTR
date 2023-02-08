@@ -144,6 +144,9 @@ class TransformerEncoder(nn.Module):
         for layer_id, layer in enumerate(self.layers):
             # rescale the content and pos sim
             pos_scales = self.query_scale(output)
+            print(torch.max(output).detach().cpu().numpy())
+            print(torch.max(pos).detach().cpu().numpy())
+            print(torch.max(pos_scales).detach().cpu().numpy())
             output = layer(output, src_mask=mask,
                            src_key_padding_mask=src_key_padding_mask, pos=pos*pos_scales)
 
@@ -381,7 +384,7 @@ class TransformerDecoderLayer(nn.Module):
                 is_first=False, ref_points=None):
                      
         # ========== Begin of Self-Attention =============
-        if not self.rm_self_attn_decoder and False:
+        if not self.rm_self_attn_decoder:
             # Apply projections here
             # shape: num_queries x batch_size x 256
             q_content = self.sa_qcontent_proj(tgt)      # target is the input of the first decoder layer. zero by default.
