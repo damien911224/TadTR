@@ -480,8 +480,8 @@ class TransformerDecoderLayer(nn.Module):
 
         tgt2, C_weights = self.cross_attn(query=q,
                                           key=k,
-                                          value=v, attn_mask=tgt_mask,
-                                          key_padding_mask=tgt_key_padding_mask)
+                                          value=v, attn_mask=memory_mask,
+                                          key_padding_mask=memory_key_padding_mask)
 
         # print(torch.argsort(-C_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
@@ -514,10 +514,10 @@ class TransformerDecoderLayer(nn.Module):
         k_pos = k_pos.view(hw, bs, self.nhead, n_model//self.nhead)
         k = torch.cat([k, k_pos], dim=3).view(hw, bs, n_model * 2)
 
-        tgt2, C_weights = self.cross_attn2(query=k,
+        tgt2, _ = self.cross_attn2(query=k,
                                           key=q,
-                                          value=v, attn_mask=memory_mask,
-                                          key_padding_mask=memory_key_padding_mask)
+                                          value=v, attn_mask=tgt_mask,
+                                          key_padding_mask=tgt_key_padding_mask)
 
         tgt = tgt + self.dropout22(tgt2)
         tgt = self.norm22(tgt)
