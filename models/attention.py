@@ -694,23 +694,22 @@ def chain_attention_forward(query: Tensor,
         if key_padding_mask is not None:
             key_padding_mask = pad(key_padding_mask, (0, 1))
 
-    attn_output_weights = torch.bmm(torch.bmm(q, k.transpose(1, 2)), torch.bmm(k, q.transpose(1, 2)))
+    attn_output_weights_QK = torch.bmm(q, k.transpose(1, 2))
     # assert list(attn_output_weights.size()) == [bsz * num_heads, tgt_len, src_len]
+
+    if key_padding_mask is not None:
+        attn_output_weights_QK = attn_output_weights_QK.view(bsz, num_heads, tgt_len, src_len)
+        attn_output_weights_QK = attn_output_weights_QK.masked_fill(key_padding_mask.unsqueeze(1).unsqueeze(2),
+                                                                    float('-inf'))
+        attn_output_weights_QK = attn_output_weights_QK.view(bsz * num_heads, tgt_len, src_len)
+
+    attn_output_weights = torch.bmm(attn_output_weights_QK, attn_output_weights_QK.transpose(1, 2))
 
     if attn_mask is not None:
         if attn_mask.dtype == torch.bool:
             attn_output_weights.masked_fill_(attn_mask, float('-inf'))
         else:
             attn_output_weights += attn_mask
-
-
-    if key_padding_mask is not None:
-        attn_output_weights = attn_output_weights.view(bsz, num_heads, tgt_len, src_len)
-        attn_output_weights = attn_output_weights.masked_fill(
-            key_padding_mask.unsqueeze(1).unsqueeze(2),
-            float('-inf'),
-        )
-        attn_output_weights = attn_output_weights.view(bsz * num_heads, tgt_len, src_len)
 
     # attn_output_weights = softmax(
     #     attn_output_weights, dim=-1)
