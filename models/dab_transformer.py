@@ -471,7 +471,7 @@ class TransformerDecoderLayer(nn.Module):
                                           value=v, attn_mask=memory_mask,
                                           key_padding_mask=memory_key_padding_mask)
 
-        print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        print(torch.argsort(-C_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
         # ========== End of Cross-Attention =============
 
