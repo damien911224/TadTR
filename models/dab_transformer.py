@@ -147,7 +147,7 @@ class TransformerEncoder(nn.Module):
             # output = layer(output, src_mask=mask,
             #                src_key_padding_mask=src_key_padding_mask, pos=pos*pos_scales)
             output = layer(output, src_mask=mask,
-                           src_key_padding_mask=src_key_padding_mask, pos=pos * 4.0)
+                           src_key_padding_mask=src_key_padding_mask, pos=pos * 100.0)
 
         if self.norm is not None:
             output = self.norm(output)
