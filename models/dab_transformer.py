@@ -338,13 +338,21 @@ class TransformerDecoderLayer(nn.Module):
             # self.sa_v_proj = nn.Linear(d_model, d_model)
             # self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout, vdim=d_model)
 
-            self.sa_qcontent_proj = nn.Linear(d_model, d_model)
-            self.sa_qpos_proj = nn.Linear(d_model, d_model)
-            self.sa_kcontent_proj = nn.Linear(d_model, d_model)
-            self.sa_kpos_proj = nn.Linear(d_model, d_model)
-            self.sa_v_proj = nn.Linear(d_model, d_model)
-            self.sa_qpos_sine_proj = nn.Linear(d_model, d_model)
-            self.self_attn = ChainAttention(d_model * 2, nhead, dropout=dropout, vdim=d_model)
+            self.sa_QK_qcontent_proj = nn.Linear(d_model, d_model)
+            self.sa_QK_qpos_proj = nn.Linear(d_model, d_model)
+            self.sa_QK_kcontent_proj = nn.Linear(d_model, d_model)
+            self.sa_QK_kpos_proj = nn.Linear(d_model, d_model)
+            self.sa_QK_v_proj = nn.Linear(d_model, d_model)
+            self.sa_QK_qpos_sine_proj = nn.Linear(d_model, d_model)
+            self.QK_attn = MultiheadAttention(d_model * 2, nhead, dropout=dropout, vdim=d_model)
+
+            self.sa_KQ_qcontent_proj = nn.Linear(d_model, d_model)
+            self.sa_KQ_qpos_proj = nn.Linear(d_model, d_model)
+            self.sa_KQ_kcontent_proj = nn.Linear(d_model, d_model)
+            self.sa_KQ_kpos_proj = nn.Linear(d_model, d_model)
+            self.sa_KQ_v_proj = nn.Linear(d_model, d_model)
+            self.sa_KQ_qpos_sine_proj = nn.Linear(d_model, d_model)
+            self.KQ_attn = MultiheadAttention(d_model * 2, nhead, dropout=dropout, vdim=d_model)
 
             self.norm1 = nn.LayerNorm(d_model)
             self.dropout1 = nn.Dropout(dropout)
@@ -444,19 +452,19 @@ class TransformerDecoderLayer(nn.Module):
         #     tgt = self.norm1(tgt)
 
         if not self.rm_self_attn_decoder:
-            q_content = self.sa_qcontent_proj(tgt)
-            k_content = self.sa_kcontent_proj(memory)
-            v = self.sa_v_proj(tgt)
+            q_content = self.sa_QK_qcontent_proj(tgt)
+            k_content = self.sa_QK_kcontent_proj(memory)
+            v = self.sa_QK_v_proj(tgt)
 
             num_queries, bs, n_model = q_content.shape
             hw, _, _ = k_content.shape
 
-            k_pos = self.sa_kpos_proj(pos)
+            k_pos = self.sa_QK_kpos_proj(pos)
 
             # For the first decoder layer, we concatenate the positional embedding predicted from
             # the object query (the positional embedding) into the original query (key) in DETR.
             if is_first or self.keep_query_pos:
-                q_pos = self.sa_qpos_proj(query_pos)
+                q_pos = self.sa_QK_qpos_proj(query_pos)
                 q = q_content + q_pos
                 k = k_content + k_pos
             else:
@@ -464,17 +472,51 @@ class TransformerDecoderLayer(nn.Module):
                 k = k_content
 
             q = q.view(num_queries, bs, self.nhead, n_model // self.nhead)
-            query_sine_embed_ = self.sa_qpos_sine_proj(query_sine_embed)
+            query_sine_embed_ = self.sa_QK_qpos_sine_proj(query_sine_embed)
             query_sine_embed_ = query_sine_embed_.view(num_queries, bs, self.nhead, n_model // self.nhead)
             q = torch.cat([q, query_sine_embed_], dim=3).view(num_queries, bs, n_model * 2)
             k = k.view(hw, bs, self.nhead, n_model // self.nhead)
             k_pos = k_pos.view(hw, bs, self.nhead, n_model // self.nhead)
             k = torch.cat([k, k_pos], dim=3).view(hw, bs, n_model * 2)
 
-            tgt2, Q_weights = self.self_attn(query=q,
-                                              key=k,
-                                              value=v, attn_mask=memory_mask,
-                                              key_padding_mask=memory_key_padding_mask)
+            src, QK_weights = self.QK_attn(query=k,
+                                           key=q,
+                                           value=v, attn_mask=memory_mask,
+                                           key_padding_mask=memory_key_padding_mask)
+
+            q_content = self.sa_KQ_qcontent_proj(tgt)
+            k_content = self.sa_KQ_kcontent_proj(src)
+            v = self.sa_KQ_v_proj(src)
+
+            num_queries, bs, n_model = q_content.shape
+            hw, _, _ = k_content.shape
+
+            k_pos = self.sa_KQ_kpos_proj(pos)
+
+            # For the first decoder layer, we concatenate the positional embedding predicted from
+            # the object query (the positional embedding) into the original query (key) in DETR.
+            if is_first or self.keep_query_pos:
+                q_pos = self.sa_KQ_qpos_proj(query_pos)
+                q = q_content + q_pos
+                k = k_content + k_pos
+            else:
+                q = q_content
+                k = k_content
+
+            q = q.view(num_queries, bs, self.nhead, n_model // self.nhead)
+            query_sine_embed_ = self.sa_KQ_qpos_sine_proj(query_sine_embed)
+            query_sine_embed_ = query_sine_embed_.view(num_queries, bs, self.nhead, n_model // self.nhead)
+            q = torch.cat([q, query_sine_embed_], dim=3).view(num_queries, bs, n_model * 2)
+            k = k.view(hw, bs, self.nhead, n_model // self.nhead)
+            k_pos = k_pos.view(hw, bs, self.nhead, n_model // self.nhead)
+            k = torch.cat([k, k_pos], dim=3).view(hw, bs, n_model * 2)
+
+            src, KQ_weights = self.KQ_attn(query=k,
+                                           key=q,
+                                           value=v, attn_mask=memory_mask,
+                                           key_padding_mask=memory_key_padding_mask)
+
+            Q_weights = torch.bmm(QK_weights, KQ_weights)
 
             print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
