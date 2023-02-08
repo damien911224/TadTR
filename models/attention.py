@@ -725,7 +725,7 @@ def chain_attention_forward(query: Tensor,
 
     if need_weights:
         # average attention weights over heads
-        attn_output_weights = attn_output_weights.view(bsz, num_heads, tgt_len, src_len)
+        attn_output_weights = attn_output_weights.view(bsz, num_heads, tgt_len, tgt_len)
         return attn_output, attn_output_weights.sum(dim=1) / num_heads
     else:
         return attn_output, None
