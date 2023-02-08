@@ -481,8 +481,8 @@ class TransformerDecoderLayer(nn.Module):
 
             src, QK_weights = self.QK_attn(query=k,
                                            key=q,
-                                           value=v, attn_mask=memory_mask,
-                                           key_padding_mask=memory_key_padding_mask)
+                                           value=v, attn_mask=tgt_mask,
+                                           key_padding_mask=tgt_key_padding_mask)
 
             q_content = self.sa_KQ_qcontent_proj(tgt)
             k_content = self.sa_KQ_kcontent_proj(src)
@@ -511,8 +511,8 @@ class TransformerDecoderLayer(nn.Module):
             k_pos = k_pos.view(hw, bs, self.nhead, n_model // self.nhead)
             k = torch.cat([k, k_pos], dim=3).view(hw, bs, n_model * 2)
 
-            src, KQ_weights = self.KQ_attn(query=k,
-                                           key=q,
+            src, KQ_weights = self.KQ_attn(query=q,
+                                           key=k,
                                            value=v, attn_mask=memory_mask,
                                            key_padding_mask=memory_key_padding_mask)
 
