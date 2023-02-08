@@ -566,10 +566,10 @@ class TransformerDecoderLayer(nn.Module):
                                           value=v, attn_mask=memory_mask,
                                           key_padding_mask=memory_key_padding_mask)
 
-        # print(torch.argsort(-C_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        print(torch.argsort(-C_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
-        Q_weights = torch.bmm(QK_weights, C_weights)
-        print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        # Q_weights = torch.bmm(QK_weights, C_weights)
+        # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
         # ========== End of Cross-Attention =============
         tgt = tgt + self.dropout2(tgt2)
