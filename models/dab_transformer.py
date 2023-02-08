@@ -328,7 +328,7 @@ class TransformerDecoderLayer(nn.Module):
                  rm_self_attn_decoder=False):
         super().__init__()
         # Decoder Self-Attention
-        if not rm_self_attn_decoder and False:
+        if not rm_self_attn_decoder:
             self.sa_qcontent_proj = nn.Linear(d_model, d_model)
             self.sa_qpos_proj = nn.Linear(d_model, d_model)
             self.sa_kcontent_proj = nn.Linear(d_model, d_model)
@@ -381,7 +381,7 @@ class TransformerDecoderLayer(nn.Module):
                 is_first=False, ref_points=None):
                      
         # ========== Begin of Self-Attention =============
-        if not self.rm_self_attn_decoder:
+        if not self.rm_self_attn_decoder and False:
             # Apply projections here
             # shape: num_queries x batch_size x 256
             q_content = self.sa_qcontent_proj(tgt)      # target is the input of the first decoder layer. zero by default.
