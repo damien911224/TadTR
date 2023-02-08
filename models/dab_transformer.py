@@ -352,6 +352,14 @@ class TransformerDecoderLayer(nn.Module):
         self.ca_qpos_sine_proj = nn.Linear(d_model, d_model)
         self.cross_attn = MultiheadAttention(d_model*2, nhead, dropout=dropout, vdim=d_model)
 
+        self.ca2_qcontent_proj = nn.Linear(d_model, d_model)
+        self.ca2_qpos_proj = nn.Linear(d_model, d_model)
+        self.ca2_kcontent_proj = nn.Linear(d_model, d_model)
+        self.ca2_kpos_proj = nn.Linear(d_model, d_model)
+        self.ca2_v_proj = nn.Linear(d_model, d_model)
+        self.ca2_qpos_sine_proj = nn.Linear(d_model, d_model)
+        self.cross_attn2 = MultiheadAttention(d_model*2, nhead, dropout=dropout, vdim=d_model)
+
         self.nhead = nhead
         self.rm_self_attn_decoder = rm_self_attn_decoder
 
@@ -362,8 +370,10 @@ class TransformerDecoderLayer(nn.Module):
 
         
         self.norm2 = nn.LayerNorm(d_model)
+        self.norm22 = nn.LayerNorm(d_model)
         self.norm3 = nn.LayerNorm(d_model)
         self.dropout2 = nn.Dropout(dropout)
+        self.dropout22 = nn.Dropout(dropout)
         self.dropout3 = nn.Dropout(dropout)
 
         self.activation = _get_activation_fn(activation)
@@ -470,14 +480,47 @@ class TransformerDecoderLayer(nn.Module):
 
         tgt2, C_weights = self.cross_attn(query=q,
                                           key=k,
-                                          value=v, attn_mask=memory_mask,
-                                          key_padding_mask=memory_key_padding_mask)
+                                          value=v, attn_mask=tgt_mask,
+                                          key_padding_mask=tgt_key_padding_mask)
 
         # print(torch.argsort(-C_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
         # ========== End of Cross-Attention =============
         tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
+
+        q_content = self.ca2_qcontent_proj(tgt)
+        k_content = self.ca2_kcontent_proj(memory)
+        v = self.ca2_v_proj(tgt)
+
+        num_queries, bs, n_model = q_content.shape
+        hw, _, _ = k_content.shape
+
+        k_pos = self.ca2_kpos_proj(pos)
+
+        if is_first or self.keep_query_pos:
+            q_pos = self.ca2_qpos_proj(query_pos)
+            q = q_content + q_pos
+            k = k_content + k_pos
+        else:
+            q = q_content
+            k = k_content
+
+        q = q.view(num_queries, bs, self.nhead, n_model//self.nhead)
+        query_sine_embed = self.ca2_qpos_sine_proj(query_sine_embed)
+        query_sine_embed = query_sine_embed.view(num_queries, bs, self.nhead, n_model//self.nhead)
+        q = torch.cat([q, query_sine_embed], dim=3).view(num_queries, bs, n_model * 2)
+        k = k.view(hw, bs, self.nhead, n_model//self.nhead)
+        k_pos = k_pos.view(hw, bs, self.nhead, n_model//self.nhead)
+        k = torch.cat([k, k_pos], dim=3).view(hw, bs, n_model * 2)
+
+        tgt2, C_weights = self.cross_attn2(query=k,
+                                          key=q,
+                                          value=v, attn_mask=memory_mask,
+                                          key_padding_mask=memory_key_padding_mask)
+
+        tgt = tgt + self.dropout22(tgt2)
+        tgt = self.norm22(tgt)
 
         tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt))))
         tgt = tgt + self.dropout3(tgt2)
