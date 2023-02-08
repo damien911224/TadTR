@@ -568,7 +568,7 @@ class TransformerDecoderLayer(nn.Module):
 
         # print(torch.argsort(-C_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
-        Q_weights = torch.bmm(KQ_weights, C_weights)
+        Q_weights = torch.bmm(QK_weights, C_weights)
         print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
         # ========== End of Cross-Attention =============
