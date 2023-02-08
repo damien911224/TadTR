@@ -328,7 +328,7 @@ class TransformerDecoderLayer(nn.Module):
                  rm_self_attn_decoder=False):
         super().__init__()
         # Decoder Self-Attention
-        if not rm_self_attn_decoder:
+        if not rm_self_attn_decoder and False:
             self.sa_qcontent_proj = nn.Linear(d_model, d_model)
             self.sa_qpos_proj = nn.Linear(d_model, d_model)
             self.sa_kcontent_proj = nn.Linear(d_model, d_model)
