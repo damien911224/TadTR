@@ -386,6 +386,7 @@ class TransformerDecoderLayer(nn.Module):
 
         self.norm22 = nn.LayerNorm(d_model)
         self.dropout22 = nn.Dropout(dropout)
+        self.dropout32 = nn.Dropout(dropout)
 
         self.activation = _get_activation_fn(activation)
         self.activation2 = _get_activation_fn(activation)
