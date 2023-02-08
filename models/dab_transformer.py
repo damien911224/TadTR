@@ -481,9 +481,9 @@ class TransformerDecoderLayer(nn.Module):
             k = k_content
 
         q = q.view(num_queries, bs, self.nhead, n_model//self.nhead)
-        query_sine_embed = self.ca_qpos_sine_proj(query_sine_embed)
-        query_sine_embed = query_sine_embed.view(num_queries, bs, self.nhead, n_model//self.nhead)
-        q = torch.cat([q, query_sine_embed], dim=3).view(num_queries, bs, n_model * 2)
+        query_sine_embed_ = self.ca_qpos_sine_proj(query_sine_embed)
+        query_sine_embed_ = query_sine_embed_.view(num_queries, bs, self.nhead, n_model//self.nhead)
+        q = torch.cat([q, query_sine_embed_], dim=3).view(num_queries, bs, n_model * 2)
         # q = torch.cat([q, q], dim=3).view(num_queries, bs, n_model * 2)
         k = k.view(hw, bs, self.nhead, n_model//self.nhead)
         k_pos = k_pos.view(hw, bs, self.nhead, n_model//self.nhead)
@@ -527,9 +527,9 @@ class TransformerDecoderLayer(nn.Module):
             k = k_content
 
         q = q.view(num_queries, bs, self.nhead, n_model//self.nhead)
-        query_sine_embed = self.ca2_qpos_sine_proj(query_sine_embed)
-        query_sine_embed = query_sine_embed.view(num_queries, bs, self.nhead, n_model//self.nhead)
-        q = torch.cat([q, query_sine_embed], dim=3).view(num_queries, bs, n_model * 2)
+        query_sine_embed_ = self.ca2_qpos_sine_proj(query_sine_embed)
+        query_sine_embed_ = query_sine_embed_.view(num_queries, bs, self.nhead, n_model//self.nhead)
+        q = torch.cat([q, query_sine_embed_], dim=3).view(num_queries, bs, n_model * 2)
         k = k.view(hw, bs, self.nhead, n_model//self.nhead)
         k_pos = k_pos.view(hw, bs, self.nhead, n_model//self.nhead)
         k = torch.cat([k, k_pos], dim=3).view(hw, bs, n_model * 2)
