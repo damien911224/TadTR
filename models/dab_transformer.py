@@ -237,8 +237,14 @@ class TransformerDecoder(nn.Module):
                 refHW_cond = self.ref_anchor_head(output).sigmoid() # nq, bs, 2
                 query_sine_embed *= (refHW_cond[..., 0] / obj_center[..., 1]).unsqueeze(-1)
 
+            # output = layer(output, memory, tgt_mask=tgt_mask,
+            #                memory_mask=memory_mask,
+            #                tgt_key_padding_mask=tgt_key_padding_mask,
+            #                memory_key_padding_mask=memory_key_padding_mask,
+            #                pos=pos, query_pos=query_pos, query_sine_embed=query_sine_embed,
+            #                is_first=(layer_id == 0), ref_points=reference_points)
 
-            output = layer(output, memory, tgt_mask=tgt_mask,
+            output, memory = layer(output, memory, tgt_mask=tgt_mask,
                            memory_mask=memory_mask,
                            tgt_key_padding_mask=tgt_key_padding_mask,
                            memory_key_padding_mask=memory_key_padding_mask,
@@ -368,15 +374,21 @@ class TransformerDecoderLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.linear2 = nn.Linear(dim_feedforward, d_model)
 
+        self.linear12 = nn.Linear(d_model, dim_feedforward)
+        self.dropout2 = nn.Dropout(dropout)
+        self.linear22 = nn.Linear(dim_feedforward, d_model)
+
         
         self.norm2 = nn.LayerNorm(d_model)
-        self.norm22 = nn.LayerNorm(d_model)
         self.norm3 = nn.LayerNorm(d_model)
         self.dropout2 = nn.Dropout(dropout)
-        self.dropout22 = nn.Dropout(dropout)
         self.dropout3 = nn.Dropout(dropout)
 
+        self.norm22 = nn.LayerNorm(d_model)
+        self.dropout22 = nn.Dropout(dropout)
+
         self.activation = _get_activation_fn(activation)
+        self.activation2 = _get_activation_fn(activation)
         self.normalize_before = normalize_before
         self.keep_query_pos = keep_query_pos
 
@@ -394,7 +406,7 @@ class TransformerDecoderLayer(nn.Module):
                 is_first=False, ref_points=None):
                      
         # ========== Begin of Self-Attention =============
-        if not self.rm_self_attn_decoder:
+        if not self.rm_self_attn_decoder and False:
             # Apply projections here
             # shape: num_queries x batch_size x 256
             q_content = self.sa_qcontent_proj(tgt)      # target is the input of the first decoder layer. zero by default.
@@ -489,6 +501,14 @@ class TransformerDecoderLayer(nn.Module):
         tgt = tgt + self.dropout2(tgt2)
         tgt = self.norm2(tgt)
 
+        tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt))))
+        tgt = tgt + self.dropout3(tgt2)
+        tgt = self.norm3(tgt)
+
+        '''
+        Added
+        '''
+
         q_content = self.ca2_qcontent_proj(tgt)
         k_content = self.ca2_kcontent_proj(memory)
         v = self.ca2_v_proj(tgt)
@@ -514,18 +534,19 @@ class TransformerDecoderLayer(nn.Module):
         k_pos = k_pos.view(hw, bs, self.nhead, n_model//self.nhead)
         k = torch.cat([k, k_pos], dim=3).view(hw, bs, n_model * 2)
 
-        tgt2, _ = self.cross_attn2(query=k,
-                                          key=q,
-                                          value=v, attn_mask=tgt_mask,
-                                          key_padding_mask=tgt_key_padding_mask)
+        src2, _ = self.cross_attn2(query=k,
+                                   key=q,
+                                   value=v, attn_mask=tgt_mask,
+                                   key_padding_mask=tgt_key_padding_mask)
 
-        tgt = tgt + self.dropout22(tgt2)
-        tgt = self.norm22(tgt)
+        src = memory + self.dropout22(src2)
+        src = self.norm22(src)
 
-        tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt))))
-        tgt = tgt + self.dropout3(tgt2)
-        tgt = self.norm3(tgt)
-        return tgt
+        src2 = self.linear22(self.dropout2(self.activation2(self.linear12(src))))
+        src = src + self.dropout32(src2)
+        src = self.norm3(src)
+
+        return tgt, src
 
 
 
