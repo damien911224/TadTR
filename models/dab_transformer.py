@@ -312,7 +312,7 @@ class TransformerEncoderLayer(nn.Module):
         src2, K_weights = self.self_attn(q, k, value=src, attn_mask=src_mask,
                                           key_padding_mask=src_key_padding_mask)
 
-        print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        # print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
         src = src + self.dropout1(src2)
         src = self.norm1(src)
@@ -466,10 +466,13 @@ class TransformerDecoderLayer(nn.Module):
         k = torch.cat([k, k_pos], dim=3).view(hw, bs, n_model * 2)
         k = torch.cat([k, k], dim=3).view(hw, bs, n_model * 2)
 
-        tgt2 = self.cross_attn(query=q,
-                               key=k,
-                               value=v, attn_mask=memory_mask,
-                               key_padding_mask=memory_key_padding_mask)[0]
+        tgt2, C_weights = self.cross_attn(query=q,
+                                          key=k,
+                                          value=v, attn_mask=memory_mask,
+                                          key_padding_mask=memory_key_padding_mask)
+
+        print(F.cross_entropy(Q_weights, Q_weights).sum(-1).mean().detach().cpu().numpy())
+
         # ========== End of Cross-Attention =============
 
         tgt = tgt + self.dropout2(tgt2)
