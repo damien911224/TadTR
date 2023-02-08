@@ -487,8 +487,8 @@ class TransformerDecoderLayer(nn.Module):
                                            value=v, attn_mask=tgt_mask,
                                            key_padding_mask=tgt_key_padding_mask)
 
-            src = memory + self.dropout1(src)
-            src = self.norm1(src)
+            src = memory + self.dropout0(src)
+            src = self.norm0(src)
 
             q_content = self.sa_KQ_qcontent_proj(tgt)
             k_content = self.sa_KQ_kcontent_proj(src)
