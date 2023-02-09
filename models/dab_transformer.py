@@ -596,7 +596,7 @@ class TransformerDecoderLayer(nn.Module):
         if not self.rm_self_attn_decoder and True:
             # Apply projections here
             # shape: num_queries x batch_size x 256
-            q_content = self.ca_qcontent_proj(tgt)
+            q_content = self.sa_qcontent_proj(tgt)
             if is_first or self.keep_query_pos:
                 q_pos = self.ca_qpos_proj(query_pos)
                 q = q_content + q_pos
