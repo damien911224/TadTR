@@ -325,7 +325,10 @@ class SetCriterion(nn.Module):
         Q_weights = outputs["Q_weights"]
         C_weights = outputs["C_weights"]
 
-        target_Q_weights = torch.bmm(C_weights, C_weights.transpose(1, 2)).flatten(1)
+        N, L, Q, K = C_weights.shape
+        C_weights = C_weights.flatten(0, 1)
+
+        target_Q_weights = torch.bmm(C_weights, C_weights.transpose(1, 2)).view(N, L, Q, Q).flatten(1)
 
         src_QQ = F.normalize(Q_weights.flatten(1))
         tgt_QQ = F.normalize(target_Q_weights)
