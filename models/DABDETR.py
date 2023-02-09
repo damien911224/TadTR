@@ -338,7 +338,7 @@ class SetCriterion(nn.Module):
 
         # NQ, Q
         # src_QQ = F.normalize(Q_weights, dim=-1).flatten(0, 1)
-        src_QQ = Q_weights.flatten(0, 1).log()
+        src_QQ = (Q_weights.flatten(0, 1) + 1.0e-7).log()
         # src_QQ = F.log_softmax(Q_weights.flatten(0, 1), -1)
         # NQ, Q
         # tgt_QQ = F.normalize(target_Q_weights, dim=-1).flatten(0, 1)
