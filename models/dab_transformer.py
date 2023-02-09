@@ -472,6 +472,8 @@ class TransformerDecoderLayer(nn.Module):
 
             head_dim = n_model // self.nhead
             q = q * (float(head_dim) ** -0.5)
+            print(q.shape)
+            exit()
             q = q.contiguous().view(num_queries, bs * self.nhead, head_dim).transpose(0, 1)
             k = k.contiguous().view(-1, bs * self.nhead, head_dim).transpose(0, 1)
             attn_output_weights = torch.bmm(q, k.transpose(1, 2))
