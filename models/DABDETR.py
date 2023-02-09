@@ -202,7 +202,8 @@ class TadTR(nn.Module):
         #     out = {'pred_logits': last_layer_cls,
         #            'pred_segments': last_layer_reg, 'pred_actionness': pred_actionness}
 
-        out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1]}
+        out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
+               'Q_weights': Q_weights[-1], ''}
         if self.aux_loss:
             out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
 
@@ -325,16 +326,16 @@ class SetCriterion(nn.Module):
         Q_weights = outputs["Q_weights"]
         C_weights = outputs["C_weights"].detach()
 
-        N, L, Q, K = C_weights.shape
+        N, Q, K = C_weights.shape
         Q_weights = Q_weights.flatten(0, 1)
         C_weights = C_weights.flatten(0, 1)
 
         target_Q_weights = torch.softmax(torch.bmm(C_weights, C_weights.transpose(1, 2)), dim=-1)
 
-        # NLQ, Q
+        # NQ, Q
         # src_QQ = F.normalize(Q_weights, dim=-1).flatten(0, 1)
         src_QQ = Q_weights.flatten(0, 1)
-        # NLQ, Q
+        # NQ, Q
         # tgt_QQ = F.normalize(target_Q_weights, dim=-1).flatten(0, 1)
         tgt_QQ = target_Q_weights.flatten(0, 1)
 
