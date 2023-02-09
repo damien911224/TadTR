@@ -328,7 +328,7 @@ class SetCriterion(nn.Module):
         # C_weights = F.softmax(C_weights, dim=-1)
         QQ_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
         # target_Q_weights = F.log_softmax(QQ_weights, dim=-1)
-        target_Q_weights = F.softmax(QQ_weights * 50.0, dim=-1)
+        target_Q_weights = F.softmax(QQ_weights * 25.0, dim=-1)
         # temparature_scale = (torch.max(C_weights) / torch.max(QQ_weights)).detach()
         # target_Q_weights = F.softmax(QQ_weights * temparature_scale, dim=-1)
         # target_Q_weights = F.log_softmax(QQ_weights * 10000.0, dim=-1)
@@ -342,20 +342,20 @@ class SetCriterion(nn.Module):
         # print((torch.max(C_weights) - torch.max(target_Q_weights)).detach().cpu().numpy())
 
         # NQ, Q
-        src_QQ = F.normalize(F.softmax(Q_weights, dim=-1), dim=-1).flatten(0, 1)
-        # src_QQ = (Q_weights.flatten(0, 1) + 1.0e-7).log()
+        # src_QQ = F.normalize(Q_weights, dim=-1).flatten(0, 1)
+        src_QQ = (Q_weights.flatten(0, 1) + 1.0e-7).log()
         # src_QQ = F.log_softmax(Q_weights.flatten(0, 1), -1)
         # NQ, Q
-        tgt_QQ = F.normalize(target_Q_weights, dim=-1).flatten(0, 1)
-        # tgt_QQ = (target_Q_weights.flatten(0, 1) + 1.0e-7).log()
+        # tgt_QQ = F.normalize(target_Q_weights, dim=-1).flatten(0, 1)
+        tgt_QQ = (target_Q_weights.flatten(0, 1) + 1.0e-7).log()
 
         losses = {}
 
-        loss_QQ = 1.0 - torch.bmm(src_QQ.unsqueeze(-1), tgt_QQ.unsqueeze(1))
+        # loss_QQ = 1.0 - torch.bmm(src_QQ.unsqueeze(-1), tgt_QQ.unsqueeze(1))
         # loss_QQ = torch.square(src_QQ - dummy)
         # loss_QQ = torch.sum(-tgt_QQ * torch.log(src_QQ + 1.0e-5), dim=-1)
         # loss_QQ = loss_QQ.sum(dim=(1, 2))
-        # loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1)
+        loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1)
         loss_QQ = loss_QQ.mean()
 
         losses['loss_QQ'] = loss_QQ
