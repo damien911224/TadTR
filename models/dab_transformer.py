@@ -464,7 +464,7 @@ class TransformerDecoderLayer(nn.Module):
             tgt = tgt + self.dropout1(tgt2)
             tgt = self.norm1(tgt)
 
-        if not self.rm_self_attn_decoder and False:
+        if not self.rm_self_attn_decoder:
             q_content = self.sa_QK_qcontent_proj(tgt)
             k_content = self.sa_QK_kcontent_proj(memory)
             v = self.sa_QK_v_proj(tgt)
