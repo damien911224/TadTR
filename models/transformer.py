@@ -170,7 +170,10 @@ class DeformableTransformerEncoderLayer(nn.Module):
         # self attention
         # src2, _ = self.self_attn(self.with_pos_embed(src, pos), reference_points, src, spatial_shapes, level_start_index, padding_mask)
         q = k = self.with_pos_embed(src, pos)
-        src2, _ = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), src.transpose(0, 1))
+        src2, K_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), src.transpose(0, 1))
+
+        print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+
         src2 = src2.transpose(0, 1)
         src = src + self.dropout1(src2)
         src = self.norm1(src)
