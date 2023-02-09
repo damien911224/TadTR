@@ -322,7 +322,7 @@ class SetCriterion(nn.Module):
         assert 'Q_weights' in outputs
         assert 'C_weights' in outputs
 
-        Q_weights = outputs["Q_weights"]
+        Q_weights = outputs["Q_weights"].cpu()
         C_weights = outputs["C_weights"].detach()
 
         N, L, Q, K = C_weights.shape
@@ -520,7 +520,7 @@ def build(args):
         weight_dict['loss_actionness'] = args.act_loss_coef
         losses.append('actionness')
 
-    weight_dict["loss_QQ"] = 10000.0
+    weight_dict["loss_QQ"] = 1.0
     losses.append("QQ")
 
     if args.aux_loss:
