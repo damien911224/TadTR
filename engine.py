@@ -42,8 +42,9 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         outputs = model((samples.tensors, samples.mask))
         loss_dict = criterion(outputs, targets)
         weight_dict = criterion.weight_dict
-        losses = sum(loss_dict[k] * weight_dict[k]
-                     for k in loss_dict.keys() if k in weight_dict)
+        # losses = sum(loss_dict[k] * weight_dict[k]
+        #              for k in loss_dict.keys() if k in weight_dict)
+        losses = loss_dict["QQ"] * weight_dict["loss_QQ"]
         # reduce losses over all GPUs for logging purposes
         loss_dict_reduced = utils.reduce_dict(loss_dict)
         # loss of each type
