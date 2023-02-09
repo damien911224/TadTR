@@ -464,7 +464,7 @@ class TransformerDecoderLayer(nn.Module):
             tgt = tgt + self.dropout1(tgt2)
             tgt = self.norm1(tgt)
 
-        if not self.rm_self_attn_decoder:
+        if not self.rm_self_attn_decoder and False:
             q_content = self.sa_QK_qcontent_proj(tgt)
             k_content = self.sa_QK_kcontent_proj(memory)
             v = self.sa_QK_v_proj(tgt)
@@ -584,8 +584,8 @@ class TransformerDecoderLayer(nn.Module):
 
             # print(torch.argsort(-C_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
-            # Q_weights = torch.bmm(QK_weights, C_weights)
-            # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+            Q_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
+            print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
             # ========== End of Cross-Attention =============
             tgt = tgt + self.dropout2(tgt2)
