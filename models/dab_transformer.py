@@ -421,6 +421,71 @@ class TransformerDecoderLayer(nn.Module):
                 is_first=False, ref_points=None):
                      
         # ========== Begin of Self-Attention =============
+        if not self.rm_self_attn_decoder and True:
+            # Apply projections here
+            # shape: num_queries x batch_size x 256
+            # query_pos = torch.bmm(C_weights.detach(), pos.transpose(0, 1)).transpose(0, 1)
+
+            q_content = self.sa_qcontent_proj(tgt)      # target is the input of the first decoder layer. zero by default.
+            q_pos = self.sa_qpos_proj(query_pos)
+            k_content = self.sa_kcontent_proj(tgt)
+            k_pos = self.sa_kpos_proj(query_pos)
+            v = self.sa_v_proj(tgt)
+
+            num_queries, bs, n_model = q_content.shape
+            hw, _, _ = k_content.shape
+
+            # q = torch.cat([q_content, q_pos], dim=-1)
+            # k = torch.cat([k_content, k_pos], dim=-1)
+
+            q = q_content + q_pos
+            k = k_content + k_pos
+
+            # q = q_content
+            # k = k_content
+
+            tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
+            # ========== End of Self-Attention =============
+
+            # print(F.cross_entropy(Q_weights, Q_weights).sum(-1).mean().detach().cpu().numpy())
+            #
+            # q = q_content
+            # k = k_content
+            # _, C_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
+            # q = q_pos
+            # k = k_pos
+            # _, P_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
+            #
+            # N, Q, _ = Q_weights.shape
+            # Q_C = torch.bmm(F.normalize(Q_weights.flatten(1)).unsqueeze(-2),
+            #                 F.normalize(C_weights.flatten(1)).unsqueeze(-1)).mean()
+            # Q_P = torch.bmm(F.normalize(Q_weights.flatten(1)).unsqueeze(-2),
+            #                 F.normalize(P_weights.flatten(1)).unsqueeze(-1)).mean()
+            #
+            # print(Q_C.detach().cpu().numpy(), Q_P.detach().cpu().numpy())
+
+            # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+
+            # top_1_indices = torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, 0]
+            # print(ref_points.detach().cpu()[:, 0][top_1_indices].numpy())
+            # Q_weights = Q_weights.detach().cpu()
+            # print(torch.argsort(-Q_weights[0, 0].detach().cpu(), dim=-1)[:10].numpy())
+            # print(Q_weights[0, 0][torch.argsort(-Q_weights[0, 0], dim=-1)[:10]].numpy())
+
+            # head_dim = n_model // self.nhead
+            # q = q * (float(head_dim) ** -0.5)
+            # q = q.contiguous().view(num_queries, bs * self.nhead, head_dim).transpose(0, 1)
+            # k = k.contiguous().view(-1, bs * self.nhead, head_dim).transpose(0, 1)
+            # attn_output_weights = torch.bmm(q, k.transpose(1, 2))
+            # attn_output_weights = torch.softmax(attn_output_weights, dim=-1)
+            # attn_output_weights = attn_output_weights.view(bs, self.nhead, num_queries, num_queries)
+            # Q_weights = attn_output_weights.sum(dim=1) / self.nhead
+
+            # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+
+            tgt = tgt + self.dropout1(tgt2)
+            tgt = self.norm1(tgt)
+
         if not self.rm_self_attn_decoder and False:
             q_content = self.sa_QK_qcontent_proj(tgt)
             k_content = self.sa_QK_kcontent_proj(memory)
@@ -559,71 +624,6 @@ class TransformerDecoderLayer(nn.Module):
             # ========== End of Cross-Attention =============
             tgt = tgt + self.dropout2(tgt2)
             tgt = self.norm2(tgt)
-
-        if not self.rm_self_attn_decoder and True:
-            # Apply projections here
-            # shape: num_queries x batch_size x 256
-            # query_pos = torch.bmm(C_weights.detach(), pos.transpose(0, 1)).transpose(0, 1)
-
-            q_content = self.sa_qcontent_proj(tgt)      # target is the input of the first decoder layer. zero by default.
-            q_pos = self.sa_qpos_proj(query_pos)
-            k_content = self.sa_kcontent_proj(tgt)
-            k_pos = self.sa_kpos_proj(query_pos)
-            v = self.sa_v_proj(tgt)
-
-            num_queries, bs, n_model = q_content.shape
-            hw, _, _ = k_content.shape
-
-            # q = torch.cat([q_content, q_pos], dim=-1)
-            # k = torch.cat([k_content, k_pos], dim=-1)
-
-            q = q_content + q_pos
-            k = k_content + k_pos
-
-            # q = q_content
-            # k = k_content
-
-            tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
-            # ========== End of Self-Attention =============
-
-            # print(F.cross_entropy(Q_weights, Q_weights).sum(-1).mean().detach().cpu().numpy())
-            #
-            # q = q_content
-            # k = k_content
-            # _, C_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
-            # q = q_pos
-            # k = k_pos
-            # _, P_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
-            #
-            # N, Q, _ = Q_weights.shape
-            # Q_C = torch.bmm(F.normalize(Q_weights.flatten(1)).unsqueeze(-2),
-            #                 F.normalize(C_weights.flatten(1)).unsqueeze(-1)).mean()
-            # Q_P = torch.bmm(F.normalize(Q_weights.flatten(1)).unsqueeze(-2),
-            #                 F.normalize(P_weights.flatten(1)).unsqueeze(-1)).mean()
-            #
-            # print(Q_C.detach().cpu().numpy(), Q_P.detach().cpu().numpy())
-
-            # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
-
-            # top_1_indices = torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, 0]
-            # print(ref_points.detach().cpu()[:, 0][top_1_indices].numpy())
-            # Q_weights = Q_weights.detach().cpu()
-            # print(torch.argsort(-Q_weights[0, 0].detach().cpu(), dim=-1)[:10].numpy())
-            # print(Q_weights[0, 0][torch.argsort(-Q_weights[0, 0], dim=-1)[:10]].numpy())
-
-            # head_dim = n_model // self.nhead
-            # q = q * (float(head_dim) ** -0.5)
-            # q = q.contiguous().view(num_queries, bs * self.nhead, head_dim).transpose(0, 1)
-            # k = k.contiguous().view(-1, bs * self.nhead, head_dim).transpose(0, 1)
-            # attn_output_weights = torch.bmm(q, k.transpose(1, 2))
-            # attn_output_weights = torch.softmax(attn_output_weights, dim=-1)
-            # attn_output_weights = attn_output_weights.view(bs, self.nhead, num_queries, num_queries)
-            # Q_weights = attn_output_weights.sum(dim=1) / self.nhead
-
-            # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
-
-            tgt = tgt + self.dropout1(tgt2)
-            tgt = self.norm1(tgt)
 
         if not self.rm_self_attn_decoder and False:
             # Apply projections here
