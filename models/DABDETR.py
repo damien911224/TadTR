@@ -323,6 +323,8 @@ class SetCriterion(nn.Module):
         assert 'C_weights' in outputs
 
         Q_weights = outputs["Q_weights"]
+        print(Q_weights.shape)
+        exit()
         C_weights = outputs["C_weights"].detach()
 
         N, L, Q, K = C_weights.shape
