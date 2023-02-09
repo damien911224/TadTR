@@ -502,11 +502,8 @@ class TransformerDecoderLayer(nn.Module):
             src = memory + self.dropout0(src)
             src = self.norm0(src)
 
-            print(src.shape)
-            exit()
-
-            src = self.sa_activation_1(self.sa_conv_norm_1(self.sa_conv_1(src.permute(1, 0, 2)).permute(1, 0, 2)))
-            src = self.sa_activation_2(self.sa_conv_norm_2(self.sa_conv_2(src.permute(1, 0, 2)).permute(1, 0, 2)))
+            src = self.sa_activation_1(self.sa_conv_norm_1(self.sa_conv_1(src.permute(1, 2, 0)).permute(2, 0, 1)))
+            src = self.sa_activation_2(self.sa_conv_norm_2(self.sa_conv_2(src.permute(1, 2, 0)).permute(2, 0, 1)))
 
             q_content = self.sa_KQ_qcontent_proj(tgt)
             k_content = self.sa_KQ_kcontent_proj(src)
