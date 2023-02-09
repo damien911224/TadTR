@@ -365,7 +365,7 @@ class TransformerDecoderLayer(nn.Module):
             self.sa_KQ_kpos_proj = nn.Linear(d_model, d_model)
             self.sa_KQ_v_proj = nn.Linear(d_model, d_model)
             self.sa_KQ_qpos_sine_proj = nn.Linear(d_model, d_model)
-            self.KQ_attn = MultiheadAttention(d_model * 2, nhead, dropout=dropout, vdim=d_model)
+            self.KQ_attn = MultiheadAttention(d_model, nhead, dropout=dropout, vdim=d_model)
 
             self.norm1 = nn.LayerNorm(d_model)
             self.dropout1 = nn.Dropout(dropout)
@@ -501,6 +501,9 @@ class TransformerDecoderLayer(nn.Module):
 
             src = memory + self.dropout0(src)
             src = self.norm0(src)
+
+            print(src.shape)
+            exit()
 
             src = self.sa_activation_1(self.sa_conv_norm_1(self.sa_conv_1(src.permute(1, 0, 2)).permute(1, 0, 2)))
             src = self.sa_activation_2(self.sa_conv_norm_2(self.sa_conv_2(src.permute(1, 0, 2)).permute(1, 0, 2)))
