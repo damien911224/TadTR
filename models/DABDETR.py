@@ -319,22 +319,22 @@ class SetCriterion(nn.Module):
            targets dicts must contain the key "segments" containing a tensor of dim [nb_target_segments, 2]
            The target segments are expected in format (center, width), normalized by the video length.
         """
-        assert 'pred_segments' in outputs
-        assert 'pred_actionness' in outputs
-        src_segments = outputs['pred_segments'].view((-1, 2))
-        target_segments = torch.cat([t['segments'] for t in targets], dim=0)
+        assert 'Q_weights' in outputs
+        assert 'C_weights' in outputs
+
+        Q_weights = outputs["Q_weights"]
+        C_weights = outputs["C_weights"]
+
+        target_Q_weights = torch.bmm(C_weights, C_weights.transpose(1, 2)).flatten(1)
+
+        src_QQ = F.normalize(Q_weights.flatten(1))
+        tgt_QQ = F.normalize(target_Q_weights)
 
         losses = {}
 
-        iou_mat = segment_ops.segment_iou(
-            segment_ops.segment_cw_to_t1t2(src_segments),
-            segment_ops.segment_cw_to_t1t2(target_segments))
+        loss_QQ = 1.0 - torch.bmm(src_QQ.unqueeze(-1), tgt_QQ.unsqueeze(1))
 
-        gt_iou = iou_mat.max(dim=1)[0]
-        pred_actionness = outputs['pred_actionness']
-        loss_actionness = F.l1_loss(pred_actionness.view(-1), gt_iou.view(-1).detach())
-
-        losses['loss_iou'] = loss_actionness
+        losses['loss_QQ'] = loss_QQ
         return losses
 
     def _get_src_permutation_idx(self, indices):
@@ -354,6 +354,7 @@ class SetCriterion(nn.Module):
             'labels': self.loss_labels,
             'segments': self.loss_segments,
             'actionness': self.loss_actionness,
+            "QQ": self.loss_QQ,
         }
 
         assert loss in loss_map, f'do you really want to compute {loss} loss?'
@@ -390,7 +391,7 @@ class SetCriterion(nn.Module):
                 indices = self.matcher(aux_outputs, targets)
                 for loss in self.losses:
                     # we do not compute actionness loss for aux outputs
-                    if 'actionness' in loss:
+                    if 'actionness' or "QQ" in loss:
                         continue
          
                     kwargs = {}
@@ -513,6 +514,9 @@ def build(args):
     if args.act_reg:
         weight_dict['loss_actionness'] = args.act_loss_coef
         losses.append('actionness')
+
+    weight_dict["loss_QQ"] = 1.0
+    losses.append("QQ")
 
     if args.aux_loss:
         aux_weight_dict = {}
