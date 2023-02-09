@@ -605,8 +605,6 @@ class TransformerDecoderLayer(nn.Module):
                 q = q_content
                 k = k_content
             q = q.view(num_queries, bs, self.nhead, n_model // self.nhead)
-            query_sine_embed_ = self.ca_qpos_sine_proj(query_sine_embed)
-            query_sine_embed_ = query_sine_embed_.view(num_queries, bs, self.nhead, n_model // self.nhead)
             q = torch.cat([q, query_sine_embed_], dim=3).view(num_queries, bs, n_model * 2)
             v = self.sa_v_proj(tgt)
 
