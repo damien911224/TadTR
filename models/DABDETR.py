@@ -332,18 +332,18 @@ class SetCriterion(nn.Module):
         target_Q_weights = torch.softmax(torch.bmm(C_weights, C_weights.transpose(1, 2)), dim=-1)
 
         # NLQ, Q
-        # src_QQ = F.normalize(Q_weights, dim=-1).flatten(0, 1)
-        src_QQ = Q_weights.flatten(0, 1)
+        src_QQ = F.normalize(Q_weights, dim=-1).flatten(0, 1)
+        # src_QQ = Q_weights.flatten(0, 1)
         # NLQ, Q
-        # tgt_QQ = F.normalize(target_Q_weights, dim=-1).flatten(0, 1)
-        tgt_QQ = target_Q_weights.flatten(0, 1)
+        tgt_QQ = F.normalize(target_Q_weights, dim=-1).flatten(0, 1)
+        # tgt_QQ = target_Q_weights.flatten(0, 1)
 
         losses = {}
 
-        # loss_QQ = 1.0 - torch.bmm(src_QQ.unsqueeze(-1), tgt_QQ.unsqueeze(1))
+        loss_QQ = 1.0 - torch.bmm(src_QQ.unsqueeze(-1), tgt_QQ.unsqueeze(1))
         # loss_QQ = torch.square(src_QQ - tgt_QQ)
-        loss_QQ = torch.sum(-tgt_QQ * torch.log(src_QQ), dim=-1).view(N, L, Q)
-        loss_QQ = loss_QQ.sum(dim=(1, 2))
+        # loss_QQ = torch.sum(-tgt_QQ * torch.log(src_QQ), dim=-1).view(N, L, Q)
+        # loss_QQ = loss_QQ.sum(dim=(1, 2))
         loss_QQ = loss_QQ.mean()
 
         losses['loss_QQ'] = loss_QQ
