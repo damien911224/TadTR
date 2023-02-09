@@ -471,7 +471,7 @@ class TransformerDecoderLayer(nn.Module):
             # print(Q_weights[0, 0][torch.argsort(-Q_weights[0, 0], dim=-1)[:10]].numpy())
 
             head_dim = n_model // self.nhead
-            q = query * (float(head_dim) ** -0.5)
+            q = q * (float(head_dim) ** -0.5)
             q = q.contiguous().view(tgt_len, bs * self.nhead, head_dim).transpose(0, 1)
             k = k.contiguous().view(-1, bs * self.nhead, head_dim).transpose(0, 1)
             attn_output_weights = torch.bmm(q, k.transpose(1, 2))
@@ -602,7 +602,7 @@ class TransformerDecoderLayer(nn.Module):
                                               key_padding_mask=memory_key_padding_mask)
 
             head_dim = n_model // self.nhead
-            q = query * (float(head_dim) ** -0.5)
+            q = q * (float(head_dim) ** -0.5)
             q = q.contiguous().view(tgt_len, bs * self.nhead, head_dim).transpose(0, 1)
             k = k.contiguous().view(-1, bs * self.nhead, head_dim).transpose(0, 1)
             attn_output_weights = torch.bmm(q, k.transpose(1, 2))
