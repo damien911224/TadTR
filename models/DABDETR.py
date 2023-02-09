@@ -346,9 +346,6 @@ class SetCriterion(nn.Module):
         # loss_QQ = loss_QQ.sum(dim=(1, 2))
         loss_QQ = loss_QQ.mean()
 
-        print(loss_QQ.requires_grad)
-        exit()
-
         losses['loss_QQ'] = loss_QQ
         return losses
 
