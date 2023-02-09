@@ -470,6 +470,10 @@ class TransformerDecoderLayer(nn.Module):
             # print(torch.argsort(-Q_weights[0, 0].detach().cpu(), dim=-1)[:10].numpy())
             # print(Q_weights[0, 0][torch.argsort(-Q_weights[0, 0], dim=-1)[:10]].numpy())
 
+            attn_output_weights = torch.bmm(q, k.transpose(1, 2))
+            attn_output_weights = softmax(attn_output_weights, dim=-1)
+            attn_output_weights = attn_output_weights.view(bs, self.nhead, num_queries, num_queries)
+            Q_weights = attn_output_weights.sum(dim=1) / self.nhead
             # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
             tgt = tgt + self.dropout1(tgt2)
@@ -592,6 +596,11 @@ class TransformerDecoderLayer(nn.Module):
                                               key=k,
                                               value=v, attn_mask=memory_mask,
                                               key_padding_mask=memory_key_padding_mask)
+
+            attn_output_weights = torch.bmm(q, k.transpose(1, 2))
+            attn_output_weights = softmax(attn_output_weights, dim=-1)
+            attn_output_weights = attn_output_weights.view(bs, self.nhead, num_queries, hw)
+            C_weights = attn_output_weights.sum(dim=1) / self.nhead
 
             # print(torch.argsort(-C_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
