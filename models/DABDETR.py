@@ -203,12 +203,9 @@ class TadTR(nn.Module):
         #            'pred_segments': last_layer_reg, 'pred_actionness': pred_actionness}
 
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-               'Q_weights': Q_weights[-1], ''}
+               'Q_weights': Q_weights[-1], 'C_weights': C_weights[-1]}
         if self.aux_loss:
-            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
-
-        out["Q_weights"] = Q_weights
-        out["C_weights"] = C_weights
+            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord, Q_weights, C_weights)
 
         return out
 
@@ -217,8 +214,8 @@ class TadTR(nn.Module):
         # this is a workaround to make torchscript happy, as torchscript
         # doesn't support dictionary with non-homogeneous values, such
         # as a dict having both a Tensor and a list.
-        return [{'pred_logits': a, 'pred_segments': b}
-                for a, b in zip(outputs_class[:-1], outputs_coord[:-1])]
+        return [{'pred_logits': a, 'pred_segments': b, 'Q_weights': c, 'C_weights': d}
+                for a, b, c, d in zip(outputs_class[:-1], outputs_coord[:-1], Q_weights[:-1], C_weights[:-1])]
 
 
 class SetCriterion(nn.Module):
@@ -404,7 +401,7 @@ class SetCriterion(nn.Module):
                 indices = self.matcher(aux_outputs, targets)
                 for loss in self.losses:
                     # we do not compute actionness loss for aux outputs
-                    if 'actionness' or "QQ" in loss:
+                    if 'actionness' in loss:
                         continue
          
                     kwargs = {}
