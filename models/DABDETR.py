@@ -329,7 +329,7 @@ class SetCriterion(nn.Module):
         Q_weights = Q_weights.flatten(0, 1).flatten(1)
         C_weights = C_weights.flatten(0, 1)
 
-        target_Q_weights = torch.bmm(C_weights, C_weights.transpose(1, 2)).flatten(1)
+        target_Q_weights = torch.softmax(torch.bmm(C_weights, C_weights.transpose(1, 2)).flatten(1), dim=-1)
 
         # src_QQ = F.normalize(Q_weights)
         # tgt_QQ = F.normalize(target_Q_weights)
