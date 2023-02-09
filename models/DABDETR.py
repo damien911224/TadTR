@@ -334,7 +334,8 @@ class SetCriterion(nn.Module):
         #                                            torch.log(C_weights).transpose(1, 2)), dim=-1)
 
         # print(torch.argsort(-target_Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
-        print(torch.max(target_Q_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
+        # print(torch.max(target_Q_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
+        print(torch.max(C_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
         # print(target_Q_weights[0, 0].detach().cpu().numpy())
 
         # NQ, Q
