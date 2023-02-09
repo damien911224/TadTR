@@ -334,8 +334,8 @@ class SetCriterion(nn.Module):
         src_QQ = F.normalize(Q_weights)
         tgt_QQ = F.normalize(target_Q_weights)
 
-        print(src_QQ)
-        print(tgt_QQ)
+        print(src_QQ[0])
+        print(tgt_QQ[0])
         exit()
 
         losses = {}
