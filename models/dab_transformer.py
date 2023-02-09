@@ -470,7 +470,8 @@ class TransformerDecoderLayer(nn.Module):
             # print(torch.argsort(-Q_weights[0, 0].detach().cpu(), dim=-1)[:10].numpy())
             # print(Q_weights[0, 0][torch.argsort(-Q_weights[0, 0], dim=-1)[:10]].numpy())
 
-            q = query * scaling
+            head_dim = n_model // self.nhead
+            q = query * (float(head_dim) ** -0.5)
             q = q.contiguous().view(tgt_len, bsz * num_heads, head_dim).transpose(0, 1)
             k = k.contiguous().view(-1, bsz * num_heads, head_dim).transpose(0, 1)
             attn_output_weights = torch.bmm(q, k.transpose(1, 2))
@@ -600,9 +601,10 @@ class TransformerDecoderLayer(nn.Module):
                                               value=v, attn_mask=memory_mask,
                                               key_padding_mask=memory_key_padding_mask)
 
-            q = query * scaling
-            q = q.contiguous().view(tgt_len, bsz * num_heads, head_dim).transpose(0, 1)
-            k = k.contiguous().view(-1, bsz * num_heads, head_dim).transpose(0, 1)
+            head_dim = n_model // self.nhead
+            q = query * (float(head_dim) ** -0.5)
+            q = q.contiguous().view(tgt_len, bsz * self.nhead, head_dim).transpose(0, 1)
+            k = k.contiguous().view(-1, bsz * self.nhead, head_dim).transpose(0, 1)
             attn_output_weights = torch.bmm(q, k.transpose(1, 2))
             attn_output_weights = torch.softmax(attn_output_weights, dim=-1)
             attn_output_weights = attn_output_weights.view(bs, self.nhead, num_queries, hw)
