@@ -333,6 +333,7 @@ class SetCriterion(nn.Module):
         losses = {}
 
         loss_QQ = 1.0 - torch.bmm(src_QQ.unqueeze(-1), tgt_QQ.unsqueeze(1))
+        print(loss_QQ)
 
         losses['loss_QQ'] = loss_QQ
         return losses
