@@ -584,13 +584,26 @@ class TransformerDecoderLayer(nn.Module):
 
             # print(torch.argsort(-C_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
-            Q_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
+            # Q_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
             # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
-            print(torch.max(Q_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
+            # print(torch.max(Q_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
 
             # ========== End of Cross-Attention =============
             tgt = tgt + self.dropout2(tgt2)
             tgt = self.norm2(tgt)
+
+        if not self.rm_self_attn_decoder and True:
+            # Apply projections here
+            # shape: num_queries x batch_size x 256
+            v = self.sa_v_proj(tgt)
+
+            tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
+            # ========== End of Self-Attention =============
+
+            print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+
+            tgt = tgt + self.dropout1(tgt2)
+            tgt = self.norm1(tgt)
 
         tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt))))
         tgt = tgt + self.dropout3(tgt2)
