@@ -174,10 +174,6 @@ class TadTR(nn.Module):
         hs, reference, Q_weights, C_weights = \
             self.transformer(self.input_proj[0](src), mask, embedweight, pos[-1])
 
-        print(Q_weights.shape)
-        print(C_weights.shape)
-        exit()
-
         reference_before_sigmoid = inverse_sigmoid(reference)
         tmp = self.segment_embed(hs)
         tmp[..., :self.query_dim] += reference_before_sigmoid
