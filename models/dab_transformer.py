@@ -277,8 +277,8 @@ class TransformerDecoder(nn.Module):
                 return [
                     torch.stack(intermediate).transpose(1, 2),
                     torch.stack(ref_points).transpose(1, 2),
-                    torch.stack(inter_Q_weights).transpose(1, 2),
-                    torch.stack(inter_C_weights).transpose(1, 2),
+                    torch.stack(inter_Q_weights, dim=1),
+                    torch.stack(inter_C_weights, dim=1),
                 ]
             else:
                 return [
