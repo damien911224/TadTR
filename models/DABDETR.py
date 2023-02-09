@@ -328,7 +328,8 @@ class SetCriterion(nn.Module):
         # C_weights = F.softmax(C_weights, dim=-1)
         QQ_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
         # target_Q_weights = F.log_softmax(QQ_weights, dim=-1)
-        target_Q_weights = F.log_softmax(QQ_weights * 10000.0, dim=-1)
+        target_Q_weights = F.softmax(QQ_weights * 10000.0, dim=-1)
+        # target_Q_weights = F.log_softmax(QQ_weights * 10000.0, dim=-1)
         # target_Q_weights = F.log_softmax(torch.bmm(torch.log(C_weights),
         #                                            torch.log(C_weights).transpose(1, 2)), dim=-1)
 
@@ -342,7 +343,7 @@ class SetCriterion(nn.Module):
         # src_QQ = F.log_softmax(Q_weights.flatten(0, 1), -1)
         # NQ, Q
         # tgt_QQ = F.normalize(target_Q_weights, dim=-1).flatten(0, 1)
-        tgt_QQ = target_Q_weights.flatten(0, 1)
+        tgt_QQ = (target_Q_weights.flatten(0, 1) + 1.0e-7).log()
 
         losses = {}
 
