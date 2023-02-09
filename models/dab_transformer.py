@@ -121,9 +121,10 @@ class Transformer(nn.Module):
             tgt = self.patterns.weight[:, None, None, :].repeat(1, self.num_queries, bs, 1).flatten(0, 1) # n_q*n_pat, bs, d_model
             refpoint_embed = refpoint_embed.repeat(self.num_patterns, 1, 1) # n_q*n_pat, bs, d_model
             # import ipdb; ipdb.set_trace()
-        hs, references = self.decoder(tgt, memory, memory_key_padding_mask=mask,
-                          pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
-        return hs, references
+        hs, references, Q_weights, C_weights = \
+            self.decoder(tgt, memory, memory_key_padding_mask=mask,
+                         pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
+        return hs, references, Q_weights, C_weights
 
 
 class TransformerEncoder(nn.Module):
@@ -211,7 +212,7 @@ class TransformerDecoder(nn.Module):
         reference_points = refpoints_unsigmoid.sigmoid()
         ref_points = [reference_points]
         inter_Q_weights = []
-        inter_K_weights = []
+        inter_C_weights = []
 
         # import ipdb; ipdb.set_trace()        
 
@@ -263,7 +264,7 @@ class TransformerDecoder(nn.Module):
             if self.return_intermediate:
                 intermediate.append(self.norm(output))
                 inter_Q_weights.append(Q_weights.flatten(1))
-                inter_K_weights.append(K_weights.flatten(1))
+                inter_C_weights.append(C_weights.flatten(1))
 
         if self.norm is not None:
             output = self.norm(output)
@@ -277,7 +278,7 @@ class TransformerDecoder(nn.Module):
                     torch.stack(intermediate).transpose(1, 2),
                     torch.stack(ref_points).transpose(1, 2),
                     torch.stack(inter_Q_weights).transpose(1, 2),
-                    torch.stack(inter_K_weights).transpose(1, 2),
+                    torch.stack(inter_C_weights).transpose(1, 2),
                 ]
             else:
                 return [
