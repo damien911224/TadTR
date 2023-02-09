@@ -350,9 +350,14 @@ class TransformerDecoderLayer(nn.Module):
             self.dropout0 = nn.Dropout(dropout)
 
             self.sa_conv_1 = nn.Conv1d(d_model, d_model, 3, padding=1)
-            self.sa_conv_dropout1 = nn.Dropout(dropout)
             self.sa_conv_norm_1 = nn.LayerNorm(d_model)
             self.sa_activation_1 = _get_activation_fn(activation)
+            self.sa_conv_2 = nn.Conv1d(d_model, d_model, 3, padding=1)
+            self.sa_conv_norm_2 = nn.LayerNorm(d_model)
+            self.sa_activation_2 = _get_activation_fn(activation)
+            self.sa_conv_3 = nn.Conv1d(d_model, d_model, 3, padding=1)
+            self.sa_conv_norm_3 = nn.LayerNorm(d_model)
+            self.sa_conv_dropout1 = nn.Dropout(dropout)
 
             self.sa_KQ_qcontent_proj = nn.Linear(d_model, d_model)
             self.sa_KQ_qpos_proj = nn.Linear(d_model, d_model)
@@ -498,6 +503,7 @@ class TransformerDecoderLayer(nn.Module):
             src = self.norm0(src)
 
             src = self.sa_activation_1(self.sa_conv_norm_1(self.sa_conv_1(src.permute(1, 0, 2)).permute(1, 0, 2)))
+            src = self.sa_activation_2(self.sa_conv_norm_2(self.sa_conv_2(src.permute(1, 0, 2)).permute(1, 0, 2)))
 
             q_content = self.sa_KQ_qcontent_proj(tgt)
             k_content = self.sa_KQ_kcontent_proj(src)
