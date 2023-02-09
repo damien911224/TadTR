@@ -342,7 +342,7 @@ class SetCriterion(nn.Module):
         # print((torch.max(C_weights) - torch.max(target_Q_weights)).detach().cpu().numpy())
 
         # NQ, Q
-        src_QQ = F.normalize(Q_weights, dim=-1).flatten(0, 1)
+        src_QQ = F.normalize(F.softmax(Q_weights, dim=-1), dim=-1).flatten(0, 1)
         # src_QQ = (Q_weights.flatten(0, 1) + 1.0e-7).log()
         # src_QQ = F.log_softmax(Q_weights.flatten(0, 1), -1)
         # NQ, Q
