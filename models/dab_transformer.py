@@ -600,10 +600,8 @@ class TransformerDecoderLayer(nn.Module):
             if is_first or self.keep_query_pos:
                 q_pos = self.ca_qpos_proj(query_pos)
                 q = q_content + q_pos
-                k = k_content + k_pos
             else:
                 q = q_content
-                k = k_content
             q = q.view(num_queries, bs, self.nhead, n_model // self.nhead)
             q = torch.cat([q, query_sine_embed_], dim=3).view(num_queries, bs, n_model * 2)
             v = self.sa_v_proj(tgt)
