@@ -322,7 +322,7 @@ class SetCriterion(nn.Module):
         assert 'Q_weights' in outputs
         assert 'C_weights' in outputs
 
-        Q_weights = outputs["Q_weights"].cpu()
+        Q_weights = outputs["Q_weights"]
         C_weights = outputs["C_weights"].detach()
 
         N, L, Q, K = C_weights.shape
@@ -338,6 +338,8 @@ class SetCriterion(nn.Module):
 
         loss_QQ = 1.0 - torch.bmm(src_QQ.unsqueeze(-1), tgt_QQ.unsqueeze(1))
         loss_QQ = loss_QQ.mean()
+        loss_QQ.backward()
+        exit()
 
         losses['loss_QQ'] = loss_QQ
         return losses
