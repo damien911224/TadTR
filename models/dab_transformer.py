@@ -586,7 +586,7 @@ class TransformerDecoderLayer(nn.Module):
 
             Q_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
             # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
-            print(torch.max(K_weights[0].detach().cpu(), dim=-1)[0][:10])
+            print(torch.max(Q_weights[0].detach().cpu(), dim=-1)[0][:10])
 
             # ========== End of Cross-Attention =============
             tgt = tgt + self.dropout2(tgt2)
