@@ -210,6 +210,8 @@ class TransformerDecoder(nn.Module):
         intermediate = []
         reference_points = refpoints_unsigmoid.sigmoid()
         ref_points = [reference_points]
+        inter_Q_weights = []
+        inter_K_weights = []
 
         # import ipdb; ipdb.set_trace()        
 
@@ -237,12 +239,13 @@ class TransformerDecoder(nn.Module):
                 refHW_cond = self.ref_anchor_head(output).sigmoid() # nq, bs, 2
                 query_sine_embed *= (refHW_cond[..., 0] / obj_center[..., 1]).unsqueeze(-1)
 
-            output = layer(output, memory, tgt_mask=tgt_mask,
-                           memory_mask=memory_mask,
-                           tgt_key_padding_mask=tgt_key_padding_mask,
-                           memory_key_padding_mask=memory_key_padding_mask,
-                           pos=pos, query_pos=query_pos, query_sine_embed=query_sine_embed,
-                           is_first=(layer_id == 0), ref_points=reference_points)
+            output, Q_weights, C_weights = \
+                layer(output, memory, tgt_mask=tgt_mask,
+                      memory_mask=memory_mask,
+                      tgt_key_padding_mask=tgt_key_padding_mask,
+                      memory_key_padding_mask=memory_key_padding_mask,
+                      pos=pos, query_pos=query_pos, query_sine_embed=query_sine_embed,
+                      is_first=(layer_id == 0), ref_points=reference_points)
 
             # iter update
             if self.segment_embed is not None:
@@ -259,6 +262,8 @@ class TransformerDecoder(nn.Module):
 
             if self.return_intermediate:
                 intermediate.append(self.norm(output))
+                inter_Q_weights.append(Q_weights.flatten(1))
+                inter_K_weights.append(K_weights.flatten(1))
 
         if self.norm is not None:
             output = self.norm(output)
@@ -271,6 +276,8 @@ class TransformerDecoder(nn.Module):
                 return [
                     torch.stack(intermediate).transpose(1, 2),
                     torch.stack(ref_points).transpose(1, 2),
+                    torch.stack(inter_Q_weights).transpose(1, 2),
+                    torch.stack(inter_K_weights).transpose(1, 2),
                 ]
             else:
                 return [
@@ -413,7 +420,7 @@ class TransformerDecoderLayer(nn.Module):
                 is_first=False, ref_points=None):
                      
         # ========== Begin of Self-Attention =============
-        if not self.rm_self_attn_decoder and False:
+        if not self.rm_self_attn_decoder and True:
             # Apply projections here
             # shape: num_queries x batch_size x 256
             q_content = self.sa_qcontent_proj(tgt)      # target is the input of the first decoder layer. zero by default.
@@ -461,6 +468,8 @@ class TransformerDecoderLayer(nn.Module):
             # Q_weights = Q_weights.detach().cpu()
             # print(torch.argsort(-Q_weights[0, 0].detach().cpu(), dim=-1)[:10].numpy())
             # print(Q_weights[0, 0][torch.argsort(-Q_weights[0, 0], dim=-1)[:10]].numpy())
+
+            print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
             tgt = tgt + self.dropout1(tgt2)
             tgt = self.norm1(tgt)
@@ -593,7 +602,7 @@ class TransformerDecoderLayer(nn.Module):
             tgt = tgt + self.dropout2(tgt2)
             tgt = self.norm2(tgt)
 
-        if not self.rm_self_attn_decoder and True:
+        if not self.rm_self_attn_decoder and False:
             # Apply projections here
             # shape: num_queries x batch_size x 256
             q_content = self.sa_qcontent_proj(tgt)
@@ -619,7 +628,7 @@ class TransformerDecoderLayer(nn.Module):
         tgt = tgt + self.dropout3(tgt2)
         tgt = self.norm3(tgt)
 
-        return tgt
+        return tgt, Q_weights, C_weights
 
 
 
