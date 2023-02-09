@@ -326,18 +326,20 @@ class SetCriterion(nn.Module):
         C_weights = outputs["C_weights"].detach()
 
         N, L, Q, K = C_weights.shape
-        Q_weights = Q_weights.flatten(0, 1).flatten(1)
+        Q_weights = Q_weights.flatten(0, 1)
         C_weights = C_weights.flatten(0, 1)
 
-        target_Q_weights = torch.bmm(C_weights, C_weights.transpose(1, 2)).flatten(1)
+        target_Q_weights = torch.softmax(torch.bmm(C_weights, C_weights.transpose(1, 2)), dim=-1)
 
-        # src_QQ = F.normalize(Q_weights)
-        # tgt_QQ = F.normalize(target_Q_weights)
+        # NL, Q, Q
+        src_QQ = F.normalize(Q_weights, dim=-1).flatten(0, 1)
+        # NL, Q, Q
+        tgt_QQ = F.normalize(target_Q_weights, dim=-1).flatten(0, 1)
 
         losses = {}
 
-        # loss_QQ = 1.0 - torch.bmm(src_QQ.unsqueeze(-1), tgt_QQ.unsqueeze(1))
-        loss_QQ = torch.square(src_QQ - tgt_QQ)
+        loss_QQ = 1.0 - torch.bmm(src_QQ.unsqueeze(-1), tgt_QQ.unsqueeze(1))
+        # loss_QQ = torch.square(src_QQ - tgt_QQ)
         loss_QQ = loss_QQ.mean()
 
         losses['loss_QQ'] = loss_QQ
