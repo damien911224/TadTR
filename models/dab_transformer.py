@@ -561,7 +561,7 @@ class TransformerDecoderLayer(nn.Module):
         if not self.rm_self_attn_decoder and True:
             # Apply projections here
             # shape: num_queries x batch_size x 256
-            query_pos = torch.bmm(C_weights, pos)
+            query_pos = torch.bmm(C_weights, pos.transpose(1, 2))
 
             q_content = self.sa_qcontent_proj(tgt)      # target is the input of the first decoder layer. zero by default.
             q_pos = self.sa_qpos_proj(query_pos)
