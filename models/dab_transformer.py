@@ -598,7 +598,7 @@ class TransformerDecoderLayer(nn.Module):
             # shape: num_queries x batch_size x 256
             v = self.sa_v_proj(tgt)
 
-            tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
+            tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=memory_mask, key_padding_mask=memory_key_padding_mask)
             # ========== End of Self-Attention =============
 
             print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
