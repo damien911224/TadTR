@@ -331,13 +331,13 @@ class SetCriterion(nn.Module):
 
         target_Q_weights = torch.bmm(C_weights, C_weights.transpose(1, 2)).flatten(1)
 
-        src_QQ = F.normalize(Q_weights)
-        tgt_QQ = F.normalize(target_Q_weights)
+        # src_QQ = F.normalize(Q_weights)
+        # tgt_QQ = F.normalize(target_Q_weights)
 
         losses = {}
 
-        loss_QQ = 1.0 - torch.bmm(src_QQ.unsqueeze(-1), tgt_QQ.unsqueeze(1))
-        # loss_QQ = torch.square(src_QQ - tgt_QQ)
+        # loss_QQ = 1.0 - torch.bmm(src_QQ.unsqueeze(-1), tgt_QQ.unsqueeze(1))
+        loss_QQ = torch.square(src_QQ - tgt_QQ)
         loss_QQ = loss_QQ.mean()
 
         losses['loss_QQ'] = loss_QQ
