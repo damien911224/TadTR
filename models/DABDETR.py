@@ -331,6 +331,7 @@ class SetCriterion(nn.Module):
         tgt_QQ = F.normalize(target_Q_weights)
 
         print(src_QQ.shape)
+        exit()
 
         losses = {}
 
