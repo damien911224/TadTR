@@ -333,7 +333,6 @@ class SetCriterion(nn.Module):
 
         src_QQ = F.normalize(Q_weights)
         tgt_QQ = F.normalize(target_Q_weights)
-        print(src_QQ.shape, tgt_QQ.shape)
 
         losses = {}
 
@@ -522,7 +521,7 @@ def build(args):
         weight_dict['loss_actionness'] = args.act_loss_coef
         losses.append('actionness')
 
-    weight_dict["loss_QQ"] = 1.0
+    weight_dict["loss_QQ"] = 5.0
     losses.append("QQ")
 
     if args.aux_loss:
