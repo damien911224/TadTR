@@ -338,8 +338,6 @@ class SetCriterion(nn.Module):
 
         loss_QQ = 1.0 - torch.bmm(src_QQ.unsqueeze(-1), tgt_QQ.unsqueeze(1))
         loss_QQ = loss_QQ.mean()
-        loss_QQ.backward()
-        exit()
 
         losses['loss_QQ'] = loss_QQ
         return losses
