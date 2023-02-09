@@ -326,10 +326,10 @@ class SetCriterion(nn.Module):
         N, Q, K = C_weights.shape
 
         # C_weights = F.softmax(C_weights, dim=-1)
-        QQ_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
-        target_Q_weights = F.log_softmax(QQ_weights, dim=-1)
-        # target_Q_weights = torch.softmax(torch.bmm(torch.log(C_weights),
-        #                                            torch.log(C_weights).transpose(1, 2)), dim=-1)
+        # QQ_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
+        # target_Q_weights = F.log_softmax(QQ_weights, dim=-1)
+        target_Q_weights = F.log_softmax(torch.bmm(torch.log(C_weights),
+                                                   torch.log(C_weights).transpose(1, 2)), dim=-1)
 
         print(torch.argsort(-target_Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
