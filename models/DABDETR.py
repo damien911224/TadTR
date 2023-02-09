@@ -330,10 +330,11 @@ class SetCriterion(nn.Module):
         src_QQ = F.normalize(Q_weights.flatten(1))
         tgt_QQ = F.normalize(target_Q_weights)
 
+        print(src_QQ.shape)
+
         losses = {}
 
         loss_QQ = 1.0 - torch.bmm(src_QQ.unqueeze(-1), tgt_QQ.unsqueeze(1))
-        print(loss_QQ)
 
         losses['loss_QQ'] = loss_QQ
         return losses
