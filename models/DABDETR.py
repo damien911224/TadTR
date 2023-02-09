@@ -326,7 +326,7 @@ class SetCriterion(nn.Module):
         N, Q, K = C_weights.shape
 
         QQ_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
-        target_Q_weights = F.softmax(QQ_weights, dim=-1)
+        target_Q_weights = F.log_softmax(QQ_weights, dim=-1)
         # target_Q_weights = torch.softmax(torch.bmm(torch.log(C_weights),
         #                                            torch.log(C_weights).transpose(1, 2)), dim=-1)
 
@@ -346,7 +346,7 @@ class SetCriterion(nn.Module):
         # loss_QQ = torch.square(src_QQ - dummy)
         # loss_QQ = torch.sum(-tgt_QQ * torch.log(src_QQ + 1.0e-5), dim=-1)
         # loss_QQ = loss_QQ.sum(dim=(1, 2))
-        loss_QQ = F.kl_div(src_QQ, tgt_QQ, reduction="none").sum(-1)
+        loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1)
         loss_QQ = loss_QQ.mean()
 
         losses['loss_QQ'] = loss_QQ
