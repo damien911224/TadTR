@@ -346,7 +346,7 @@ class SetCriterion(nn.Module):
         # loss_QQ = torch.square(src_QQ - dummy)
         # loss_QQ = torch.sum(-tgt_QQ * torch.log(src_QQ + 1.0e-5), dim=-1)
         # loss_QQ = loss_QQ.sum(dim=(1, 2))
-        loss_QQ = F.kl_div(src_QQ.log(), tgt_QQ.log(), log_target=True, reduction="none").sum(-1)
+        loss_QQ = F.kl_div((src_QQ + 1.0e-7).log(), (tgt_QQ + 1.0e-7).log(), log_target=True, reduction="none").sum(-1)
         loss_QQ = loss_QQ.mean()
 
         losses['loss_QQ'] = loss_QQ
