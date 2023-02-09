@@ -206,6 +206,9 @@ class TadTR(nn.Module):
         if self.aux_loss:
             out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
 
+        out["Q_weights"] = Q_weights
+        out["C_weights"] = C_weights
+
         return out
 
     @torch.jit.unused
@@ -307,6 +310,29 @@ class SetCriterion(nn.Module):
         gt_iou = iou_mat.max(dim=1)[0]
         pred_actionness = outputs['pred_actionness']
         loss_actionness = F.l1_loss(pred_actionness.view(-1), gt_iou.view(-1).detach())   
+
+        losses['loss_iou'] = loss_actionness
+        return losses
+
+    def loss_QQ(self, outputs, targets, indices, num_segments):
+        """Compute the actionness regression loss
+           targets dicts must contain the key "segments" containing a tensor of dim [nb_target_segments, 2]
+           The target segments are expected in format (center, width), normalized by the video length.
+        """
+        assert 'pred_segments' in outputs
+        assert 'pred_actionness' in outputs
+        src_segments = outputs['pred_segments'].view((-1, 2))
+        target_segments = torch.cat([t['segments'] for t in targets], dim=0)
+
+        losses = {}
+
+        iou_mat = segment_ops.segment_iou(
+            segment_ops.segment_cw_to_t1t2(src_segments),
+            segment_ops.segment_cw_to_t1t2(target_segments))
+
+        gt_iou = iou_mat.max(dim=1)[0]
+        pred_actionness = outputs['pred_actionness']
+        loss_actionness = F.l1_loss(pred_actionness.view(-1), gt_iou.view(-1).detach())
 
         losses['loss_iou'] = loss_actionness
         return losses

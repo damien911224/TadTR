@@ -263,8 +263,8 @@ class TransformerDecoder(nn.Module):
 
             if self.return_intermediate:
                 intermediate.append(self.norm(output))
-                inter_Q_weights.append(Q_weights.flatten(1))
-                inter_C_weights.append(C_weights.flatten(1))
+                inter_Q_weights.append(Q_weights)
+                inter_C_weights.append(C_weights)
 
         if self.norm is not None:
             output = self.norm(output)
@@ -277,8 +277,8 @@ class TransformerDecoder(nn.Module):
                 return [
                     torch.stack(intermediate).transpose(1, 2),
                     torch.stack(ref_points).transpose(1, 2),
-                    torch.stack(inter_Q_weights).transpose(1, 2),
-                    torch.stack(inter_C_weights).transpose(1, 2),
+                    torch.stack(inter_Q_weights, dim=1),
+                    torch.stack(inter_C_weights, dim=1),
                 ]
             else:
                 return [
