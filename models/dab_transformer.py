@@ -111,7 +111,7 @@ class Transformer(nn.Module):
         pos_embed = pos_embed.flatten(2).permute(2, 0, 1)
         refpoint_embed = refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
         mask = mask.flatten(1)        
-        memory = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
+        memory, K_weights = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
 
         # query_embed = gen_sineembed_for_position(refpoint_embed)
         num_queries = refpoint_embed.shape[0]
@@ -122,9 +122,9 @@ class Transformer(nn.Module):
             refpoint_embed = refpoint_embed.repeat(self.num_patterns, 1, 1) # n_q*n_pat, bs, d_model
             # import ipdb; ipdb.set_trace()
         hs, references, Q_weights, C_weights = \
-            self.decoder(tgt, memory, memory_key_padding_mask=mask,
-                         pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
-        return hs, references, Q_weights, C_weights
+            self.decoder(tgt, memory, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
+
+        return hs, references, Q_weights, K_weights, C_weights
 
 
 class TransformerEncoder(nn.Module):
@@ -142,18 +142,20 @@ class TransformerEncoder(nn.Module):
                 pos: Optional[Tensor] = None):
         output = src
 
+        inter_K_weights = list()
         for layer_id, layer in enumerate(self.layers):
             # rescale the content and pos sim
             pos_scales = self.query_scale(output)
-            output = layer(output, src_mask=mask,
-                           src_key_padding_mask=src_key_padding_mask, pos=pos*pos_scales)
+            output, K_weights = layer(output, src_mask=mask,
+                                      src_key_padding_mask=src_key_padding_mask, pos=pos * pos_scales)
             # output = layer(output, src_mask=mask,
             #                src_key_padding_mask=src_key_padding_mask, pos=pos * 100.0)
+            inter_K_weights.append(K_weights)
 
         if self.norm is not None:
             output = self.norm(output)
 
-        return output
+        return output, torch.stack(inter_K_weights)
 
 
 class TransformerDecoder(nn.Module):
@@ -328,7 +330,7 @@ class TransformerEncoderLayer(nn.Module):
         src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
         src = src + self.dropout2(src2)
         src = self.norm2(src)
-        return src
+        return src, K_weights
 
 
 class TransformerDecoderLayer(nn.Module):
