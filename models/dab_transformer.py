@@ -488,7 +488,7 @@ class TransformerDecoderLayer(nn.Module):
             # attn_output_weights = attn_output_weights.view(bs, self.nhead, num_queries, num_queries)
             # Q_weights = attn_output_weights.sum(dim=1) / self.nhead
 
-            # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+            print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
             Q_weights = self.weight_buffer(Q_weights.flatten(1, 2)).view(-1, num_queries, num_queries)
 
