@@ -476,6 +476,9 @@ class SetCriterion(nn.Module):
                     # we do not compute actionness loss for aux outputs
                     if 'actionness' in loss:
                         continue
+
+                    if 'KK' in loss:
+                        continue
          
                     kwargs = {}
                     if loss == 'labels':
