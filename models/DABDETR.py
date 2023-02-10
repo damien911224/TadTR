@@ -182,9 +182,10 @@ class TadTR(nn.Module):
 
         outputs_class = self.class_embed(hs)
 
+        out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
+               'Q_weights': Q_weights[-1], 'K_weights': K_weights[-1], 'C_weights': C_weights[-1]}
+
         if not self.with_act_reg:
-            out = {'pred_logits': outputs_class[-1],
-                   'pred_segments': outputs_coord[-1]}
         else:
             # perform RoIAlign
             B, N = outputs_coord[-1].shape[:2]
@@ -199,11 +200,7 @@ class TadTR(nn.Module):
             last_layer_cls = outputs_class[-1]
             last_layer_reg = outputs_coord[-1]
 
-            out = {'pred_logits': last_layer_cls,
-                   'pred_segments': last_layer_reg, 'pred_actionness': pred_actionness}
-
-        out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-               'Q_weights': Q_weights[-1], 'K_weights': K_weights[-1], 'C_weights': C_weights[-1]}
+            out['pred_actionness'] = pred_actionness
         if self.aux_loss:
             out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord, Q_weights, K_weights, C_weights)
 
