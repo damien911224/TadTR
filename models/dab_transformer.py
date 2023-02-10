@@ -311,7 +311,7 @@ class TransformerEncoderLayer(nn.Module):
         self.activation = _get_activation_fn(activation)
         self.normalize_before = normalize_before
 
-        self.weight_buffer = nn.Linear(128 ** 2, 128 ** 2)
+        self.weight_buffer = nn.Linear(128, 128)
 
     def with_pos_embed(self, tensor, pos: Optional[Tensor]):
         return tensor if pos is None else tensor + pos
@@ -326,8 +326,7 @@ class TransformerEncoderLayer(nn.Module):
 
         # print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
         # print(torch.max(K_weights[0].detach().cpu(), dim=-1)[0][:10])
-        # K_weights = self.weight_buffer(K_weights)
-        K_weights = self.weight_buffer(K_weights.flatten(1, 2)).view(-1, 128, 128)
+        K_weights = F.softmax(self.weight_buffer(K_weights), dim=-1)
 
         src = src + self.dropout1(src2)
         src = self.norm1(src)
@@ -488,9 +487,9 @@ class TransformerDecoderLayer(nn.Module):
             # attn_output_weights = attn_output_weights.view(bs, self.nhead, num_queries, num_queries)
             # Q_weights = attn_output_weights.sum(dim=1) / self.nhead
 
-            print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+            # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
-            Q_weights = self.weight_buffer(Q_weights.flatten(1, 2)).view(-1, num_queries, num_queries)
+            Q_weights = F.softmax(self.weight_buffer(Q_weights), dim=-1)
 
             tgt = tgt + self.dropout1(tgt2)
             tgt = self.norm1(tgt)
