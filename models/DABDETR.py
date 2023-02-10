@@ -274,7 +274,7 @@ class SetCriterion(nn.Module):
             score_gap = torch.mean(probs[torch.arange(len(top_1_indices)),
                                          top_1_indices[torch.arange(len(top_1_indices))]] -
                                    probs[torch.arange(len(top_2_indices)),
-                                         top_1_indices[torch.arange(len(top_1_indices))]], dim=0)
+                                         top_2_indices[torch.arange(len(top_2_indices))]], dim=0)
 
             losses['score_gap'] = score_gap
 
