@@ -332,7 +332,7 @@ class SetCriterion(nn.Module):
         # target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
         src_C_weights = C_weights.unsqueeze(2).repeat(1, 1, Q, 1)
         tgt_C_weights = C_weights.unsqueeze(1).repeat(1, Q, 1, 1)
-        QQ_weights = F.kl_div(src_C_weights, tgt_C_weights, log_target=False, reduction="none")
+        QQ_weights = F.kl_div(src_C_weights, tgt_C_weights, log_target=False, reduction="none").sum(-1)
         target_Q_weights = F.softmax(QQ_weights.view(N, Q, Q), dim=-1)
         # temparature_scale = (torch.max(C_weights) / torch.max(QQ_weights)).detach()
         # target_Q_weights = F.softmax(QQ_weights * temparature_scale, dim=-1)
