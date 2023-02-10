@@ -414,7 +414,7 @@ class SetCriterion(nn.Module):
         losses = {}
 
         loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1)
-        loss_KK = loss_QQ.mean()
+        loss_KK = loss_KK.mean()
 
         losses['loss_KK'] = loss_KK
         return losses
