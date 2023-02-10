@@ -334,7 +334,8 @@ class SetCriterion(nn.Module):
         assert 'Q_weights' in outputs
         assert 'C_weights' in outputs
 
-        Q_weights = outputs["Q_weights"]
+        # Q_weights = outputs["Q_weights"]
+        Q_weights = F.softmax(outputs["Q_weights"], dim=-1)
         C_weights = outputs["C_weights"].detach()
 
         N, Q, K = C_weights.shape
@@ -394,7 +395,8 @@ class SetCriterion(nn.Module):
         assert 'K_weights' in outputs
         assert 'C_weights' in outputs
 
-        K_weights = outputs["K_weights"]
+        # K_weights = outputs["K_weights"]
+        K_weights = F.softmax(outputs["K_weights"], dim=-1)
         C_weights = outputs["C_weights"].detach()
 
         N, Q, K = C_weights.shape
@@ -402,7 +404,7 @@ class SetCriterion(nn.Module):
         KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
         target_K_weights = F.softmax(KK_weights * 50.0, dim=-1)
 
-        print(torch.argsort(-target_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        # print(torch.argsort(-target_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
         # print(torch.max(target_K_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
         # print(torch.max(C_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
         # print(target_K_weights[0, 0].detach().cpu().numpy())
