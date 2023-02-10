@@ -271,10 +271,11 @@ class SetCriterion(nn.Module):
             top_k_indices = torch.argsort(-src_logits, dim=-1)
             top_1_indices = top_k_indices[..., 0]
             top_2_indices = top_k_indices[..., 1]
-            score_gap = torch.mean(probs[torch.arange(len(top_1_indices)),
-                                         top_1_indices[torch.arange(len(top_1_indices))]] -
-                                   probs[torch.arange(len(top_2_indices)),
-                                         top_2_indices[torch.arange(len(top_2_indices))]], dim=0)
+            score_gap = torch.mean(probs[top_1_indices] - probs[top_2_indices], dim=0)
+            # score_gap = torch.mean(probs[torch.arange(len(top_1_indices)),
+            #                              top_1_indices[torch.arange(len(top_1_indices))]] -
+            #                        probs[torch.arange(len(top_2_indices)),
+            #                              top_2_indices[torch.arange(len(top_2_indices))]], dim=0)
 
             losses['score_gap'] = score_gap
 
