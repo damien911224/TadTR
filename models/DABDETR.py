@@ -185,8 +185,7 @@ class TadTR(nn.Module):
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
                'Q_weights': Q_weights[-1], 'K_weights': K_weights[-1], 'C_weights': C_weights[-1]}
 
-        if not self.with_act_reg:
-        else:
+        if self.with_act_reg:
             # perform RoIAlign
             B, N = outputs_coord[-1].shape[:2]
             origin_feat = memory.permute(1, 2, 0)
