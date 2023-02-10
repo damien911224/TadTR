@@ -326,10 +326,14 @@ class SetCriterion(nn.Module):
         N, Q, K = C_weights.shape
 
         # C_weights = F.softmax(C_weights, dim=-1)
-        QQ_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
+        # QQ_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
         # target_Q_weights = F.log_softmax(QQ_weights, dim=-1)
         # target_Q_weights = F.softmax(QQ_weights * 200.0, dim=-1)
-        target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
+        # target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
+        src_C_weights = C_weights.unsqueeze(2).repeat(1, 1, Q, 1)
+        tgt_C_weights = C_weights.unsqueeze(1).repeat(1, Q, 1, 1)
+        QQ_weights = F.kl_div(src_C_weights, tgt_C_weights, log_target=False, reduction="none")
+        target_Q_weights = F.softmax(QQ_weights.view(N, Q, Q), dim=-1)
         # temparature_scale = (torch.max(C_weights) / torch.max(QQ_weights)).detach()
         # target_Q_weights = F.softmax(QQ_weights * temparature_scale, dim=-1)
         # target_Q_weights = F.log_softmax(QQ_weights * 10000.0, dim=-1)
@@ -337,10 +341,10 @@ class SetCriterion(nn.Module):
         #                                            torch.log(C_weights).transpose(1, 2)), dim=-1)
 
         # print(torch.argsort(-target_Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
-        # print(torch.max(target_Q_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
+        print(torch.max(target_Q_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
         # print(torch.max(C_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
         # print(target_Q_weights[0, 0].detach().cpu().numpy())
-        print((torch.max(C_weights) - torch.max(target_Q_weights)).detach().cpu().numpy())
+        # print((torch.max(C_weights) - torch.max(target_Q_weights)).detach().cpu().numpy())
 
         # NQ, Q
         # src_QQ = F.normalize(Q_weights, dim=-1).flatten(0, 1)
