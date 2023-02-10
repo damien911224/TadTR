@@ -162,10 +162,10 @@ cfg.weight_decay = 1e-4
 cfg.clip_max_norm = 0.1
 
 # maximum number of training epochs
-cfg.epochs = 32 # 16
+cfg.epochs = 25 # 16
 
 # when to decay lr
-cfg.lr_step = [28] # [14]
+cfg.lr_step = [18] # [14]
 # save checkpoint every N epochs. Set it to a small value if you want to save intermediate models
 cfg.ckpt_interval = 10
 # update parameters every N forward-backward passes. N=1 (default)

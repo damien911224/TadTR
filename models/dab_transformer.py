@@ -326,7 +326,7 @@ class TransformerEncoderLayer(nn.Module):
 
         # print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
         # print(torch.max(K_weights[0].detach().cpu(), dim=-1)[0][:10])
-        K_weights = F.softmax(self.weight_buffer(K_weights), dim=-1)
+        # K_weights = F.softmax(self.weight_buffer(K_weights), dim=-1)
 
         src = src + self.dropout1(src2)
         src = self.norm1(src)
@@ -489,7 +489,7 @@ class TransformerDecoderLayer(nn.Module):
 
             # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
-            Q_weights = F.softmax(self.weight_buffer(Q_weights), dim=-1)
+            # Q_weights = F.softmax(self.weight_buffer(Q_weights), dim=-1)
 
             tgt = tgt + self.dropout1(tgt2)
             tgt = self.norm1(tgt)
