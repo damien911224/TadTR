@@ -321,7 +321,7 @@ class TransformerEncoderLayer(nn.Module):
         # q = k = src
         src2, K_weights = self.self_attn(q, k, value=src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)
 
-        # print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
         # print(torch.max(K_weights[0].detach().cpu(), dim=-1)[0][:10])
 
         src = src + self.dropout1(src2)
@@ -347,6 +347,7 @@ class TransformerDecoderLayer(nn.Module):
             self.sa_kpos_proj = nn.Linear(d_model, d_model)
             self.sa_v_proj = nn.Linear(d_model, d_model)
             self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout, vdim=d_model)
+
             # self.self_attn = ChainAttention(d_model*2, nhead, dropout=dropout, vdim=d_model)
 
             # self.sa_QK_qcontent_proj = nn.Linear(d_model, d_model)
