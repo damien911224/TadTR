@@ -125,7 +125,7 @@ class Transformer(nn.Module):
         hs, references, Q_weights, C_weights = \
             self.decoder(tgt, memory, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
 
-        return hs, references, Q_weights, K_weights, C_weights
+        return hs, references, memory, Q_weights, K_weights, C_weights
 
 
 class TransformerEncoder(nn.Module):

@@ -171,7 +171,7 @@ class TadTR(nn.Module):
         src, mask = samples.tensors, samples.mask
 
         embedweight = self.refpoint_embed.weight
-        hs, reference, Q_weights, K_weights, C_weights = \
+        hs, reference, memory, Q_weights, K_weights, C_weights = \
             self.transformer(self.input_proj[0](src), mask, embedweight, pos[-1])
 
         reference_before_sigmoid = inverse_sigmoid(reference)
@@ -182,25 +182,25 @@ class TadTR(nn.Module):
 
         outputs_class = self.class_embed(hs)
 
-        # if not self.with_act_reg:
-        #     out = {'pred_logits': outputs_class[-1],
-        #            'pred_segments': outputs_coord[-1]}
-        # else:
-        #     # perform RoIAlign
-        #     B, N = outputs_coord[-1].shape[:2]
-        #     origin_feat = memory
-        #
-        #     rois = self._to_roi_align_format(
-        #         outputs_coord[-1], origin_feat.shape[2], scale_factor=1.5)
-        #     roi_features = self.roi_extractor(origin_feat, rois)
-        #     roi_features = roi_features.view((B, N, -1))
-        #     pred_actionness = self.actionness_pred(roi_features)
-        #
-        #     last_layer_cls = outputs_class[-1]
-        #     last_layer_reg = outputs_coord[-1]
-        #
-        #     out = {'pred_logits': last_layer_cls,
-        #            'pred_segments': last_layer_reg, 'pred_actionness': pred_actionness}
+        if not self.with_act_reg:
+            out = {'pred_logits': outputs_class[-1],
+                   'pred_segments': outputs_coord[-1]}
+        else:
+            # perform RoIAlign
+            B, N = outputs_coord[-1].shape[:2]
+            origin_feat = memory
+
+            rois = self._to_roi_align_format(
+                outputs_coord[-1], origin_feat.shape[2], scale_factor=1.5)
+            roi_features = self.roi_extractor(origin_feat, rois)
+            roi_features = roi_features.view((B, N, -1))
+            pred_actionness = self.actionness_pred(roi_features)
+
+            last_layer_cls = outputs_class[-1]
+            last_layer_reg = outputs_coord[-1]
+
+            out = {'pred_logits': last_layer_cls,
+                   'pred_segments': last_layer_reg, 'pred_actionness': pred_actionness}
 
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
                'Q_weights': Q_weights[-1], 'K_weights': K_weights[-1], 'C_weights': C_weights[-1]}
@@ -590,7 +590,7 @@ def build(args):
         num_queries=args.num_queries,
         aux_loss=args.aux_loss,
         with_segment_refine=args.seg_refine,
-        with_act_reg=False
+        with_act_reg=args.act_reg
     )
 
     matcher = build_matcher(args)
