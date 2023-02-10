@@ -266,6 +266,15 @@ class SetCriterion(nn.Module):
             # TODO this should probably be a separate loss, not hacked in this one here
             losses['class_error'] = 100 - accuracy(src_logits[idx], target_classes_o)[0]
 
+            # N, Q
+            probs = torch.max(src_logits.sigmoid(), dim=-1)
+            top_k_indices = torch.argsort(-src_logits, dim=-1)
+            top_1_indices = top_k_indices[..., 0]
+            top_2_indices = top_k_indices[..., 1]
+            score_gap = torch.mean(probs[top_1_indices] - probs[top_2_indices], dim=0)
+
+            losses['score_gap'] = score_gap
+
         return losses
 
     def loss_segments(self, outputs, targets, indices, num_segments):
@@ -550,8 +559,8 @@ def build(args):
         weight_dict['loss_actionness'] = args.act_loss_coef
         losses.append('actionness')
 
-    weight_dict["loss_QQ"] = 1.0
-    losses.append("QQ")
+    # weight_dict["loss_QQ"] = 1.0
+    # losses.append("QQ")
 
     if args.aux_loss:
         aux_weight_dict = {}
