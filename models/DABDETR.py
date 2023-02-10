@@ -188,7 +188,7 @@ class TadTR(nn.Module):
         else:
             # perform RoIAlign
             B, N = outputs_coord[-1].shape[:2]
-            origin_feat = memory
+            origin_feat = memory.permute(1, 2, 0)
 
             rois = self._to_roi_align_format(
                 outputs_coord[-1], origin_feat.shape[2], scale_factor=1.5)
