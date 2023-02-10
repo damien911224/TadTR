@@ -408,8 +408,8 @@ class SetCriterion(nn.Module):
         # print((torch.max(C_weights) - torch.max(target_K_weights)).detach().cpu().numpy())
 
         # NK, K
-        src_KK = (Q_weights.flatten(0, 1) + 1.0e-7).log()
-        tgt_KK = (target_Q_weights.flatten(0, 1) + 1.0e-7).log()
+        src_KK = (K_weights.flatten(0, 1) + 1.0e-7).log()
+        tgt_KK = (target_K_weights.flatten(0, 1) + 1.0e-7).log()
 
         losses = {}
 
