@@ -171,7 +171,7 @@ class TadTR(nn.Module):
         src, mask = samples.tensors, samples.mask
 
         embedweight = self.refpoint_embed.weight
-        hs, reference, Q_weights, C_weights = \
+        hs, reference, Q_weights, K_weights, C_weights = \
             self.transformer(self.input_proj[0](src), mask, embedweight, pos[-1])
 
         reference_before_sigmoid = inverse_sigmoid(reference)
@@ -203,19 +203,19 @@ class TadTR(nn.Module):
         #            'pred_segments': last_layer_reg, 'pred_actionness': pred_actionness}
 
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-               'Q_weights': Q_weights[-1], 'C_weights': C_weights[-1]}
+               'Q_weights': Q_weights[-1], 'K_weights': K_weights[-1], 'C_weights': C_weights[-1]}
         if self.aux_loss:
-            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord, Q_weights, C_weights)
+            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord, Q_weights, K_weights, C_weights)
 
         return out
 
     @torch.jit.unused
-    def _set_aux_loss(self, outputs_class, outputs_coord, Q_weights, C_weights):
+    def _set_aux_loss(self, outputs_class, outputs_coord, Q_weights, K_weights, C_weights):
         # this is a workaround to make torchscript happy, as torchscript
         # doesn't support dictionary with non-homogeneous values, such
         # as a dict having both a Tensor and a list.
-        return [{'pred_logits': a, 'pred_segments': b, 'Q_weights': c, 'C_weights': d}
-                for a, b, c, d in zip(outputs_class[:-1], outputs_coord[:-1], Q_weights[:-1], C_weights[:-1])]
+        return [{'pred_logits': a, 'pred_segments': b, 'Q_weights': c, 'K_weights': d, 'C_weights': e}
+                for a, b, c, d in zip(outputs_class[:-1], outputs_coord[:-1], Q_weights[:-1], K_weights[:-1], C_weights[:-1])]
 
 
 class SetCriterion(nn.Module):
@@ -385,6 +385,40 @@ class SetCriterion(nn.Module):
         losses['loss_QQ'] = loss_QQ
         return losses
 
+    def loss_KK(self, outputs, targets, indices, num_segments):
+        """Compute the actionness regression loss
+           targets dicts must contain the key "segments" containing a tensor of dim [nb_target_segments, 2]
+           The target segments are expected in format (center, width), normalized by the video length.
+        """
+        assert 'K_weights' in outputs
+        assert 'C_weights' in outputs
+
+        K_weights = outputs["K_weights"]
+        C_weights = outputs["C_weights"].detach()
+
+        N, Q, K = C_weights.shape
+
+        KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
+        target_K_weights = F.softmax(KK_weights * 50.0, dim=-1)
+
+        print(torch.argsort(-target_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        # print(torch.max(target_K_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
+        # print(torch.max(C_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
+        # print(target_K_weights[0, 0].detach().cpu().numpy())
+        # print((torch.max(C_weights) - torch.max(target_K_weights)).detach().cpu().numpy())
+
+        # NK, K
+        src_KK = (Q_weights.flatten(0, 1) + 1.0e-7).log()
+        tgt_KK = (target_Q_weights.flatten(0, 1) + 1.0e-7).log()
+
+        losses = {}
+
+        loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1)
+        loss_KK = loss_QQ.mean()
+
+        losses['loss_KK'] = loss_KK
+        return losses
+
     def _get_src_permutation_idx(self, indices):
         # permute predictions following indices
         batch_idx = torch.cat([torch.full_like(src, i) for i, (src, _) in enumerate(indices)])
@@ -403,6 +437,7 @@ class SetCriterion(nn.Module):
             'segments': self.loss_segments,
             'actionness': self.loss_actionness,
             "QQ": self.loss_QQ,
+            "KK": self.loss_KK,
         }
 
         assert loss in loss_map, f'do you really want to compute {loss} loss?'
@@ -562,6 +597,9 @@ def build(args):
     if args.act_reg:
         weight_dict['loss_actionness'] = args.act_loss_coef
         losses.append('actionness')
+
+    weight_dict["loss_KK"] = 1.0
+    losses.append("KK")
 
     weight_dict["loss_QQ"] = 1.0
     losses.append("QQ")
