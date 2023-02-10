@@ -402,7 +402,7 @@ class SetCriterion(nn.Module):
         target_K_weights = F.softmax(KK_weights * 50.0, dim=-1)
 
         # print(torch.argsort(-target_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
-        print(torch.max(target_K_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
+        # print(torch.max(target_K_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
         # print(torch.max(C_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
         # print(target_K_weights[0, 0].detach().cpu().numpy())
         # print((torch.max(C_weights) - torch.max(target_K_weights)).detach().cpu().numpy())
