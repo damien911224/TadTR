@@ -267,7 +267,7 @@ class SetCriterion(nn.Module):
             losses['class_error'] = 100 - accuracy(src_logits[idx], target_classes_o)[0]
 
             # N, Q
-            probs = torch.max(src_logits.sigmoid(), dim=-1)
+            probs = torch.max(src_logits.sigmoid(), dim=-1)[0]
             top_k_indices = torch.argsort(-src_logits, dim=-1)
             top_1_indices = top_k_indices[..., 0]
             top_2_indices = top_k_indices[..., 1]
