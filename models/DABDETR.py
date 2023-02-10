@@ -214,12 +214,12 @@ class TadTR(nn.Module):
         # this is a workaround to make torchscript happy, as torchscript
         # doesn't support dictionary with non-homogeneous values, such
         # as a dict having both a Tensor and a list.
-        return [{'pred_logits': a, 'pred_segments': b, 'Q_weights': c, 'K_weights': d, 'C_weights': e}
-                for a, b, c, d, e in zip(outputs_class[:-1], outputs_coord[:-1],
-                                         Q_weights[:-1], K_weights[:-1], C_weights[:-1])]
         # return [{'pred_logits': a, 'pred_segments': b, 'Q_weights': c, 'K_weights': d, 'C_weights': e}
-        #         for a, b, c, d, e in zip(outputs_class[:-1], outputs_coord[:-1], Q_weights[:-1], K_weights[:-1],
-        #                                  [C_weights[-1]] * len(outputs_class[:-1]))]
+        #         for a, b, c, d, e in zip(outputs_class[:-1], outputs_coord[:-1],
+        #                                  Q_weights[:-1], K_weights[:-1], C_weights[:-1])]
+        return [{'pred_logits': a, 'pred_segments': b, 'Q_weights': c, 'K_weights': d, 'C_weights': e}
+                for a, b, c, d, e in zip(outputs_class[:-1], outputs_coord[:-1], Q_weights[:-1], K_weights[:-1],
+                                         [C_weights[-1]] * len(outputs_class[:-1]))]
 
 
 class SetCriterion(nn.Module):
@@ -403,7 +403,7 @@ class SetCriterion(nn.Module):
         N, Q, K = C_weights.shape
 
         KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
-        target_K_weights = F.softmax(KK_weights * 50.0, dim=-1)
+        target_K_weights = F.softmax(KK_weights * 25.0, dim=-1)
 
         # print(torch.argsort(-target_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
         # print(torch.max(target_K_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
