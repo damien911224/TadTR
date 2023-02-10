@@ -215,7 +215,8 @@ class TadTR(nn.Module):
         # doesn't support dictionary with non-homogeneous values, such
         # as a dict having both a Tensor and a list.
         return [{'pred_logits': a, 'pred_segments': b, 'Q_weights': c, 'K_weights': d, 'C_weights': e}
-                for a, b, c, d, e in zip(outputs_class[:-1], outputs_coord[:-1], Q_weights[:-1], K_weights[:-1], C_weights[:-1])]
+                for a, b, c, d, e in zip(outputs_class[:-1], outputs_coord[:-1], Q_weights[:-1], K_weights[:-1],
+                                         [C_weights[-1]] * len(outputs_class[:-1]))]
 
 
 class SetCriterion(nn.Module):
@@ -477,8 +478,8 @@ class SetCriterion(nn.Module):
                     if 'actionness' in loss:
                         continue
 
-                    if 'KK' in loss:
-                        continue
+                    # if 'KK' in loss:
+                    #     continue
          
                     kwargs = {}
                     if loss == 'labels':
