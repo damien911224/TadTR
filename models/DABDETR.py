@@ -325,17 +325,21 @@ class SetCriterion(nn.Module):
 
         N, Q, K = C_weights.shape
 
+        C_indices = torch.argsort(C_weights, dim=-1)
+        QQ_weights = torch.bmm(C_indices, C_indices.transpose(1, 2))
+        target_Q_weights = F.softmax(QQ_weights, dim=-1)
+
         # C_weights = F.softmax(C_weights, dim=-1)
         # QQ_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
         # target_Q_weights = F.log_softmax(QQ_weights, dim=-1)
         # target_Q_weights = F.softmax(QQ_weights * 25.0, dim=-1)
         # target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
-        src_C_weights = C_weights.unsqueeze(2).tile(1, 1, Q, 1).flatten(0, 2)
-        src_C_weights = (src_C_weights + 1.0e-7).log()
-        tgt_C_weights = C_weights.unsqueeze(1).tile(1, Q, 1, 1).flatten(0, 2)
-        tgt_C_weights = (tgt_C_weights + 1.0e-7).log()
-        QQ_weights = F.kl_div(src_C_weights, tgt_C_weights, log_target=True, reduction="none").sum(-1)
-        target_Q_weights = F.softmax(QQ_weights.view(N, Q, Q), dim=-1)
+        # src_C_weights = C_weights.unsqueeze(2).tile(1, 1, Q, 1).flatten(0, 2)
+        # src_C_weights = (src_C_weights + 1.0e-7).log()
+        # tgt_C_weights = C_weights.unsqueeze(1).tile(1, Q, 1, 1).flatten(0, 2)
+        # tgt_C_weights = (tgt_C_weights + 1.0e-7).log()
+        # QQ_weights = F.kl_div(src_C_weights, tgt_C_weights, log_target=True, reduction="none").sum(-1)
+        # target_Q_weights = F.softmax(QQ_weights.view(N, Q, Q), dim=-1)
         # temparature_scale = (torch.max(C_weights) / torch.max(QQ_weights)).detach()
         # target_Q_weights = F.softmax(QQ_weights * temparature_scale, dim=-1)
         # target_Q_weights = F.log_softmax(QQ_weights * 10000.0, dim=-1)
