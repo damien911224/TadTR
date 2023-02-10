@@ -270,6 +270,7 @@ class SetCriterion(nn.Module):
             probs = torch.max(src_logits.sigmoid(), dim=-1)[0]
             top_k_indices = torch.argsort(-probs, dim=-1)
             print(top_k_indices.shape)
+            exit()
             top_1_indices = top_k_indices[..., 0]
             top_2_indices = top_k_indices[..., 1]
             score_gap = torch.mean(probs[top_1_indices] - probs[top_2_indices], dim=0)
