@@ -110,7 +110,8 @@ class Transformer(nn.Module):
         src = src.flatten(2).permute(2, 0, 1)
         pos_embed = pos_embed.flatten(2).permute(2, 0, 1)
         refpoint_embed = refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
-        mask = mask.flatten(1)        
+        mask = mask.flatten(1)
+
         memory, K_weights = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
 
         # query_embed = gen_sineembed_for_position(refpoint_embed)
@@ -310,6 +311,8 @@ class TransformerEncoderLayer(nn.Module):
         self.activation = _get_activation_fn(activation)
         self.normalize_before = normalize_before
 
+        self.weight_buffer = nn.Linear(128, 128)
+
     def with_pos_embed(self, tensor, pos: Optional[Tensor]):
         return tensor if pos is None else tensor + pos
 
@@ -321,8 +324,9 @@ class TransformerEncoderLayer(nn.Module):
         # q = k = src
         src2, K_weights = self.self_attn(q, k, value=src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)
 
-        print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        # print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
         # print(torch.max(K_weights[0].detach().cpu(), dim=-1)[0][:10])
+        K_weights = self.weight_buffer(K_weights)
 
         src = src + self.dropout1(src2)
         src = self.norm1(src)
@@ -347,6 +351,7 @@ class TransformerDecoderLayer(nn.Module):
             self.sa_kpos_proj = nn.Linear(d_model, d_model)
             self.sa_v_proj = nn.Linear(d_model, d_model)
             self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout, vdim=d_model)
+            self.weight_buffer = nn.Linear(40, 40)
 
             # self.self_attn = ChainAttention(d_model*2, nhead, dropout=dropout, vdim=d_model)
 
@@ -381,8 +386,6 @@ class TransformerDecoderLayer(nn.Module):
 
             self.norm1 = nn.LayerNorm(d_model)
             self.dropout1 = nn.Dropout(dropout)
-
-
 
         # Decoder Cross-Attention
         self.ca_qcontent_proj = nn.Linear(d_model, d_model)
@@ -485,6 +488,8 @@ class TransformerDecoderLayer(nn.Module):
             # Q_weights = attn_output_weights.sum(dim=1) / self.nhead
 
             # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+
+            Q_weights = self.weight_buffer(Q_weights)
 
             tgt = tgt + self.dropout1(tgt2)
             tgt = self.norm1(tgt)
