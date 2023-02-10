@@ -1,6 +1,6 @@
 # model setting
-enc_layers: 4
-dec_layers: 4
+enc_layers: 6
+dec_layers: 6
 dim_feedforward: 1024
 num_queries: 40 # 40
 
@@ -13,7 +13,7 @@ slice_len: 128
 slice_overlap: 0.75
 test_slice_overlap: 0.25
 
-act_reg: True
+act_reg: False
 
 # output
 output_dir: outputs/thumos14_i3d2s_tadtr
