@@ -200,6 +200,7 @@ class TadTR(nn.Module):
             last_layer_reg = outputs_coord[-1]
 
             out['pred_actionness'] = pred_actionness
+
         if self.aux_loss:
             out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord, Q_weights, K_weights, C_weights)
 
