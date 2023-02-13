@@ -405,7 +405,7 @@ class SetCriterion(nn.Module):
 
         N, Q, K = C_weights.shape
 
-        KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
+        KK_weights = torch.bmm(C_weights.log().transpose(1, 2), C_weights.log())
         target_K_weights = F.softmax(KK_weights * 50.0, dim=-1)
 
         print(torch.argsort(-target_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
