@@ -478,8 +478,8 @@ class SetCriterion(nn.Module):
                     if 'actionness' in loss:
                         continue
 
-                    # if 'KK' in loss:
-                    #     continue
+                    if 'QQ' in loss or 'KK' in loss:
+                        continue
          
                     kwargs = {}
                     if loss == 'labels':
