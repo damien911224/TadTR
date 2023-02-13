@@ -184,9 +184,12 @@ class TadTR(nn.Module):
 
         # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
         #        'Q_weights': Q_weights[-1], 'K_weights': K_weights[-1], 'C_weights': C_weights[-1]}
+        # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
+        #        'Q_weights': torch.mean(Q_weights, dim=0), 'K_weights': torch.mean(K_weights, dim=0),
+        #        'C_weights': C_weights[-1]}
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
                'Q_weights': torch.mean(Q_weights, dim=0), 'K_weights': torch.mean(K_weights, dim=0),
-               'C_weights': C_weights[-1]}
+               'C_weights': torch.mean(C_weights, dim=0)}
 
         if self.with_act_reg:
             # perform RoIAlign
@@ -605,8 +608,8 @@ def build(args):
         weight_dict['loss_actionness'] = args.act_loss_coef
         losses.append('actionness')
 
-    # weight_dict["loss_KK"] = 1.0
-    # losses.append("KK")
+    weight_dict["loss_KK"] = 1.0
+    losses.append("KK")
 
     weight_dict["loss_QQ"] = 1.0
     losses.append("QQ")
