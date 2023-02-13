@@ -182,22 +182,22 @@ class TadTR(nn.Module):
 
         outputs_class = self.class_embed(hs)
 
-        normalized_Q_weights = Q_weights[0]
-        for i in range(len(Q_weights) - 1):
-            normalized_Q_weights = torch.sqrt(torch.bmm(normalized_Q_weights, Q_weights[i + 1].transpose(1, 2)))
-            normalized_Q_weights = normalized_Q_weights / torch.sum(normalized_Q_weights, dim=-1, keepdim=True)
-        normalized_K_weights = K_weights[0]
-        for i in range(len(K_weights) - 1):
-            normalized_K_weights = torch.sqrt(torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)))
-            normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
+        # normalized_Q_weights = Q_weights[0]
+        # for i in range(len(Q_weights) - 1):
+        #     normalized_Q_weights = torch.sqrt(torch.bmm(normalized_Q_weights, Q_weights[i + 1].transpose(1, 2)))
+        #     normalized_Q_weights = normalized_Q_weights / torch.sum(normalized_Q_weights, dim=-1, keepdim=True)
+        # normalized_K_weights = K_weights[0]
+        # for i in range(len(K_weights) - 1):
+        #     normalized_K_weights = torch.sqrt(torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)))
+        #     normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
 
         # print(torch.argsort(-normalized_Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
         # print(torch.max(normalized_Q_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
         # print(torch.argsort(-normalized_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
         # print(torch.max(normalized_K_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
 
-        # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-        #        'Q_weights': Q_weights[-1], 'K_weights': K_weights[-1], 'C_weights': C_weights[-1]}
+        out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
+               'Q_weights': Q_weights[-1], 'K_weights': K_weights[-1], 'C_weights': C_weights[-1]}
         # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
         #        'Q_weights': torch.mean(Q_weights, dim=0), 'K_weights': torch.mean(K_weights, dim=0),
         #        'C_weights': C_weights[-1]}
@@ -627,10 +627,10 @@ def build(args):
         weight_dict['loss_actionness'] = args.act_loss_coef
         losses.append('actionness')
 
-    weight_dict["loss_KK"] = 1.0
+    weight_dict["loss_KK"] = 10.0
     losses.append("KK")
 
-    weight_dict["loss_QQ"] = 1.0
+    weight_dict["loss_QQ"] = 10.0
     losses.append("QQ")
 
     if args.aux_loss:
