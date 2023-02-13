@@ -324,7 +324,7 @@ class TransformerEncoderLayer(nn.Module):
         # q = k = src
         src2, K_weights = self.self_attn(q, k, value=src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)
 
-        print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        # print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
         # print(torch.max(K_weights[0].detach().cpu(), dim=-1)[0][:10])
         # K_weights = F.softmax(self.weight_buffer(K_weights), dim=-1)
 
