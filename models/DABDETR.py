@@ -182,6 +182,16 @@ class TadTR(nn.Module):
 
         outputs_class = self.class_embed(hs)
 
+        normalized_Q_weights = Q_weights
+        for i in range(len(Q_weights) - 1):
+            normalized_Q_weights = torch.bmm(normalized_Q_weights, Q_weights[i + 1])
+            normalized_Q_weights = normalized_Q_weights / torch.sum(normalized_Q_weights, dim=-1, keepdim=True)
+        normalized_K_weights = K_weights
+        for i in range(len(Q_weights) - 1):
+            normalized_K_weights = torch.bmm(normalized_K_weights, K_weights[i + 1])
+            normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
+
+
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
                'Q_weights': Q_weights[-1], 'K_weights': K_weights[-1], 'C_weights': C_weights[-1]}
         # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
@@ -190,6 +200,8 @@ class TadTR(nn.Module):
         # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
         #        'Q_weights': torch.mean(Q_weights, dim=0), 'K_weights': torch.mean(K_weights, dim=0),
         #        'C_weights': torch.mean(C_weights, dim=0)}
+        out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
+               'Q_weights': normalized_Q_weights, 'K_weights': normalized_K_weights, 'C_weights': C_weights[-1]}
 
         if self.with_act_reg:
             # perform RoIAlign
