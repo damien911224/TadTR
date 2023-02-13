@@ -1,8 +1,8 @@
 # model setting
-enc_layers: 2
-dec_layers: 4
+enc_layers: 6
+dec_layers: 6
 dim_feedforward: 1024
-num_queries: 40 # 40
+num_queries: 300 # 40
 
 # data setting
 dataset_name: thumos14
