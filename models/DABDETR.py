@@ -194,7 +194,7 @@ class TadTR(nn.Module):
         print(torch.argsort(-normalized_Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
         print(torch.max(normalized_Q_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
         print(torch.argsort(-normalized_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
-        print(torch.max(normalized_K_weightsπ[0].detach().cpu(), dim=-1)[0][:10].numpy())
+        print(torch.max(normalized_K_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
 
         # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
         #        'Q_weights': Q_weights[-1], 'K_weights': K_weights[-1], 'C_weights': C_weights[-1]}
