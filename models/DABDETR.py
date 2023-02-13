@@ -187,9 +187,9 @@ class TadTR(nn.Module):
         # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
         #        'Q_weights': torch.mean(Q_weights, dim=0), 'K_weights': torch.mean(K_weights, dim=0),
         #        'C_weights': C_weights[-1]}
-        out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-               'Q_weights': torch.mean(Q_weights, dim=0), 'K_weights': torch.mean(K_weights, dim=0),
-               'C_weights': torch.mean(C_weights, dim=0)}
+        # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
+        #        'Q_weights': torch.mean(Q_weights, dim=0), 'K_weights': torch.mean(K_weights, dim=0),
+        #        'C_weights': torch.mean(C_weights, dim=0)}
 
         if self.with_act_reg:
             # perform RoIAlign
