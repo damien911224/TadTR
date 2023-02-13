@@ -182,11 +182,11 @@ class TadTR(nn.Module):
 
         outputs_class = self.class_embed(hs)
 
-        normalized_Q_weights = Q_weights
+        normalized_Q_weights = Q_weights[0]
         for i in range(len(Q_weights) - 1):
             normalized_Q_weights = torch.sqrt(torch.bmm(normalized_Q_weights, Q_weights[i + 1].transpose(1, 2)))
             normalized_Q_weights = normalized_Q_weights / torch.sum(normalized_Q_weights, dim=-1, keepdim=True)
-        normalized_K_weights = K_weights
+        normalized_K_weights = K_weights[0]
         for i in range(len(Q_weights) - 1):
             normalized_K_weights = torch.sqrt(torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)))
             normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
