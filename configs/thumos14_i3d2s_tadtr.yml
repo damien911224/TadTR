@@ -8,7 +8,7 @@ num_queries: 40 # 40
 dataset_name: thumos14
 feature: i3d2s
 feature_dim: 2048
-online_slice: true
+online_slice: True
 slice_len: 128
 slice_overlap: 0.75
 test_slice_overlap: 0.25
