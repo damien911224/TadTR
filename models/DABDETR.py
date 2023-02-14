@@ -627,11 +627,13 @@ def build(args):
         weight_dict['loss_actionness'] = args.act_loss_coef
         losses.append('actionness')
 
-    weight_dict["loss_KK"] = 5.0
-    losses.append("KK")
+    if args.use_KK:
+        weight_dict["loss_KK"] = args.KK_loss_coef
+        losses.append("KK")
 
-    # weight_dict["loss_QQ"] = 5.0
-    # losses.append("QQ")
+    if args.use_QQ:
+        weight_dict["loss_QQ"] = args.QQ_loss_coef
+        losses.append("QQ")
 
     if args.aux_loss:
         aux_weight_dict = {}
