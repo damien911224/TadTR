@@ -150,8 +150,8 @@ cfg.lr_backbone_names = ['backbone']
 cfg.lr_backbone = 1e-5
 
 # special linear projection layers that need to use smaller lr
-cfg.lr_linear_proj_names = ['reference_points', 'sampling_offsets']
-# cfg.lr_linear_proj_names = []
+# cfg.lr_linear_proj_names = ['reference_points', 'sampling_offsets']
+cfg.lr_linear_proj_names = []
 cfg.lr_linear_proj_mult = 0.1
 
 # which optimizer to use, choose from ['AdamW', 'Adam', 'SGD']
@@ -165,7 +165,7 @@ cfg.clip_max_norm = 0.1
 cfg.epochs = 300 # 16
 
 # when to decay lr
-cfg.lr_step = [280] # [14]
+cfg.lr_step = [260, 290] # [14]
 # save checkpoint every N epochs. Set it to a small value if you want to save intermediate models
 cfg.ckpt_interval = 10
 # update parameters every N forward-backward passes. N=1 (default)
