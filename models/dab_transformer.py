@@ -635,11 +635,11 @@ class TransformerDecoderLayer(nn.Module):
             tgt = self.norm2(tgt)
 
         if not self.rm_self_attn_decoder and True:
-            QQ_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
-            QQ_weights = torch.sqrt(QQ_weights)
-            QQ_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
+            Q_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
+            Q_weights = torch.sqrt(Q_weights)
+            Q_weights = Q_weights / torch.sum(Q_weights, dim=-1, keepdim=True)
             v = self.sa_v_proj(tgt)
-            tgt2 = torch.bmm(QQ_weights, v.transpose(0, 1)).transpose(0, 1)
+            tgt2 = torch.bmm(Q_weights, v.transpose(0, 1)).transpose(0, 1)
             tgt2 = self.sa_output_proj(tgt2)
 
             # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
