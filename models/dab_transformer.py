@@ -634,23 +634,11 @@ class TransformerDecoderLayer(nn.Module):
             tgt = self.norm2(tgt)
 
         if not self.rm_self_attn_decoder and False:
-            # Apply projections here
-            # shape: num_queries x batch_size x 256
-            q_content = self.sa_qcontent_proj(tgt)
-            if is_first or self.keep_query_pos:
-                q_pos = self.ca_qpos_proj(query_pos)
-                q = q_content + q_pos
-            else:
-                q = q_content
-            q = q.view(num_queries, bs, self.nhead, n_model // self.nhead)
-            q = torch.cat([q, query_sine_embed_], dim=3).view(num_queries, bs, n_model * 2)
+            QQ_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
+            QQ_weights = torch.sqrt(QQ_weights)
+            QQ_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
             v = self.sa_v_proj(tgt)
-
-            tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=memory_mask,
-                                             key_padding_mask=memory_key_padding_mask)
-            # ========== End of Self-Attention =============
-
-            print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+            attn_output = torch.bmm(attn_output_weights, v)
 
             tgt = tgt + self.dropout1(tgt2)
             tgt = self.norm1(tgt)
