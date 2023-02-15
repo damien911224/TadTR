@@ -75,7 +75,7 @@ class HungarianMatcher(nn.Module):
         neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
         pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
         cost_class = pos_cost_class[:, tgt_ids] - neg_cost_class[:, tgt_ids]
-        
+        print(cost_class)
         # Compute the L1 cost between segments
         cost_seg = torch.cdist(out_seg, tgt_seg, p=1)
 
