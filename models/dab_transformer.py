@@ -642,6 +642,8 @@ class TransformerDecoderLayer(nn.Module):
             tgt2 = torch.bmm(attn_output_weights, v)
             tgt2 = self.sa_output_proj(tgt2)
 
+            print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+
             tgt = tgt + self.dropout1(tgt2)
             tgt = self.norm1(tgt)
 
