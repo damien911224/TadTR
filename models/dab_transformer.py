@@ -352,6 +352,7 @@ class TransformerDecoderLayer(nn.Module):
             self.sa_v_proj = nn.Linear(d_model, d_model)
             self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout, vdim=d_model)
             self.weight_buffer = nn.Linear(40, 40)
+            self.sa_output_proj = nn.Linear(d_model, d_model)
 
             # self.self_attn = ChainAttention(d_model*2, nhead, dropout=dropout, vdim=d_model)
 
@@ -638,7 +639,8 @@ class TransformerDecoderLayer(nn.Module):
             QQ_weights = torch.sqrt(QQ_weights)
             QQ_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
             v = self.sa_v_proj(tgt)
-            attn_output = torch.bmm(attn_output_weights, v)
+            tgt2 = torch.bmm(attn_output_weights, v)
+            tgt2 = self.sa_output_proj(tgt2)
 
             tgt = tgt + self.dropout1(tgt2)
             tgt = self.norm1(tgt)
