@@ -639,7 +639,7 @@ class TransformerDecoderLayer(nn.Module):
             QQ_weights = torch.sqrt(QQ_weights)
             QQ_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
             v = self.sa_v_proj(tgt)
-            tgt2 = torch.bmm(attn_output_weights, v)
+            tgt2 = torch.bmm(QQ_weights, v)
             tgt2 = self.sa_output_proj(tgt2)
 
             # print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
