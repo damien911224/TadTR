@@ -371,7 +371,7 @@ class SetCriterion(nn.Module):
         IoUs = IoUs - torch.min(IoUs, dim=-1)[0].unsqueeze(-1)
         IoUs = IoUs / torch.max(IoUs, dim=-1)[0].unsqueeze(-1)
 
-        C_weights = C_weights * IoUs.unsqueeze(0)
+        C_weights = C_weights * IoUs.unsqueeze(-1)
 
 
         # iou_mat = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments), target_segments[..., :2])
@@ -468,7 +468,7 @@ class SetCriterion(nn.Module):
         IoUs = IoUs - torch.min(IoUs, dim=-1)[0].unsqueeze(-1)
         IoUs = IoUs / torch.max(IoUs, dim=-1)[0].unsqueeze(-1)
 
-        C_weights = C_weights * IoUs.unsqueeze(0)
+        C_weights = C_weights * IoUs.unsqueeze(-1)
 
         N, Q, K = C_weights.shape
 
