@@ -476,9 +476,6 @@ class SetCriterion(nn.Module):
         C_weights = C_weights * IoUs.unsqueeze(-1)
         C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
 
-        C_weights = C_weights * IoUs.unsqueeze(-1)
-        C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
-
         N, Q, K = C_weights.shape
 
         KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
