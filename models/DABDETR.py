@@ -465,7 +465,7 @@ class SetCriterion(nn.Module):
             this_IoU = torch.max(this_IoU, dim=1)[0]
             IoUs.append(this_IoU)
         IoUs = torch.stack(IoUs)
-        IoUs = IoUs - torch.min(IoUs, dim=-1)[0].unsqueeze(-1)
+        IoUs = IoUs - torch.min(IoUs, dim=-1)[0].unsqueeze(-1) + 0.05
         IoUs = IoUs / torch.max(IoUs, dim=-1)[0].unsqueeze(-1)
         IoUs = IoUs.detach()
 
