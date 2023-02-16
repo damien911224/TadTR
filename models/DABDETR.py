@@ -468,9 +468,13 @@ class SetCriterion(nn.Module):
             this_IoU = torch.max(this_IoU, dim=1)[0]
             IoUs.append(this_IoU)
         IoUs = torch.stack(IoUs)
-        IoUs = IoUs - torch.min(IoUs, dim=-1)[0].unsqueeze(-1) + 0.05
-        IoUs = IoUs / torch.max(IoUs, dim=-1)[0].unsqueeze(-1)
+        # IoUs = IoUs - torch.min(IoUs, dim=-1)[0].unsqueeze(-1) + 0.05
+        # IoUs = IoUs / torch.max(IoUs, dim=-1)[0].unsqueeze(-1)
+        IoUs = torch.clamp(IoUs, min=0.10)
         IoUs = IoUs.detach()
+
+        C_weights = C_weights * IoUs.unsqueeze(-1)
+        C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
 
         C_weights = C_weights * IoUs.unsqueeze(-1)
         C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
