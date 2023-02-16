@@ -101,8 +101,7 @@ def get_dataset_dict(video_info_path, video_anno_path, subset, mode='test', excl
                 # i <= (feature_length - slice_len)
                 num_complete_slices = int(math.floor(
                     (feature_length / slice_len - 1) / (1 - slice_overlap) + 1))
-                slices = [
-                    [int(i * stride), int(i * stride) + slice_len] for i in range(num_complete_slices)]
+                slices = [[int(i * stride), int(i * stride) + slice_len] for i in range(num_complete_slices)]
                 if (num_complete_slices - 1) * stride + slice_len < feature_length:
                     # if video_name == 'video_test_0000006':
                     #     pdb.set_trace()

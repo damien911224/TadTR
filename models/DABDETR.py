@@ -359,6 +359,42 @@ class SetCriterion(nn.Module):
         Q_weights = outputs["Q_weights"]
         C_weights = outputs["C_weights"].detach()
 
+        src_segments = outputs['pred_segments'].detach()
+        IoUs = list()
+        for n_i in range(len(targets)):
+            tgt_segments = targets[n_i]['segments']
+            this_IoU = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments[n_i]),
+                                               segment_ops.segment_cw_to_t1t2(tgt_segments))
+            this_IoU = torch.max(this_IoU, dim=1)[0]
+            IoUs.append(this_IoU)
+        IoUs = torch.stack(IoUs)
+        IoUs = IoUs - torch.min(IoUs, dim=-1)[0]
+        IoUs = IoUs / torch.max(IoUs, dim=-1)[0]
+
+        C_weights = C_weights * IoUs.unsqueeze(0)
+
+
+        # iou_mat = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments), target_segments[..., :2])
+        # gt_iou = iou_mat.max(dim=1)[0]
+        # scores = gt_iou.view(src_logits.shape[:2]).detach().cpu()
+
+        # valid_masks = list()
+        # for n_i, (b, l, s) in enumerate(zip(boxes, labels, scores)):
+        #     # 2: batched nms (only implemented on CPU)
+        #     nms_indices = dynamic_nms(
+        #         b.contiguous(), s.contiguous(), l.contiguous(),
+        #         iou_threshold=0.70,
+        #         min_score=0.0,
+        #         max_seg_num=1000,
+        #         use_soft_nms=False,
+        #         multiclass=False,
+        #         sigma=0.75,
+        #         voting_thresh=0.0)
+        #     valid_mask = torch.isin(torch.arange(len(b)), nms_indices).float()
+        #     valid_masks.append(valid_mask)
+        # # N, Q, 1
+        # valid_masks = torch.stack(valid_masks, dim=0).cuda()
+
         N, Q, K = C_weights.shape
 
         # C_indices = torch.argsort(-C_weights, dim=-1).float()
@@ -419,6 +455,20 @@ class SetCriterion(nn.Module):
 
         K_weights = outputs["K_weights"]
         C_weights = outputs["C_weights"].detach()
+
+        src_segments = outputs['pred_segments'].detach()
+        IoUs = list()
+        for n_i in range(len(targets)):
+            tgt_segments = targets[n_i]['segments']
+            this_IoU = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments[n_i]),
+                                               segment_ops.segment_cw_to_t1t2(tgt_segments))
+            this_IoU = torch.max(this_IoU, dim=1)[0]
+            IoUs.append(this_IoU)
+        IoUs = torch.stack(IoUs)
+        IoUs = IoUs - torch.min(IoUs, dim=-1)[0]
+        IoUs = IoUs / torch.max(IoUs, dim=-1)[0]
+
+        C_weights = C_weights * IoUs.unsqueeze(0)
 
         N, Q, K = C_weights.shape
 
