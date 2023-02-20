@@ -374,6 +374,7 @@ class SetCriterion(nn.Module):
         IoUs = IoUs.detach()
 
         max_IoU = torch.max(IoUs, dim=-1)[0]
+        max_IoU = torch.clamp(max_IoU / 0.5, max=1.0)
 
         # C_weights = C_weights * IoUs.unsqueeze(-1)
         # C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
@@ -479,6 +480,7 @@ class SetCriterion(nn.Module):
         IoUs = IoUs.detach()
 
         max_IoU = torch.max(IoUs, dim=-1)[0]
+        max_IoU = torch.clamp(max_IoU / 0.5, max=1.0)
 
         # C_weights = C_weights * IoUs.unsqueeze(-1)
         # C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
