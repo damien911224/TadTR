@@ -370,11 +370,13 @@ class SetCriterion(nn.Module):
         IoUs = torch.stack(IoUs)
         # IoUs = IoUs - torch.min(IoUs, dim=-1)[0].unsqueeze(-1) + 0.05
         # IoUs = IoUs / torch.max(IoUs, dim=-1)[0].unsqueeze(-1)
-        IoUs = torch.clamp(IoUs, min=0.10)
+        # IoUs = torch.clamp(IoUs, min=0.10)
         IoUs = IoUs.detach()
 
-        C_weights = C_weights * IoUs.unsqueeze(-1)
-        C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
+        max_IoU = torch.max(IoUs, dim=-1)[0]
+
+        # C_weights = C_weights * IoUs.unsqueeze(-1)
+        # C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
 
 
         # iou_mat = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments), target_segments[..., :2])
@@ -443,6 +445,9 @@ class SetCriterion(nn.Module):
         # loss_QQ = torch.sum(-tgt_QQ * torch.log(src_QQ + 1.0e-5), dim=-1)
         # loss_QQ = loss_QQ.sum(dim=(1, 2))
         loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1)
+
+        loss_QQ = loss_QQ * max_IoU[..., None]
+
         loss_QQ = loss_QQ.mean()
 
         losses['loss_QQ'] = loss_QQ
@@ -470,11 +475,13 @@ class SetCriterion(nn.Module):
         IoUs = torch.stack(IoUs)
         # IoUs = IoUs - torch.min(IoUs, dim=-1)[0].unsqueeze(-1) + 0.05
         # IoUs = IoUs / torch.max(IoUs, dim=-1)[0].unsqueeze(-1)
-        IoUs = torch.clamp(IoUs, min=0.10)
+        # IoUs = torch.clamp(IoUs, min=0.10)
         IoUs = IoUs.detach()
 
-        C_weights = C_weights * IoUs.unsqueeze(-1)
-        C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
+        max_IoU = torch.max(IoUs, dim=-1)[0]
+
+        # C_weights = C_weights * IoUs.unsqueeze(-1)
+        # C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
 
         N, Q, K = C_weights.shape
 
@@ -496,6 +503,9 @@ class SetCriterion(nn.Module):
         losses = {}
 
         loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1)
+
+        loss_KK = loss_KK * max_IoU[..., None]
+
         loss_KK = loss_KK.mean()
 
         losses['loss_KK'] = loss_KK
