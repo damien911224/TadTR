@@ -356,25 +356,25 @@ class SetCriterion(nn.Module):
         assert 'Q_weights' in outputs
         assert 'C_weights' in outputs
 
-        Q_weights = outputs["Q_weights"]
-        C_weights = outputs["C_weights"].detach()
-
-        src_segments = outputs['pred_segments'].detach()
-        IoUs = list()
-        for n_i in range(len(targets)):
-            tgt_segments = targets[n_i]['segments']
-            this_IoU = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments[n_i]),
-                                               segment_ops.segment_cw_to_t1t2(tgt_segments))
-            this_IoU = torch.max(this_IoU, dim=1)[0]
-            IoUs.append(this_IoU)
-        IoUs = torch.stack(IoUs)
-        # IoUs = IoUs - torch.min(IoUs, dim=-1)[0].unsqueeze(-1) + 0.05
-        # IoUs = IoUs / torch.max(IoUs, dim=-1)[0].unsqueeze(-1)
-        # IoUs = torch.clamp(IoUs, min=0.10)
-        IoUs = IoUs.detach()
-
-        max_IoU = torch.max(IoUs, dim=-1)[0]
-        max_IoU = torch.clamp(max_IoU / 0.5, max=1.0)
+        # Q_weights = outputs["Q_weights"]
+        # C_weights = outputs["C_weights"].detach()
+        #
+        # src_segments = outputs['pred_segments'].detach()
+        # IoUs = list()
+        # for n_i in range(len(targets)):
+        #     tgt_segments = targets[n_i]['segments']
+        #     this_IoU = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments[n_i]),
+        #                                        segment_ops.segment_cw_to_t1t2(tgt_segments))
+        #     this_IoU = torch.max(this_IoU, dim=1)[0]
+        #     IoUs.append(this_IoU)
+        # IoUs = torch.stack(IoUs)
+        # # IoUs = IoUs - torch.min(IoUs, dim=-1)[0].unsqueeze(-1) + 0.05
+        # # IoUs = IoUs / torch.max(IoUs, dim=-1)[0].unsqueeze(-1)
+        # # IoUs = torch.clamp(IoUs, min=0.10)
+        # IoUs = IoUs.detach()
+        #
+        # max_IoU = torch.max(IoUs, dim=-1)[0]
+        # max_IoU = torch.clamp(max_IoU / 0.5, max=1.0)
 
         # C_weights = C_weights * IoUs.unsqueeze(-1)
         # C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
@@ -447,7 +447,7 @@ class SetCriterion(nn.Module):
         # loss_QQ = loss_QQ.sum(dim=(1, 2))
         loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1)
 
-        loss_QQ = loss_QQ * max_IoU[..., None]
+        # loss_QQ = loss_QQ * max_IoU[..., None]
 
         loss_QQ = loss_QQ.mean()
 
@@ -462,25 +462,25 @@ class SetCriterion(nn.Module):
         assert 'K_weights' in outputs
         assert 'C_weights' in outputs
 
-        K_weights = outputs["K_weights"]
-        C_weights = outputs["C_weights"].detach()
-
-        src_segments = outputs['pred_segments'].detach()
-        IoUs = list()
-        for n_i in range(len(targets)):
-            tgt_segments = targets[n_i]['segments']
-            this_IoU = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments[n_i]),
-                                               segment_ops.segment_cw_to_t1t2(tgt_segments))
-            this_IoU = torch.max(this_IoU, dim=1)[0]
-            IoUs.append(this_IoU)
-        IoUs = torch.stack(IoUs)
-        # IoUs = IoUs - torch.min(IoUs, dim=-1)[0].unsqueeze(-1) + 0.05
-        # IoUs = IoUs / torch.max(IoUs, dim=-1)[0].unsqueeze(-1)
-        # IoUs = torch.clamp(IoUs, min=0.10)
-        IoUs = IoUs.detach()
-
-        max_IoU = torch.max(IoUs, dim=-1)[0]
-        max_IoU = torch.clamp(max_IoU / 0.5, max=1.0)
+        # K_weights = outputs["K_weights"]
+        # C_weights = outputs["C_weights"].detach()
+        #
+        # src_segments = outputs['pred_segments'].detach()
+        # IoUs = list()
+        # for n_i in range(len(targets)):
+        #     tgt_segments = targets[n_i]['segments']
+        #     this_IoU = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments[n_i]),
+        #                                        segment_ops.segment_cw_to_t1t2(tgt_segments))
+        #     this_IoU = torch.max(this_IoU, dim=1)[0]
+        #     IoUs.append(this_IoU)
+        # IoUs = torch.stack(IoUs)
+        # # IoUs = IoUs - torch.min(IoUs, dim=-1)[0].unsqueeze(-1) + 0.05
+        # # IoUs = IoUs / torch.max(IoUs, dim=-1)[0].unsqueeze(-1)
+        # # IoUs = torch.clamp(IoUs, min=0.10)
+        # IoUs = IoUs.detach()
+        #
+        # max_IoU = torch.max(IoUs, dim=-1)[0]
+        # max_IoU = torch.clamp(max_IoU / 0.5, max=1.0)
 
         # C_weights = C_weights * IoUs.unsqueeze(-1)
         # C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
@@ -506,7 +506,7 @@ class SetCriterion(nn.Module):
 
         loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1)
 
-        loss_KK = loss_KK * max_IoU[..., None]
+        # loss_KK = loss_KK * max_IoU[..., None]
 
         loss_KK = loss_KK.mean()
 
