@@ -356,9 +356,9 @@ class SetCriterion(nn.Module):
         assert 'Q_weights' in outputs
         assert 'C_weights' in outputs
 
-        # Q_weights = outputs["Q_weights"]
-        # C_weights = outputs["C_weights"].detach()
-        #
+        Q_weights = outputs["Q_weights"]
+        C_weights = outputs["C_weights"].detach()
+
         # src_segments = outputs['pred_segments'].detach()
         # IoUs = list()
         # for n_i in range(len(targets)):
@@ -462,9 +462,9 @@ class SetCriterion(nn.Module):
         assert 'K_weights' in outputs
         assert 'C_weights' in outputs
 
-        # K_weights = outputs["K_weights"]
-        # C_weights = outputs["C_weights"].detach()
-        #
+        K_weights = outputs["K_weights"]
+        C_weights = outputs["C_weights"].detach()
+
         # src_segments = outputs['pred_segments'].detach()
         # IoUs = list()
         # for n_i in range(len(targets)):
