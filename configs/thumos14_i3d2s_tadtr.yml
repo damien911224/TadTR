@@ -13,8 +13,8 @@ slice_len: 128
 slice_overlap: 0.75
 test_slice_overlap: 0.25
 
-epochs: 180 # 16
-lr_step: [140, 160] # [14]
+epochs: 140 # 16
+lr_step: [100, 120] # [14]
 
 postproc_rank: 1 # 1
 postproc_cls_topk: 1 # 1
