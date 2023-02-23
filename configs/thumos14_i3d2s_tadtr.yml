@@ -9,12 +9,12 @@ dataset_name: thumos14
 feature: i3d2s
 feature_dim: 2048
 online_slice: True
-slice_len: 128
+slice_len: 256
 slice_overlap: 0.75
 test_slice_overlap: 0.25
 
-epochs: 140 # 16
-lr_step: [100, 120] # [14]
+epochs: 100 # 16
+lr_step: [80, 90] # [14]
 
 postproc_rank: 1 # 1
 postproc_cls_topk: 1 # 1
@@ -27,8 +27,8 @@ aux_loss: True
 use_KK: True
 use_QQ: True
 
-KK_loss_coef: 3.0
-QQ_loss_coef: 3.0
+KK_loss_coef: 5.0
+QQ_loss_coef: 5.0
 
 # output
 output_dir: outputs/thumos14_i3d2s_tadtr
