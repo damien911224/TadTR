@@ -357,7 +357,15 @@ class SetCriterion(nn.Module):
         assert 'C_weights' in outputs
 
         # Q_weights = torch.mean(outputs["Q_weights"], dim=0)
+
         Q_weights = outputs["Q_weights"]
+        normalized_Q_weights = Q_weights[0]
+        for i in range(len(Q_weights) - 1):
+            normalized_Q_weights = torch.sqrt(
+                torch.bmm(normalized_Q_weights, Q_weights[i + 1].transpose(1, 2)) + 1.0e-7)
+            normalized_Q_weights = normalized_Q_weights / torch.sum(normalized_Q_weights, dim=-1, keepdim=True)
+        Q_weights = normalized_Q_weights
+
         C_weights = outputs["C_weights"].detach()
 
         # src_segments = outputs['pred_segments'].detach()
@@ -477,7 +485,15 @@ class SetCriterion(nn.Module):
         assert 'C_weights' in outputs
 
         # K_weights = torch.mean(outputs["K_weights"], dim=0)
+
         K_weights = outputs["K_weights"]
+        normalized_K_weights = K_weights[0]
+        for i in range(len(K_weights) - 1):
+            normalized_K_weights = torch.sqrt(
+                torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)) + 1.0e-7)
+            normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
+        K_weights = normalized_K_weights
+
         C_weights = outputs["C_weights"].detach()
 
         # src_segments = outputs['pred_segments'].detach()
