@@ -402,7 +402,7 @@ class SetCriterion(nn.Module):
         # # N, Q, 1
         # valid_masks = torch.stack(valid_masks, dim=0).cuda()
 
-        N, Q, K = C_weights.shape
+        # N, Q, K = C_weights.shape
 
         # C_indices = torch.argsort(-C_weights, dim=-1).float()
         # QQ_weights = torch.bmm(C_indices, C_indices.transpose(1, 2))
@@ -500,7 +500,7 @@ class SetCriterion(nn.Module):
         # C_weights = C_weights * IoUs.unsqueeze(-1)
         # C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
 
-        N, Q, K = C_weights.shape
+        # N, Q, K = C_weights.shape
 
         # target_K_weights = F.softmax(KK_weights * 50.0, dim=-1)
 
