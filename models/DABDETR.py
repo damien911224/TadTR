@@ -75,15 +75,15 @@ class TadTR(nn.Module):
 
         self.refpoint_embed = nn.Embedding(num_queries, query_dim)
         self.random_refpoints_xy = random_refpoints_xy
-        # if random_refpoints_xy:
-        #     # import ipdb; ipdb.set_trace()
-        #     self.refpoint_embed.weight.data[:, :1].uniform_(0, 1)
-        #     self.refpoint_embed.weight.data[:, :1] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :1])
-        #     self.refpoint_embed.weight.data[:, :1].requires_grad = False
-        #
-        #     # self.refpoint_embed.weight.data[:, :2].uniform_(0, 1)
-        #     # self.refpoint_embed.weight.data[:, :2] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :2])
-        #     # self.refpoint_embed.weight.data[:, :2].requires_grad = False
+        if random_refpoints_xy:
+            # import ipdb; ipdb.set_trace()
+            self.refpoint_embed.weight.data[:, :1].uniform_(0, 1)
+            self.refpoint_embed.weight.data[:, :1] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :1])
+            self.refpoint_embed.weight.data[:, :1].requires_grad = False
+
+            # self.refpoint_embed.weight.data[:, :2].uniform_(0, 1)
+            # self.refpoint_embed.weight.data[:, :2] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :2])
+            # self.refpoint_embed.weight.data[:, :2].requires_grad = False
 
         self.input_proj = nn.ModuleList([
             nn.Sequential(
@@ -409,7 +409,7 @@ class SetCriterion(nn.Module):
         QQ_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
         # target_Q_weights = F.log_softmax(QQ_weights, dim=-1)
         # target_Q_weights = F.softmax(QQ_weights * 25.0, dim=-1)
-        QQ_weights = torch.sqrt(QQ_weights)
+        QQ_weights = torch.sqrt(QQ_weights + 1.0e-7)
         target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
         # src_C_weights = C_weights.unsqueeze(2).tile(1, 1, Q, 1).flatten(0, 2)
         # src_C_weights = (src_C_weights + 1.0e-7).log()
@@ -487,7 +487,7 @@ class SetCriterion(nn.Module):
 
         KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
         # target_K_weights = F.softmax(KK_weights * 50.0, dim=-1)
-        KK_weights = torch.sqrt(KK_weights)
+        KK_weights = torch.sqrt(KK_weights + 1.0e-7)
         target_K_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
 
         # print(torch.argsort(-target_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
