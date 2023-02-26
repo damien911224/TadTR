@@ -257,7 +257,7 @@ class DeformableTransformerDecoderLayer(nn.Module):
 
     def forward(self, tgt, query_pos, reference_points, src, src_pos, src_spatial_shapes, level_start_index, src_padding_mask=None):
         # query_pos = None
-        if not cfg.disable_query_self_att:
+        if not cfg.disable_query_self_att or True:
             # self attention
             q = k = self.with_pos_embed(tgt, query_pos)
             # q = k = query_pos
