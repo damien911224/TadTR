@@ -353,7 +353,7 @@ class DeformableTransformerDecoder(nn.Module):
                 pos_scale = self.query_scale(output) if lid != 0 else 1
                 query_pos = pos_scale * raw_query_pos
 
-            output, Q_weights = \
+            output, Q_weights, C_weights = \
                 layer(output, query_pos, reference_points_input,
                       src, src_pos, src_spatial_shapes, src_level_start_index, src_padding_mask)
 
