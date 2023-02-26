@@ -21,6 +21,7 @@ import util.misc as utils
 from datasets.tad_eval import TADEvaluator
 import pickle
 
+import os
 import numpy as np
 import pandas as pd
 import seaborn as sn
