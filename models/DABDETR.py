@@ -430,7 +430,7 @@ class SetCriterion(nn.Module):
 
         # QQ_weights = torch.bmm(C_weights[-1], C_weights[-1].transpose(1, 2))
         C_weights = torch.mean(C_weights, dim=0)
-        QQ_weights = torch.bmm(C_weights, C_weights[-1].transpose(1, 2))
+        QQ_weights = torch.bmm(C_weights, C_weights.transpose(1, 2))
         QQ_weights = torch.sqrt(QQ_weights + 1.0e-7)
         target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
 
