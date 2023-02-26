@@ -155,7 +155,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             map /= np.max(map)
             df = pd.DataFrame(map, H_labels, W_labels)
             ax = sn.heatmap(df, cbar=False, xticklabels=False, yticklabels=False, square=True)
-            plt.savefig(os.path.join("./temp", "K_N{:02d}.png".format(a_i + 1)))
+            plt.savefig(os.path.join(attention_dir, "K_N{:02d}.png".format(a_i + 1)))
             plt.close()
 
             map = outputs["Q_weights"][-1, 0].detach().cpu().numpy()
@@ -166,7 +166,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             map /= np.max(map)
             df = pd.DataFrame(map, H_labels, W_labels)
             ax = sn.heatmap(df, cbar=False, xticklabels=False, yticklabels=False, square=True)
-            plt.savefig(os.path.join("./temp", "Q_N{:02d}.png".format(a_i + 1)))
+            plt.savefig(os.path.join(attention_dir, "Q_N{:02d}.png".format(a_i + 1)))
             plt.close()
 
             a_i += 1
