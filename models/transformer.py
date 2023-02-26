@@ -108,7 +108,7 @@ class DeformableTransformer(nn.Module):
         valid_ratios = torch.stack([self.get_valid_ratio(m) for m in masks], 1)   # (bs, nlevels)
 
         # deformable encoder
-        memory = self.encoder(src_flatten, temporal_lens, level_start_index, valid_ratios, 
+        memory, K_weights = self.encoder(src_flatten, temporal_lens, level_start_index, valid_ratios,
             lvl_pos_embed_flatten if cfg.use_pos_embed else None, 
             mask_flatten)  # shape=(bs, t, c)
 
@@ -128,10 +128,11 @@ class DeformableTransformer(nn.Module):
             init_reference_out = reference_points
             query_embed = None
         # decoder
-        hs, inter_references = self.decoder(tgt, reference_points, memory, lvl_pos_embed_flatten,
-                                            temporal_lens, level_start_index, valid_ratios, query_embed, mask_flatten)
+        hs, inter_references, Q_weights, C_weights = \
+            self.decoder(tgt, reference_points, memory, lvl_pos_embed_flatten,
+                         temporal_lens, level_start_index, valid_ratios, query_embed, mask_flatten)
         inter_references_out = inter_references 
-        return hs, init_reference_out, inter_references_out, memory.transpose(1, 2)
+        return hs, init_reference_out, inter_references_out, memory.transpose(1, 2), Q_weights, K_weights, C_weights
 
 
 class DeformableTransformerEncoderLayer(nn.Module):
@@ -172,7 +173,7 @@ class DeformableTransformerEncoderLayer(nn.Module):
         q = k = self.with_pos_embed(src, pos)
         src2, K_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), src.transpose(0, 1))
 
-        print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        # print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
         src2 = src2.transpose(0, 1)
         src = src + self.dropout1(src2)
@@ -181,7 +182,7 @@ class DeformableTransformerEncoderLayer(nn.Module):
         # ffn
         src = self.forward_ffn(src)
 
-        return src
+        return src, K_weights
 
 
 class DeformableTransformerEncoder(nn.Module):
@@ -210,10 +211,12 @@ class DeformableTransformerEncoder(nn.Module):
         '''
         output = src
         # (bs, t, levels, 1)
+        inter_K_weights = list()
         reference_points = self.get_reference_points(temporal_lens, valid_ratios, device=src.device)
         for _, layer in enumerate(self.layers):
-            output = layer(output, pos, reference_points, temporal_lens, level_start_index, padding_mask)
-        return output
+            output, K_weights = layer(output, pos, reference_points, temporal_lens, level_start_index, padding_mask)
+            inter_K_weights.append(K_weights)
+        return output, torch.stack(inter_K_weights)
 
 
 class DeformableTransformerDecoderLayer(nn.Module):
@@ -223,8 +226,8 @@ class DeformableTransformerDecoderLayer(nn.Module):
         super().__init__()
 
         # cross attention
-        self.cross_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
-        # self.cross_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
+        # self.cross_attn = DeformAttn(d_model, n_levels, n_heads, n_points)
+        self.cross_attn = nn.MultiheadAttention(d_model, n_heads, dropout=dropout)
         self.dropout1 = nn.Dropout(dropout)
         self.norm1 = nn.LayerNorm(d_model)
 
@@ -282,23 +285,23 @@ class DeformableTransformerDecoderLayer(nn.Module):
         else:
             pass
         # cross attention
-        tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos),
-                               reference_points,
-                               src, src_spatial_shapes, level_start_index, src_padding_mask)
-        # tgt2, _ = self.cross_attn(query_pos,
+        # tgt2, _ = self.cross_attn(self.with_pos_embed(tgt, query_pos),
         #                        reference_points,
         #                        src, src_spatial_shapes, level_start_index, src_padding_mask)
-        # tgt2 = self.cross_attn(query=self.with_pos_embed(tgt, query_pos).transpose(0, 1),
-        #                        key=self.with_pos_embed(src, src_pos).transpose(0, 1),
-        #                        value=src.transpose(0, 1),
-        #                        key_padding_mask=src_padding_mask)[0].transpose(0, 1)
+        # tgt2, C_weights = self.cross_attn(query_pos,
+        #                                   reference_points,
+        #                                   src, src_spatial_shapes, level_start_index, src_padding_mask)
+        tgt2 = self.cross_attn(query=self.with_pos_embed(tgt, query_pos).transpose(0, 1),
+                               key=self.with_pos_embed(src, src_pos).transpose(0, 1),
+                               value=src.transpose(0, 1),
+                               key_padding_mask=src_padding_mask)[0].transpose(0, 1)
         tgt = tgt + self.dropout1(tgt2)
         tgt = self.norm1(tgt)
 
         # ffn
         tgt = self.forward_ffn(tgt)
 
-        return tgt
+        return tgt, Q_weights, C_weights
 
 
 class DeformableTransformerDecoder(nn.Module):
@@ -338,6 +341,8 @@ class DeformableTransformerDecoder(nn.Module):
         output = tgt
         intermediate = []
         intermediate_reference_points = []
+        inter_Q_weights = []
+        inter_C_weights = []
         for lid, layer in enumerate(self.layers):
         # for lid in range(self.num_layers):
             # (bs, nq, 1, 1 or 2) x (bs, 1, num_level, 1) => (bs, nq, num_level, 1 or 2)
@@ -347,8 +352,9 @@ class DeformableTransformerDecoder(nn.Module):
                 pos_scale = self.query_scale(output) if lid != 0 else 1
                 query_pos = pos_scale * raw_query_pos
 
-            output = layer(output, query_pos, reference_points_input, src, src_pos, src_spatial_shapes, src_level_start_index,
-                           src_padding_mask)
+            output, Q_weights = \
+                layer(output, query_pos, reference_points_input,
+                      src, src_pos, src_spatial_shapes, src_level_start_index, src_padding_mask)
 
             # W = torch.clamp(reference_points_input[..., 1] - reference_points_input[..., 0], 0.0, 1.0)
             # C = torch.clamp(reference_points_input[..., 0] + reference_points_input[..., 1] / 2.0, 0.0, 1.0)
@@ -413,8 +419,11 @@ class DeformableTransformerDecoder(nn.Module):
             if self.return_intermediate:
                 intermediate.append(output)
                 intermediate_reference_points.append(reference_points)
+                inter_Q_weights.append(Q_weights)
+                inter_C_weights.append(C_weights)
         if self.return_intermediate:
-            return torch.stack(intermediate), torch.stack(intermediate_reference_points)
+            return torch.stack(intermediate), torch.stack(intermediate_reference_points), \
+                   torch.stack(inter_Q_weights), torch.stack(inter_C_weights),
 
         return output, reference_points
 

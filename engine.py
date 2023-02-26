@@ -146,30 +146,30 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         #     break
         cnt += 1
 
-        # if cnt - 1 in sampled_indices:
-        #     map = outputs["K_weights"][-1, 0].detach().cpu().numpy()
-        #     H, W = map.shape
-        #     H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
-        #     W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
-        #     map -= np.min(map)
-        #     map /= np.max(map)
-        #     df = pd.DataFrame(map, H_labels, W_labels)
-        #     ax = sn.heatmap(df, cbar=False, xticklabels=False, yticklabels=False, square=True)
-        #     plt.savefig(os.path.join(attention_dir, "K_N{:02d}.png".format(a_i + 1)))
-        #     plt.close()
-        #
-        #     map = outputs["Q_weights"][-1, 0].detach().cpu().numpy()
-        #     H, W = map.shape
-        #     H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
-        #     W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
-        #     map -= np.min(map)
-        #     map /= np.max(map)
-        #     df = pd.DataFrame(map, H_labels, W_labels)
-        #     ax = sn.heatmap(df, cbar=False, xticklabels=False, yticklabels=False, square=True)
-        #     plt.savefig(os.path.join(attention_dir, "Q_N{:02d}.png".format(a_i + 1)))
-        #     plt.close()
-        #
-        #     a_i += 1
+        if cnt - 1 in sampled_indices:
+            map = outputs["K_weights"][-1, 0].detach().cpu().numpy()
+            H, W = map.shape
+            H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
+            W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+            map -= np.min(map)
+            map /= np.max(map)
+            df = pd.DataFrame(map, H_labels, W_labels)
+            ax = sn.heatmap(df, cbar=False, xticklabels=False, yticklabels=False, square=True)
+            plt.savefig(os.path.join(attention_dir, "K_N{:02d}.png".format(a_i + 1)))
+            plt.close()
+
+            map = outputs["Q_weights"][-1, 0].detach().cpu().numpy()
+            H, W = map.shape
+            H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
+            W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+            map -= np.min(map)
+            map /= np.max(map)
+            df = pd.DataFrame(map, H_labels, W_labels)
+            ax = sn.heatmap(df, cbar=False, xticklabels=False, yticklabels=False, square=True)
+            plt.savefig(os.path.join(attention_dir, "Q_N{:02d}.png".format(a_i + 1)))
+            plt.close()
+
+            a_i += 1
 
 
     # accumulate predictions from all videos
