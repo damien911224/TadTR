@@ -124,6 +124,10 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
 
     # raw_res = []
     cnt = 0
+    a_i = 0
+    sampled_indices = random.sample(range(len(data_loader)), 3)
+    attention_dir = os.path.join(output_dir, "attention", "E{:02d}".format(epoch + 1))
+    os.makedirs(attention_dir, exist_ok=True)
     for (samples, targets) in tqdm.tqdm(data_loader, total=len(data_loader)):
         samples = samples.to(device)
         outputs = model((samples.tensors, samples.mask))
@@ -140,6 +144,32 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         # if cnt >= 9:
         #     break
         cnt += 1
+
+        if cnt - 1 in sampled_indices:
+            map = outputs["K_weights"][-1, 0].detach().cpu().numpy()
+            H, W = map.shape
+            H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
+            W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+            map -= np.min(map)
+            map /= np.max(map)
+            df = pd.DataFrame(map, H_labels, W_labels)
+            ax = sn.heatmap(df, cbar=False, xticklabels=False, yticklabels=False, square=True)
+            plt.savefig(os.path.join("./temp", "K_N{:02d}.png".format(a_i + 1)))
+            plt.close()
+
+            map = outputs["Q_weights"][-1, 0].detach().cpu().numpy()
+            H, W = map.shape
+            H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
+            W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+            map -= np.min(map)
+            map /= np.max(map)
+            df = pd.DataFrame(map, H_labels, W_labels)
+            ax = sn.heatmap(df, cbar=False, xticklabels=False, yticklabels=False, square=True)
+            plt.savefig(os.path.join("./temp", "Q_N{:02d}.png".format(a_i + 1)))
+            plt.close()
+
+            a_i += 1
+
 
     # accumulate predictions from all videos
     if action_evaluator is not None:
@@ -167,26 +197,6 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
     # with open('raw_outputs.pkl', 'wb') as f:
     #     pickle.dump(raw_res, f)
 
-    map = outputs["K_weights"][-1, 0].detach().cpu().numpy()
-    H, W = map.shape
-    H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
-    W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
-    map -= np.min(map)
-    map /= np.max(map)
-    df = pd.DataFrame(map, H_labels, W_labels)
-    ax = sn.heatmap(df, cbar=False, xticklabels=False, yticklabels=False, square=True)
-    plt.savefig(os.path.join("./temp", "K_E{:02d}.png".format(epoch)))
-    plt.close()
 
-    map = outputs["Q_weights"][-1, 0].detach().cpu().numpy()
-    H, W = map.shape
-    H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
-    W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
-    map -= np.min(map)
-    map /= np.max(map)
-    df = pd.DataFrame(map, H_labels, W_labels)
-    ax = sn.heatmap(df, cbar=False, xticklabels=False, yticklabels=False, square=True)
-    plt.savefig(os.path.join("./temp", "Q_E{:02d}.png".format(epoch)))
-    plt.close()
 
     return stats
