@@ -34,7 +34,6 @@ from models import build_model
 if cfg.tensorboard:
     from tensorboardX import SummaryWriter
 
-        
 
 def main(args):
     from util.logger import setup_logger
