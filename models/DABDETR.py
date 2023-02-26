@@ -366,15 +366,15 @@ class SetCriterion(nn.Module):
 
         # Q_weights = torch.mean(outputs["Q_weights"], dim=0)
 
-        # Q_weights = outputs["Q_weights"]
-        # normalized_Q_weights = Q_weights[0]
-        # for i in range(len(Q_weights) - 1):
-        #     normalized_Q_weights = torch.sqrt(
-        #         torch.bmm(normalized_Q_weights, Q_weights[i + 1].transpose(1, 2)) + 1.0e-7)
-        #     normalized_Q_weights = normalized_Q_weights / torch.sum(normalized_Q_weights, dim=-1, keepdim=True)
-        # Q_weights = normalized_Q_weights
+        Q_weights = outputs["Q_weights"]
+        normalized_Q_weights = Q_weights[0]
+        for i in range(len(Q_weights) - 1):
+            normalized_Q_weights = torch.sqrt(
+                torch.bmm(normalized_Q_weights, Q_weights[i + 1].transpose(1, 2)) + 1.0e-7)
+            normalized_Q_weights = normalized_Q_weights / torch.sum(normalized_Q_weights, dim=-1, keepdim=True)
+        Q_weights = normalized_Q_weights
 
-        Q_weights = outputs["Q_weights"].flatten(0, 1)
+        # Q_weights = outputs["Q_weights"].flatten(0, 1)
 
         # src_segments = outputs['pred_segments'].detach()
         # IoUs = list()
@@ -429,8 +429,10 @@ class SetCriterion(nn.Module):
         # target_Q_weights = F.softmax(QQ_weights * 25.0, dim=-1)
 
         # QQ_weights = torch.bmm(C_weights[-1], C_weights[-1].transpose(1, 2))
-        # QQ_weights = torch.sqrt(QQ_weights + 1.0e-7)
-        # target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
+        C_weights = torch.mean(C_weights, dim=0)
+        QQ_weights = torch.bmm(C_weights, C_weights[-1].transpose(1, 2))
+        QQ_weights = torch.sqrt(QQ_weights + 1.0e-7)
+        target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
 
         # C_weights = outputs["C_weights"].detach()
         # normalized_QQ_weights = torch.sqrt(torch.bmm(C_weights[0], C_weights[0].transpose(1, 2)) + 1.0e-7)
@@ -442,9 +444,9 @@ class SetCriterion(nn.Module):
         #     normalized_QQ_weights = normalized_QQ_weights / torch.sum(normalized_QQ_weights, dim=-1, keepdim=True)
         # target_Q_weights = normalized_QQ_weights
 
-        C_weights = outputs["C_weights"].flatten(0, 1).detach()
-        QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
-        target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
+        # C_weights = outputs["C_weights"].flatten(0, 1).detach()
+        # QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
+        # target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
 
         # src_C_weights = C_weights.unsqueeze(2).tile(1, 1, Q, 1).flatten(0, 2)
         # src_C_weights = (src_C_weights + 1.0e-7).log()
