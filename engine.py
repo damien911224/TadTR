@@ -160,4 +160,26 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
     # with open('raw_outputs.pkl', 'wb') as f:
     #     pickle.dump(raw_res, f)
 
+    map = outputs["K_weights"][-1, 0].detach().cpu().numpy()
+    H, W = map.shape
+    H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
+    W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+    map -= np.min(map)
+    map /= np.max(map)
+    df = pd.DataFrame(map, H_labels, W_labels)
+    ax = sn.heatmap(df, cbar=False, xticklabels=False, yticklabels=False, square=True)
+    plt.savefig(os.path.join("./temp", "K_E{:02d}.png".format(epoch)))
+    plt.close()
+
+    map = outputs["Q_weights"][-1, 0].detach().cpu().numpy()
+    H, W = map.shape
+    H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
+    W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+    map -= np.min(map)
+    map /= np.max(map)
+    df = pd.DataFrame(map, H_labels, W_labels)
+    ax = sn.heatmap(df, cbar=False, xticklabels=False, yticklabels=False, square=True)
+    plt.savefig(os.path.join("./temp", "Q_E{:02d}.png".format(epoch)))
+    plt.close()
+
     return stats

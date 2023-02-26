@@ -287,7 +287,7 @@ class SetCriterion(nn.Module):
                                             dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
         target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
 
-        target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
+        # target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
 
         target_classes_onehot = target_classes_onehot[:,:,:-1]
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments, alpha=self.focal_alpha, gamma=2) * src_logits.shape[1]  # nq
