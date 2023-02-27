@@ -27,7 +27,7 @@ aux_loss: True
 use_KK: True
 use_QQ: True
 
-KK_loss_coef: 3.0
+KK_loss_coef: 7.0
 QQ_loss_coef: 5.0
 
 # output
