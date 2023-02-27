@@ -2,7 +2,7 @@
 enc_layers: 2
 dec_layers: 4
 dim_feedforward: 1024
-num_queries: 100 # 40
+num_queries: 40 # 40
 
 # data setting
 dataset_name: thumos14
@@ -13,8 +13,8 @@ slice_len: 128
 slice_overlap: 0.75
 test_slice_overlap: 0.25
 
-epochs: 200 # 16
-lr_step: [160, 180] # [14]
+epochs: 120 # 16
+lr_step: [73, 100] # [14]
 
 postproc_rank: 1 # 1
 postproc_cls_topk: 1 # 1
