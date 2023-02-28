@@ -27,8 +27,8 @@ aux_loss: True
 use_KK: True
 use_QQ: True
 
-KK_loss_coef: 10.0
-QQ_loss_coef: 5.0
+KK_loss_coef: 5.0
+QQ_loss_coef: 1.0
 
 # output
 output_dir: outputs/thumos14_i3d2s_tadtr
