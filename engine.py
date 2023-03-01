@@ -125,10 +125,11 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
 
     # raw_res = []
     cnt = 0
-    a_i = 0
-    sampled_indices = random.sample(range(len(data_loader)), 3)
-    attention_dir = os.path.join(output_dir, "attention", "E{:02d}".format(epoch + 1))
-    os.makedirs(attention_dir, exist_ok=True)
+    if epoch + 1 >= 100:
+        a_i = 0
+        attention_dir = os.path.join(output_dir, "attention", "E{:02d}".format(epoch + 1))
+        os.makedirs(attention_dir, exist_ok=True)
+        sampled_indices = random.sample(range(len(data_loader)), 3)
     for (samples, targets) in tqdm.tqdm(data_loader, total=len(data_loader)):
         samples = samples.to(device)
         outputs = model((samples.tensors, samples.mask))
@@ -142,34 +143,34 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                output in zip(targets, results)}
         if action_evaluator is not None:
             action_evaluator.update(res, assign_cls_labels=cfg.binary)
-        # if cnt >= 9:
-        #     break
-        cnt += 1
 
-        # if cnt - 1 in sampled_indices:
-        #     map = outputs["K_weights"][-1, 0].detach().cpu().numpy()
-        #     H, W = map.shape
-        #     H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
-        #     W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
-        #     # map -= np.min(map)
-        #     # map /= np.max(map)
-        #     df = pd.DataFrame(map, H_labels, W_labels)
-        #     ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
-        #     plt.savefig(os.path.join(attention_dir, "K_N{:02d}.png".format(a_i + 1)))
-        #     plt.close()
-        #
-        #     map = outputs["Q_weights"][-1, 0].detach().cpu().numpy()
-        #     H, W = map.shape
-        #     H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
-        #     W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
-        #     # map -= np.min(map)
-        #     # map /= np.max(map)
-        #     df = pd.DataFrame(map, H_labels, W_labels)
-        #     ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
-        #     plt.savefig(os.path.join(attention_dir, "Q_N{:02d}.png".format(a_i + 1)))
-        #     plt.close()
-        #
-        #     a_i += 1
+        cnt += 1
+        if epoch + 1 >= 100:
+            if cnt - 1 in sampled_indices:
+                map = outputs["K_weights"][-1, 0].detach().cpu().numpy()
+                H, W = map.shape
+                H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
+                W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+                # map -= np.min(map)
+                # map /= np.max(map)
+                df = pd.DataFrame(map, H_labels, W_labels)
+                ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True,
+                                vmin=0.0, vmax=0.25)
+                plt.savefig(os.path.join(attention_dir, "K_N{:02d}.png".format(a_i + 1)))
+                plt.close()
+
+                map = outputs["Q_weights"][-1, 0].detach().cpu().numpy()
+                H, W = map.shape
+                H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
+                W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+                # map -= np.min(map)
+                # map /= np.max(map)
+                df = pd.DataFrame(map, H_labels, W_labels)
+                ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+                plt.savefig(os.path.join(attention_dir, "Q_N{:02d}.png".format(a_i + 1)))
+                plt.close()
+
+                a_i += 1
 
 
     # accumulate predictions from all videos
