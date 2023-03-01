@@ -769,6 +769,7 @@ def build(args):
 
     if args.aux_loss:
         aux_weight_dict = {}
+        # for i in range(args.dec_layers  - 1):
         for i in range(args.dec_layers * 2 - 1):
             aux_weight_dict.update({k + f'_{i}': v for k, v in weight_dict.items()})
         aux_weight_dict.update({k + f'_enc': v for k, v in weight_dict.items()})
