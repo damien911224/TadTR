@@ -213,9 +213,6 @@ class TadTR(nn.Module):
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
                'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
 
-        print(outputs_class.shape, outputs_coord.shape)
-        exit()
-
         if self.with_act_reg:
             # perform RoIAlign
             B, N = outputs_coord[-1].shape[:2]
