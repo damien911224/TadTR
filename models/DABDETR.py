@@ -214,6 +214,7 @@ class TadTR(nn.Module):
                'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
 
         print(outputs_class.shape, outputs_coord.shape)
+        exit()
 
         if self.with_act_reg:
             # perform RoIAlign
