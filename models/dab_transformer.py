@@ -117,7 +117,7 @@ class Transformer(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-    def forward(self, src, mask, refpoint_embed, pos_embed):
+    def forward(self, src, mask, refpoint_embed, pre_refpoint_embed, pos_embed):
         # flatten NxCxHxW to HWxNxC
         bs, c, w = src.shape
         src = src.flatten(2).permute(2, 0, 1)
@@ -125,20 +125,21 @@ class Transformer(nn.Module):
         refpoint_embed = refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
         mask = mask.flatten(1)
 
-        num_queries = refpoint_embed.shape[0]
-        tgt = torch.zeros(num_queries, bs, self.d_model, device=refpoint_embed.device)
+        pre_refpoint_embed = pre_refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
+        num_queries = pre_refpoint_embed.shape[0]
+        tgt = torch.zeros(num_queries, bs, self.d_model, device=pre_refpoint_embed.device)
         pre_hs, pre_references, _, pre_C_weights = \
-            self.pre_decoder(tgt, src, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
+            self.pre_decoder(tgt, src, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=pre_refpoint_embed)
 
-        # K_guidance = torch.mean(pre_C_weights.detach(), dim=0)
-        K_guidance = torch.mean(pre_C_weights, dim=0)
+        K_guidance = torch.mean(pre_C_weights.detach(), dim=0)
+        # K_guidance = torch.mean(pre_C_weights, dim=0)
         K_guidance = torch.bmm(K_guidance.transpose(1, 2), K_guidance)
         K_guidance = torch.sqrt(K_guidance + 1.0e-7)
         K_guidance = K_guidance / torch.sum(K_guidance, dim=-1, keepdim=True)
 
         # Q_guidance = pre_C_weights.detach().flatten(0, 1)
-        # Q_guidance = torch.mean(pre_C_weights.detach(), dim=0)
-        Q_guidance = torch.mean(pre_C_weights, dim=0)
+        Q_guidance = torch.mean(pre_C_weights.detach(), dim=0)
+        # Q_guidance = torch.mean(pre_C_weights, dim=0)
         Q_guidance = torch.sqrt(torch.bmm(Q_guidance, Q_guidance.transpose(1, 2)) + 1.0e-7)
         Q_guidance = Q_guidance / torch.sum(Q_guidance, dim=-1, keepdim=True)
 
@@ -154,10 +155,10 @@ class Transformer(nn.Module):
         hs, references, Q_weights, C_weights = \
             self.decoder(tgt, memory, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=refpoint_embed, guidance=Q_guidance)
 
-        hs = torch.cat((pre_hs, hs), dim=0)
-        references = torch.cat((pre_references, references), dim=0)
+        # hs = torch.cat((pre_hs, hs), dim=0)
+        # references = torch.cat((pre_references, references), dim=0)
 
-        return hs, references, memory, Q_weights, K_weights, C_weights
+        return pre_hs, pre_references, hs, references, memory, Q_weights, K_weights, C_weights
 
 
 class TransformerEncoder(nn.Module):

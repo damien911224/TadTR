@@ -69,12 +69,14 @@ class TadTR(nn.Module):
         self.transformer = transformer
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes)
+        self.pre_class_embed = nn.Linear(hidden_dim, num_classes)
         self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
         self.pre_segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
 
         self.query_dim = query_dim
 
         self.refpoint_embed = nn.Embedding(num_queries, query_dim)
+        self.pre_refpoint_embed = nn.Embedding(num_queries, query_dim)
         self.random_refpoints_xy = random_refpoints_xy
         # if random_refpoints_xy:
         #     # import ipdb; ipdb.set_trace()
@@ -100,6 +102,7 @@ class TadTR(nn.Module):
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         self.class_embed.bias.data = torch.ones(num_classes) * bias_value
+        self.pre_class_embed.bias.data = torch.ones(num_classes) * bias_value
         nn.init.constant_(self.segment_embed.layers[-1].weight.data, 0)
         nn.init.constant_(self.segment_embed.layers[-1].bias.data, 0)
         nn.init.constant_(self.pre_segment_embed.layers[-1].weight.data, 0)
@@ -175,41 +178,25 @@ class TadTR(nn.Module):
         src, mask = samples.tensors, samples.mask
 
         embedweight = self.refpoint_embed.weight
-        hs, reference, memory, Q_weights, K_weights, C_weights = \
-            self.transformer(self.input_proj[0](src), mask, embedweight, pos[-1])
+        pre_embedweight = self.refpoint_embed.weight
+        pre_hs, pre_reference, hs, reference, memory, Q_weights, K_weights, C_weights = \
+            self.transformer(self.input_proj[0](src), mask, embedweight, pre_embedweight, pos[-1])
+
+        pre_reference_before_sigmoid = inverse_sigmoid(reference)
+        tmp = self.pre_segment_embed(hs)
+        tmp[..., :self.query_dim] += pre_reference_before_sigmoid
+        pre_outputs_coord = tmp.sigmoid()
+        pre_outputs_class = self.pre_class_embed(hs)
 
         reference_before_sigmoid = inverse_sigmoid(reference)
         tmp = self.segment_embed(hs)
         tmp[..., :self.query_dim] += reference_before_sigmoid
         outputs_coord = tmp.sigmoid()
-        # outputs_coord = segment_ops.segment_t1t2_to_cw(tmp.sigmoid())
-
         outputs_class = self.class_embed(hs)
 
-        # normalized_Q_weights = Q_weights[0]
-        # for i in range(len(Q_weights) - 1):
-        #     normalized_Q_weights = torch.sqrt(torch.bmm(normalized_Q_weights, Q_weights[i + 1].transpose(1, 2)))
-        #     normalized_Q_weights = normalized_Q_weights / torch.sum(normalized_Q_weights, dim=-1, keepdim=True)
-        # normalized_K_weights = K_weights[0]
-        # for i in range(len(K_weights) - 1):
-        #     normalized_K_weights = torch.sqrt(torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)))
-        #     normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
+        outputs_coord = torch.cat((pre_outputs_coord, outputs_coord))
+        outputs_class = torch.cat((pre_outputs_class, outputs_class))
 
-        # print(torch.argsort(-normalized_Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
-        # print(torch.max(normalized_Q_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
-        # print(torch.argsort(-normalized_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
-        # print(torch.max(normalized_K_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
-
-        # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-        #        'Q_weights': Q_weights[-1], 'K_weights': K_weights[-1], 'C_weights': C_weights[-1]}
-        # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-        #        'Q_weights': torch.mean(Q_weights, dim=0), 'K_weights': torch.mean(K_weights, dim=0),
-        #        'C_weights': C_weights[-1]}
-        # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-        #        'Q_weights': torch.mean(Q_weights, dim=0), 'K_weights': torch.mean(K_weights, dim=0),
-        #        'C_weights': torch.mean(C_weights, dim=0)}
-        # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-        #        'Q_weights': normalized_Q_weights, 'K_weights': normalized_K_weights, 'C_weights': C_weights[-1]}
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
                'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
 
