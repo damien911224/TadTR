@@ -125,7 +125,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
 
     # raw_res = []
     cnt = 0
-    if epoch + 1 >= 100:
+    if (epoch + 1) % 10 == 0:
         a_i = 0
         attention_dir = os.path.join(output_dir, "attention", "E{:02d}".format(epoch + 1))
         os.makedirs(attention_dir, exist_ok=True)
@@ -145,7 +145,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             action_evaluator.update(res, assign_cls_labels=cfg.binary)
 
         cnt += 1
-        if epoch + 1 >= 110:
+        if (epoch + 1) % 10 == 0:
             if cnt - 1 in sampled_indices:
                 map = outputs["K_weights"][-1, 0].detach().cpu().numpy()
                 H, W = map.shape
