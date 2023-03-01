@@ -161,6 +161,7 @@ class Transformer(nn.Module):
         references = torch.cat((pre_references, references), dim=0)
 
         print(hs.shape)
+        exit()
 
         return hs, references, memory, Q_weights, K_weights, C_weights
 
