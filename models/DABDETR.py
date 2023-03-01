@@ -70,6 +70,7 @@ class TadTR(nn.Module):
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
+        self.pre_segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
 
         self.query_dim = query_dim
 
@@ -101,6 +102,8 @@ class TadTR(nn.Module):
         self.class_embed.bias.data = torch.ones(num_classes) * bias_value
         nn.init.constant_(self.segment_embed.layers[-1].weight.data, 0)
         nn.init.constant_(self.segment_embed.layers[-1].bias.data, 0)
+        nn.init.constant_(self.pre_segment_embed.layers[-1].weight.data, 0)
+        nn.init.constant_(self.pre_segment_embed.layers[-1].bias.data, 0)
         for proj in self.input_proj:
             nn.init.xavier_uniform_(proj[0].weight, gain=1)
             nn.init.constant_(proj[0].bias, 0)
@@ -109,6 +112,7 @@ class TadTR(nn.Module):
         if with_segment_refine:
             # hack implementation for segment refinement
             self.transformer.decoder.segment_embed = self.segment_embed
+            self.transformer.pre_decoder.segment_embed = self.pre_segment_embed
 
         if with_act_reg:
             # RoIAlign params
