@@ -81,7 +81,7 @@ class Transformer(nn.Module):
                                                 dropout, activation, normalize_before, keep_query_pos=keep_query_pos,
                                                 rm_self_attn_decoder=False)
         decoder_layer.rm_self_attn_decoder = False
-        # decoder_norm = nn.LayerNorm(d_model)
+        decoder_norm = nn.LayerNorm(d_model)
         self.pre_decoder = TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm,
                                               return_intermediate=return_intermediate_dec,
                                               d_model=d_model, query_dim=query_dim, keep_query_pos=keep_query_pos,
