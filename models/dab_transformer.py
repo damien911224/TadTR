@@ -503,7 +503,7 @@ class TransformerDecoderLayer(nn.Module):
                 tgt = tgt + self.dropout4(tgt3)
             tgt = self.norm1(tgt)
         else:
-            Q_weights = None
+            Q_weights = torch.zeros((1, ))
 
         # ========== Begin of Cross-Attention =============
         # Apply projections here
