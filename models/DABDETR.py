@@ -69,9 +69,11 @@ class TadTR(nn.Module):
         self.transformer = transformer
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes)
-        self.pre_class_embed = nn.Linear(hidden_dim, num_classes)
+        # self.pre_class_embed = nn.Linear(hidden_dim, num_classes)
+        self.pre_class_embed = self.class_embed
         self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
-        self.pre_segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
+        # self.pre_segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
+        self.pre_segment_embed = self.segment_embed
 
         self.query_dim = query_dim
 
@@ -178,7 +180,8 @@ class TadTR(nn.Module):
         src, mask = samples.tensors, samples.mask
 
         embedweight = self.refpoint_embed.weight
-        pre_embedweight = self.refpoint_embed.weight
+        # pre_embedweight = self.refpoint_embed.weight
+        pre_embedweight = embedweight
         pre_hs, pre_reference, hs, reference, memory, Q_weights, K_weights, C_weights = \
             self.transformer(self.input_proj[0](src), mask, embedweight, pre_embedweight, pos[-1])
 
