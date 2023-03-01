@@ -133,7 +133,7 @@ class Transformer(nn.Module):
                                                                                                     1)  # n_q*n_pat, bs, d_model
             refpoint_embed = refpoint_embed.repeat(self.num_patterns, 1, 1)  # n_q*n_pat, bs, d_model
         pre_hs, pre_references, _, pre_C_weights = \
-            self.pre_decoder(tgt, memory, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
+            self.pre_decoder(tgt, src, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
 
         K_guidance = torch.mean(pre_C_weights.detach(), dim=0)
         K_guidance = torch.bmm(K_guidance.transpose(1, 2), K_guidance)
