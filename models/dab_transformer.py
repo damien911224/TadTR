@@ -126,12 +126,7 @@ class Transformer(nn.Module):
         mask = mask.flatten(1)
 
         num_queries = refpoint_embed.shape[0]
-        if self.num_patterns == 0:
-            tgt = torch.zeros(num_queries, bs, self.d_model, device=refpoint_embed.device)
-        else:
-            tgt = self.patterns.weight[:, None, None, :].repeat(1, self.num_queries, bs, 1).flatten(0,
-                                                                                                    1)  # n_q*n_pat, bs, d_model
-            refpoint_embed = refpoint_embed.repeat(self.num_patterns, 1, 1)  # n_q*n_pat, bs, d_model
+        tgt = torch.zeros(num_queries, bs, self.d_model, device=refpoint_embed.device)
         pre_hs, pre_references, _, pre_C_weights = \
             self.pre_decoder(tgt, src, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
 
