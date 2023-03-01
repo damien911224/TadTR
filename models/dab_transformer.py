@@ -79,8 +79,7 @@ class Transformer(nn.Module):
 
         decoder_layer = TransformerDecoderLayer(d_model, nhead, dim_feedforward,
                                                 dropout, activation, normalize_before, keep_query_pos=keep_query_pos,
-                                                rm_self_attn_decoder=False)
-        decoder_layer.rm_self_attn_decoder = True
+                                                rm_self_attn_decoder=True)
         decoder_norm = nn.LayerNorm(d_model)
         self.pre_decoder = TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm,
                                               return_intermediate=return_intermediate_dec,
@@ -89,11 +88,10 @@ class Transformer(nn.Module):
                                               modulate_hw_attn=modulate_hw_attn,
                                               bbox_embed_diff_each_layer=bbox_embed_diff_each_layer)
 
-        # decoder_layer = TransformerDecoderLayer(d_model, nhead, dim_feedforward,
-        #                                         dropout, activation, normalize_before, keep_query_pos=keep_query_pos,
-        #                                         rm_self_attn_decoder=False)
-        decoder_layer.rm_self_attn_decoder = False
-        # decoder_norm = nn.LayerNorm(d_model)
+        decoder_layer = TransformerDecoderLayer(d_model, nhead, dim_feedforward,
+                                                dropout, activation, normalize_before, keep_query_pos=keep_query_pos,
+                                                rm_self_attn_decoder=False)
+        decoder_norm = nn.LayerNorm(d_model)
         self.decoder = TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm,
                                           return_intermediate=return_intermediate_dec,
                                           d_model=d_model, query_dim=query_dim, keep_query_pos=keep_query_pos, query_scale_type=query_scale_type,
@@ -133,15 +131,15 @@ class Transformer(nn.Module):
         pre_hs, pre_references, _, pre_C_weights = \
             self.pre_decoder(tgt, src, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=pre_refpoint_embed)
 
-        K_guidance = torch.mean(pre_C_weights.detach(), dim=0)
-        # K_guidance = torch.mean(pre_C_weights, dim=0)
+        # K_guidance = torch.mean(pre_C_weights.detach(), dim=0)
+        K_guidance = torch.mean(pre_C_weights, dim=0)
         K_guidance = torch.bmm(K_guidance.transpose(1, 2), K_guidance)
         K_guidance = torch.sqrt(K_guidance + 1.0e-7)
         K_guidance = K_guidance / torch.sum(K_guidance, dim=-1, keepdim=True)
 
         # Q_guidance = pre_C_weights.detach().flatten(0, 1)
-        Q_guidance = torch.mean(pre_C_weights.detach(), dim=0)
-        # Q_guidance = torch.mean(pre_C_weights, dim=0)
+        # Q_guidance = torch.mean(pre_C_weights.detach(), dim=0)
+        Q_guidance = torch.mean(pre_C_weights, dim=0)
         Q_guidance = torch.sqrt(torch.bmm(Q_guidance, Q_guidance.transpose(1, 2)) + 1.0e-7)
         Q_guidance = Q_guidance / torch.sum(Q_guidance, dim=-1, keepdim=True)
 
