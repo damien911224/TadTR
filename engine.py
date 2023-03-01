@@ -154,9 +154,9 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 # map -= np.min(map)
                 # map /= np.max(map)
                 df = pd.DataFrame(map, H_labels, W_labels)
-                ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
-                # ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True,
-                #                 vmin=0.0, vmax=0.25)
+                # ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+                ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True,
+                                vmin=0.0, vmax=0.25)
                 plt.savefig(os.path.join(attention_dir, "K_N{:02d}.png".format(a_i + 1)))
                 plt.close()
 
