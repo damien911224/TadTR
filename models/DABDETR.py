@@ -102,7 +102,7 @@ class TadTR(nn.Module):
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         self.class_embed.bias.data = torch.ones(num_classes) * bias_value
-        self.pre_class_embed.bias.data = torch.ones(num_classes) * bias_value
+        # self.pre_class_embed.bias.data = torch.ones(num_classes) * bias_value
         nn.init.constant_(self.segment_embed.layers[-1].weight.data, 0)
         nn.init.constant_(self.segment_embed.layers[-1].bias.data, 0)
         # nn.init.constant_(self.pre_segment_embed.layers[-1].weight.data, 0)
