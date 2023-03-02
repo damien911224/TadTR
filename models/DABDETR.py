@@ -365,7 +365,7 @@ class SetCriterion(nn.Module):
         #     normalized_Q_weights = normalized_Q_weights / torch.sum(normalized_Q_weights, dim=-1, keepdim=True)
         # Q_weights = normalized_Q_weights
 
-        L_Q = len(outputs["Q_weights"])
+        # L_Q = len(outputs["Q_weights"])
         Q_weights = outputs["Q_weights"].flatten(0, 1)
 
         # src_segments = outputs['pred_segments'].detach()
@@ -436,8 +436,8 @@ class SetCriterion(nn.Module):
         #     normalized_QQ_weights = normalized_QQ_weights / torch.sum(normalized_QQ_weights, dim=-1, keepdim=True)
         # target_Q_weights = normalized_QQ_weights
 
-        # C_weights = outputs["C_weights"].flatten(0, 1).detach()
-        C_weights = torch.mean(outputs["C_weights"], dim=0).detach().repeat(L_Q, 1, 1)
+        C_weights = outputs["C_weights"].flatten(0, 1).detach()
+        # C_weights = torch.mean(outputs["C_weights"], dim=0).detach().repeat(L_Q, 1, 1)
         QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
         target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
 
