@@ -278,7 +278,7 @@ class SetCriterion(nn.Module):
                                             dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
         target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
 
-        target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
+        # target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
 
         target_classes_onehot = target_classes_onehot[:,:,:-1]
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments, alpha=self.focal_alpha, gamma=2) * src_logits.shape[1]  # nq
@@ -538,8 +538,8 @@ class SetCriterion(nn.Module):
         #     normalized_KK_weights = normalized_KK_weights / torch.sum(normalized_KK_weights, dim=-1, keepdim=True)
         # target_K_weights = normalized_KK_weights
 
-        # C_weights = torch.mean(outputs["C_weights"], dim=0).detach()
-        C_weights = outputs["C_weights"][-1].detach()
+        C_weights = torch.mean(outputs["C_weights"], dim=0).detach()
+        # C_weights = outputs["C_weights"][-1].detach()
         KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
         KK_weights = torch.sqrt(KK_weights + 1.0e-7)
         target_K_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
