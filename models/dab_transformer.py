@@ -117,7 +117,7 @@ class Transformer(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-    def forward(self, src, mask, refpoint_embed, pre_refpoint_embed, pos_embed):
+    def forward(self, src, mask, refpoint_embed, pos_embed):
         # flatten NxCxHxW to HWxNxC
         bs, c, w = src.shape
         src = src.flatten(2).permute(2, 0, 1)
@@ -125,25 +125,25 @@ class Transformer(nn.Module):
         refpoint_embed = refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
         mask = mask.flatten(1)
 
-        pre_refpoint_embed = pre_refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
-        num_queries = pre_refpoint_embed.shape[0]
-        tgt = torch.zeros(num_queries, bs, self.d_model, device=pre_refpoint_embed.device)
-        pre_hs, pre_references, _, pre_C_weights = \
-            self.pre_decoder(tgt, src, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=pre_refpoint_embed)
+        # pre_refpoint_embed = pre_refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
+        # num_queries = pre_refpoint_embed.shape[0]
+        # tgt = torch.zeros(num_queries, bs, self.d_model, device=pre_refpoint_embed.device)
+        # pre_hs, pre_references, _, pre_C_weights = \
+        #     self.pre_decoder(tgt, src, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=pre_refpoint_embed)
+        #
+        # # K_guidance = torch.mean(pre_C_weights.detach(), dim=0)
+        # K_guidance = torch.mean(pre_C_weights, dim=0)
+        # K_guidance = torch.bmm(K_guidance.transpose(1, 2), K_guidance)
+        # K_guidance = torch.sqrt(K_guidance + 1.0e-7)
+        # K_guidance = K_guidance / torch.sum(K_guidance, dim=-1, keepdim=True)
+        #
+        # # Q_guidance = pre_C_weights.detach().flatten(0, 1)
+        # # Q_guidance = torch.mean(pre_C_weights.detach(), dim=0)
+        # Q_guidance = torch.mean(pre_C_weights, dim=0)
+        # Q_guidance = torch.sqrt(torch.bmm(Q_guidance, Q_guidance.transpose(1, 2)) + 1.0e-7)
+        # Q_guidance = Q_guidance / torch.sum(Q_guidance, dim=-1, keepdim=True)
 
-        # K_guidance = torch.mean(pre_C_weights.detach(), dim=0)
-        K_guidance = torch.mean(pre_C_weights, dim=0)
-        K_guidance = torch.bmm(K_guidance.transpose(1, 2), K_guidance)
-        K_guidance = torch.sqrt(K_guidance + 1.0e-7)
-        K_guidance = K_guidance / torch.sum(K_guidance, dim=-1, keepdim=True)
-
-        # Q_guidance = pre_C_weights.detach().flatten(0, 1)
-        # Q_guidance = torch.mean(pre_C_weights.detach(), dim=0)
-        Q_guidance = torch.mean(pre_C_weights, dim=0)
-        Q_guidance = torch.sqrt(torch.bmm(Q_guidance, Q_guidance.transpose(1, 2)) + 1.0e-7)
-        Q_guidance = Q_guidance / torch.sum(Q_guidance, dim=-1, keepdim=True)
-
-        memory, K_weights = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed, guidance=K_guidance)
+        memory, K_weights = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
 
         num_queries = refpoint_embed.shape[0]
         if self.num_patterns == 0:
@@ -153,12 +153,9 @@ class Transformer(nn.Module):
             refpoint_embed = refpoint_embed.repeat(self.num_patterns, 1, 1) # n_q*n_pat, bs, d_model
 
         hs, references, Q_weights, C_weights = \
-            self.decoder(tgt, memory, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=refpoint_embed, guidance=Q_guidance)
+            self.decoder(tgt, memory, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
 
-        # hs = torch.cat((pre_hs, hs), dim=0)
-        # references = torch.cat((pre_references, references), dim=0)
-
-        return pre_hs, pre_references, hs, references, memory, Q_weights, K_weights, C_weights
+        return hs, references, memory, Q_weights, K_weights, C_weights
 
 
 class TransformerEncoder(nn.Module):
@@ -173,8 +170,7 @@ class TransformerEncoder(nn.Module):
     def forward(self, src,
                 mask: Optional[Tensor] = None,
                 src_key_padding_mask: Optional[Tensor] = None,
-                pos: Optional[Tensor] = None,
-                guidance: Optional[Tensor] = None):
+                pos: Optional[Tensor] = None):
         output = src
 
         inter_K_weights = list()
@@ -182,8 +178,7 @@ class TransformerEncoder(nn.Module):
             # rescale the content and pos sim
             pos_scales = self.query_scale(output)
             output, K_weights = layer(output, src_mask=mask,
-                                      src_key_padding_mask=src_key_padding_mask, pos=pos * pos_scales,
-                                      guidance=guidance)
+                                      src_key_padding_mask=src_key_padding_mask, pos=pos * pos_scales)
             # output = layer(output, src_mask=mask,
             #                src_key_padding_mask=src_key_padding_mask, pos=pos * 100.0)
             inter_K_weights.append(K_weights)
@@ -243,7 +238,6 @@ class TransformerDecoder(nn.Module):
                 memory_key_padding_mask: Optional[Tensor] = None,
                 pos: Optional[Tensor] = None,
                 refpoints_unsigmoid: Optional[Tensor] = None, # num_queries, bs, 2
-                guidance: Optional[Tensor] = None
                 ):
         output = tgt
 
@@ -272,7 +266,6 @@ class TransformerDecoder(nn.Module):
 
             # apply transformation
             query_sine_embed = query_sine_embed[..., :self.d_model] * pos_transformation
-            # query_sine_embed = query_sine_embed * pos_transformation
 
             # modulated HW attentions
             if self.modulate_hw_attn:
@@ -285,7 +278,7 @@ class TransformerDecoder(nn.Module):
                       tgt_key_padding_mask=tgt_key_padding_mask,
                       memory_key_padding_mask=memory_key_padding_mask,
                       pos=pos, query_pos=query_pos, query_sine_embed=query_sine_embed,
-                      is_first=(layer_id == 0), ref_points=reference_points, guidance=guidance)
+                      is_first=(layer_id == 0), ref_points=reference_points)
 
             # iter update
             if self.segment_embed is not None:
@@ -359,8 +352,7 @@ class TransformerEncoderLayer(nn.Module):
     def forward(self, src,
                 src_mask: Optional[Tensor] = None,
                 src_key_padding_mask: Optional[Tensor] = None,
-                pos: Optional[Tensor] = None,
-                guidance: Optional[Tensor] = None):
+                pos: Optional[Tensor] = None):
         q = k = self.with_pos_embed(src, pos)
         src2, K_weights = self.self_attn(q, k, value=src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)
 
@@ -374,10 +366,6 @@ class TransformerEncoderLayer(nn.Module):
         # K_weights = F.softmax(self.weight_buffer(K_weights), dim=-1)
 
         src = src + self.dropout1(src2)
-        if guidance is not None:
-            src3 = self.linear3(torch.bmm(guidance, src.transpose(1, 0)).transpose(1, 0))
-            src = src + self.dropout3(src3)
-
         src = self.norm1(src)
 
         src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
@@ -403,42 +391,8 @@ class TransformerDecoderLayer(nn.Module):
             self.weight_buffer = nn.Linear(40, 40)
             self.sa_output_proj = nn.Linear(d_model, d_model)
 
-            # self.self_attn = ChainAttention(d_model*2, nhead, dropout=dropout, vdim=d_model)
-
-            # self.sa_QK_qcontent_proj = nn.Linear(d_model, d_model)
-            # self.sa_QK_qpos_proj = nn.Linear(d_model, d_model)
-            # self.sa_QK_kcontent_proj = nn.Linear(d_model, d_model)
-            # self.sa_QK_kpos_proj = nn.Linear(d_model, d_model)
-            # self.sa_QK_v_proj = nn.Linear(d_model, d_model)
-            # self.sa_QK_qpos_sine_proj = nn.Linear(d_model, d_model)
-            # self.QK_attn = MultiheadAttention(d_model * 2, nhead, dropout=dropout, vdim=d_model)
-            #
-            # self.norm0 = nn.LayerNorm(d_model)
-            # self.dropout0 = nn.Dropout(dropout)
-            #
-            # self.sa_conv_1 = nn.Conv1d(d_model, d_model, 3, padding=1)
-            # self.sa_conv_norm_1 = nn.LayerNorm(d_model)
-            # self.sa_activation_1 = _get_activation_fn(activation)
-            # self.sa_conv_2 = nn.Conv1d(d_model, d_model, 3, padding=1)
-            # self.sa_conv_norm_2 = nn.LayerNorm(d_model)
-            # self.sa_activation_2 = _get_activation_fn(activation)
-            # self.sa_conv_3 = nn.Conv1d(d_model, d_model, 3, padding=1)
-            # self.sa_conv_norm_3 = nn.LayerNorm(d_model)
-            # self.sa_conv_dropout1 = nn.Dropout(dropout)
-            #
-            # self.sa_KQ_qcontent_proj = nn.Linear(d_model, d_model)
-            # self.sa_KQ_qpos_proj = nn.Linear(d_model, d_model)
-            # self.sa_KQ_kcontent_proj = nn.Linear(d_model, d_model)
-            # self.sa_KQ_kpos_proj = nn.Linear(d_model, d_model)
-            # self.sa_KQ_v_proj = nn.Linear(d_model, d_model)
-            # self.sa_KQ_qpos_sine_proj = nn.Linear(d_model, d_model)
-            # self.KQ_attn = MultiheadAttention(d_model * 2, nhead, dropout=dropout, vdim=d_model)
-
             self.norm1 = nn.LayerNorm(d_model)
             self.dropout1 = nn.Dropout(dropout)
-
-            self.linear4 = nn.Linear(d_model, d_model)
-            self.dropout4 = nn.Dropout(dropout)
 
         # Decoder Cross-Attention
         self.ca_qcontent_proj = nn.Linear(d_model, d_model)
@@ -477,7 +431,7 @@ class TransformerDecoderLayer(nn.Module):
                 pos: Optional[Tensor] = None,
                 query_pos: Optional[Tensor] = None,
                 query_sine_embed=None,
-                is_first=False, ref_points=None, guidance=None):
+                is_first=False, ref_points=None):
                      
         # ========== Begin of Self-Attention =============
         if not self.rm_self_attn_decoder :
@@ -498,9 +452,6 @@ class TransformerDecoderLayer(nn.Module):
             tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
 
             tgt = tgt + self.dropout1(tgt2)
-            if guidance is not None:
-                tgt3 = self.linear4(torch.bmm(guidance, tgt.transpose(1, 0)).transpose(1, 0))
-                tgt = tgt + self.dropout4(tgt3)
             tgt = self.norm1(tgt)
         else:
             Q_weights = torch.zeros((1, ))

@@ -69,16 +69,14 @@ class TadTR(nn.Module):
         self.transformer = transformer
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes)
-        self.pre_class_embed = nn.Linear(hidden_dim, num_classes)
-        # self.pre_class_embed = self.class_embed
+        # self.pre_class_embed = nn.Linear(hidden_dim, num_classes)
         self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
-        self.pre_segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
-        # self.pre_segment_embed = self.segment_embed
+        # self.pre_segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
 
         self.query_dim = query_dim
 
         self.refpoint_embed = nn.Embedding(num_queries, query_dim)
-        self.pre_refpoint_embed = nn.Embedding(num_queries, query_dim)
+        # self.pre_refpoint_embed = nn.Embedding(num_queries, query_dim)
         self.random_refpoints_xy = random_refpoints_xy
         # if random_refpoints_xy:
         #     # import ipdb; ipdb.set_trace()
@@ -107,8 +105,8 @@ class TadTR(nn.Module):
         self.pre_class_embed.bias.data = torch.ones(num_classes) * bias_value
         nn.init.constant_(self.segment_embed.layers[-1].weight.data, 0)
         nn.init.constant_(self.segment_embed.layers[-1].bias.data, 0)
-        nn.init.constant_(self.pre_segment_embed.layers[-1].weight.data, 0)
-        nn.init.constant_(self.pre_segment_embed.layers[-1].bias.data, 0)
+        # nn.init.constant_(self.pre_segment_embed.layers[-1].weight.data, 0)
+        # nn.init.constant_(self.pre_segment_embed.layers[-1].bias.data, 0)
         for proj in self.input_proj:
             nn.init.xavier_uniform_(proj[0].weight, gain=1)
             nn.init.constant_(proj[0].bias, 0)
@@ -117,7 +115,7 @@ class TadTR(nn.Module):
         if with_segment_refine:
             # hack implementation for segment refinement
             self.transformer.decoder.segment_embed = self.segment_embed
-            self.transformer.pre_decoder.segment_embed = self.pre_segment_embed
+            # self.transformer.pre_decoder.segment_embed = self.pre_segment_embed
 
         if with_act_reg:
             # RoIAlign params
@@ -180,16 +178,15 @@ class TadTR(nn.Module):
         src, mask = samples.tensors, samples.mask
 
         embedweight = self.refpoint_embed.weight
-        pre_embedweight = self.refpoint_embed.weight
-        # pre_embedweight = embedweight
-        pre_hs, pre_reference, hs, reference, memory, Q_weights, K_weights, C_weights = \
-            self.transformer(self.input_proj[0](src), mask, embedweight, pre_embedweight, pos[-1])
+        # pre_embedweight = self.refpoint_embed.weight
+        hs, reference, memory, Q_weights, K_weights, C_weights = \
+            self.transformer(self.input_proj[0](src), mask, embedweight, pos[-1])
 
-        pre_reference_before_sigmoid = inverse_sigmoid(reference)
-        tmp = self.pre_segment_embed(hs)
-        tmp[..., :self.query_dim] += pre_reference_before_sigmoid
-        pre_outputs_coord = tmp.sigmoid()
-        pre_outputs_class = self.pre_class_embed(hs)
+        # pre_reference_before_sigmoid = inverse_sigmoid(reference)
+        # tmp = self.pre_segment_embed(hs)
+        # tmp[..., :self.query_dim] += pre_reference_before_sigmoid
+        # pre_outputs_coord = tmp.sigmoid()
+        # pre_outputs_class = self.pre_class_embed(hs)
 
         reference_before_sigmoid = inverse_sigmoid(reference)
         tmp = self.segment_embed(hs)
@@ -197,8 +194,8 @@ class TadTR(nn.Module):
         outputs_coord = tmp.sigmoid()
         outputs_class = self.class_embed(hs)
 
-        outputs_coord = torch.cat((pre_outputs_coord, outputs_coord))
-        outputs_class = torch.cat((pre_outputs_class, outputs_class))
+        # outputs_coord = torch.cat((pre_outputs_coord, outputs_coord))
+        # outputs_class = torch.cat((pre_outputs_class, outputs_class))
 
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
                'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
@@ -281,7 +278,7 @@ class SetCriterion(nn.Module):
                                             dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
         target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
 
-        target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
+        # target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
 
         target_classes_onehot = target_classes_onehot[:,:,:-1]
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments, alpha=self.focal_alpha, gamma=2) * src_logits.shape[1]  # nq
