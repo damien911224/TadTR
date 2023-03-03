@@ -355,7 +355,6 @@ class SetCriterion(nn.Module):
         assert 'Q_weights' in outputs
         assert 'C_weights' in outputs
 
-        # Q_weights = torch.mean(outputs["Q_weights"], dim=0)
 
         # Q_weights = outputs["Q_weights"]
         # normalized_Q_weights = Q_weights[0]
@@ -366,7 +365,8 @@ class SetCriterion(nn.Module):
         # Q_weights = normalized_Q_weights
 
         # L_Q = len(outputs["Q_weights"])
-        Q_weights = outputs["Q_weights"].flatten(0, 1)
+        Q_weights = torch.mean(outputs["Q_weights"], dim=0)
+        # Q_weights = outputs["Q_weights"].flatten(0, 1)
 
         # src_segments = outputs['pred_segments'].detach()
         # IoUs = list()
@@ -436,7 +436,8 @@ class SetCriterion(nn.Module):
         #     normalized_QQ_weights = normalized_QQ_weights / torch.sum(normalized_QQ_weights, dim=-1, keepdim=True)
         # target_Q_weights = normalized_QQ_weights
 
-        C_weights = outputs["C_weights"].flatten(0, 1).detach()
+        C_weights = torch.mean(outputs["C_weights"], dim=0)
+        # C_weights = outputs["C_weights"].flatten(0, 1).detach()
         # C_weights = torch.mean(outputs["C_weights"], dim=0).detach().repeat(L_Q, 1, 1)
         QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
         target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
@@ -492,15 +493,15 @@ class SetCriterion(nn.Module):
 
         # K_weights = torch.mean(outputs["K_weights"], dim=0)
 
-        K_weights = outputs["K_weights"][-1]
+        # K_weights = outputs["K_weights"][-1]
 
-        # K_weights = outputs["K_weights"]
-        # normalized_K_weights = K_weights[0]
-        # for i in range(len(K_weights) - 1):
-        #     normalized_K_weights = torch.sqrt(
-        #         torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)) + 1.0e-7)
-        #     normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
-        # K_weights = normalized_K_weights
+        K_weights = outputs["K_weights"]
+        normalized_K_weights = K_weights[0]
+        for i in range(len(K_weights) - 1):
+            normalized_K_weights = torch.sqrt(
+                torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)) + 1.0e-7)
+            normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
+        K_weights = normalized_K_weights
 
         split = 0
 
