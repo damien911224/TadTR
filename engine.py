@@ -187,16 +187,20 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             l_K = len(K[0])
             # L, K, K, K
             d_K = np.tile(np.expand_dims(K, axis=1), (1, l_K, 1, 1)) - np.expand_dims(K, axis=2)
+            # L, Q
             d_K = np.sqrt(np.linalg.norm(d_K, ord=1, axis=(2, 3)) * np.linalg.norm(d_K, ord=np.inf, axis=(2, 3)))
-            d_K = np.max(d_K, axis=1)
+            # L
+            d_K = np.min(d_K, axis=1)
             K_d_values.append(d_K)
 
             # L, Q, Q
             l_Q = len(Q[0])
             # L, Q, Q, Q
             d_Q = np.tile(np.expand_dims(Q, axis=1), (1, l_Q, 1, 1)) - np.expand_dims(Q, axis=2)
+            # L, Q
             d_Q = np.sqrt(np.linalg.norm(d_Q, ord=1, axis=(2, 3)) * np.linalg.norm(d_Q, ord=np.inf, axis=(2, 3)))
-            d_Q = np.max(d_Q, axis=1)
+            # L
+            d_Q = np.min(d_Q, axis=1)
             Q_d_values.append(d_Q)
 
     if diversity:
