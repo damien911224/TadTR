@@ -495,15 +495,15 @@ class SetCriterion(nn.Module):
 
         # K_weights = torch.mean(outputs["K_weights"], dim=0)
 
-        # K_weights = outputs["K_weights"][-1]
+        K_weights = outputs["K_weights"][-1]
 
-        K_weights = outputs["K_weights"]
-        normalized_K_weights = K_weights[0]
-        for i in range(len(K_weights) - 1):
-            normalized_K_weights = torch.sqrt(
-                torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)) + 1.0e-7)
-            normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
-        K_weights = normalized_K_weights
+        # K_weights = outputs["K_weights"]
+        # normalized_K_weights = K_weights[0]
+        # for i in range(len(K_weights) - 1):
+        #     normalized_K_weights = torch.sqrt(
+        #         torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)) + 1.0e-7)
+        #     normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
+        # K_weights = normalized_K_weights
 
         split = 0
 
@@ -547,8 +547,8 @@ class SetCriterion(nn.Module):
         #     normalized_KK_weights = normalized_KK_weights / torch.sum(normalized_KK_weights, dim=-1, keepdim=True)
         # target_K_weights = normalized_KK_weights
 
-        C_weights = torch.mean(outputs["C_weights"], dim=0).detach()
-        # C_weights = outputs["C_weights"][-1].detach()
+        # C_weights = torch.mean(outputs["C_weights"], dim=0).detach()
+        C_weights = outputs["C_weights"][-1].detach()
         KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
         KK_weights = torch.sqrt(KK_weights + 1.0e-7)
         target_K_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
