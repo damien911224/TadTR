@@ -240,7 +240,6 @@ def main(args):
                     ckpt['best_metric'] = best_metric
                     best_ckpt_path = output_dir / 'model_best.pth'
                     utils.save_on_master(ckpt, best_ckpt_path)
-        exit()
 
         if args.distributed:
             sampler_train.set_epoch(epoch)

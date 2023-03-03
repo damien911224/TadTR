@@ -135,6 +135,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
     if diversity:
         K_d_values = list()
         Q_d_values = list()
+
     for (samples, targets) in tqdm.tqdm(data_loader, total=len(data_loader)):
         samples = samples.to(device)
         outputs = model((samples.tensors, samples.mask))
@@ -198,7 +199,21 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             d_Q = np.max(d_Q, axis=1)
             Q_d_values.append(d_Q)
 
-            print(d_K, d_Q)
+    if diversity:
+        K_d_values = np.stack(K_d_values, axis=0)
+        Q_d_values = np.stack(Q_d_values, axis=0)
+
+        K_d_mean = np.mean(K_d_values, axis=0)
+        K_d_vars = np.std(K_d_values, axis=0)
+
+        Q_d_mean = np.mean(Q_d_values, axis=0)
+        Q_d_vars = np.std(Q_d_values, axis=0)
+
+        print("=" * 50)
+        print("Epoch {:02d}: Diversity".format(epoch + 1))
+        print("Encoder: {} / {}".format(K_d_mean, K_d_vars))
+        print("Decoder: {} / {}".format(Q_d_mean, Q_d_vars))
+        print("=" * 50)
 
     # accumulate predictions from all videos
     if action_evaluator is not None:
