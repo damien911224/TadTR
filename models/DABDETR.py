@@ -437,8 +437,8 @@ class SetCriterion(nn.Module):
         #     normalized_QQ_weights = normalized_QQ_weights / torch.sum(normalized_QQ_weights, dim=-1, keepdim=True)
         # target_Q_weights = normalized_QQ_weights
 
-        C_weights = outputs["C_weights"][-1]
-        # C_weights = torch.mean(outputs["C_weights"], dim=0)
+        # C_weights = outputs["C_weights"][-1]
+        C_weights = torch.mean(outputs["C_weights"], dim=0)
         # C_weights = outputs["C_weights"].flatten(0, 1).detach()
         # C_weights = torch.mean(outputs["C_weights"], dim=0).detach().repeat(L_Q, 1, 1)
         QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
