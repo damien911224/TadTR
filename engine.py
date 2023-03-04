@@ -134,7 +134,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         sampled_indices = random.sample(range(len(data_loader)), 3)
     if diversity:
         K_d_values = list()
-        # Q_d_values = list()
+        Q_d_values = list()
 
     for (samples, targets) in tqdm.tqdm(data_loader, total=len(data_loader)):
         samples = samples.to(device)
@@ -181,7 +181,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
 
         if diversity:
             K = outputs["K_weights"][:, 0].detach().cpu().numpy()
-            # Q = outputs["Q_weights"][:, 0].detach().cpu().numpy()
+            Q = outputs["Q_weights"][:, 0].detach().cpu().numpy()
 
             # L, K, K
             l_K = len(K[0])
@@ -193,30 +193,30 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             d_K = np.min(d_K, axis=1)
             K_d_values.append(d_K)
 
-            # # L, Q, Q
-            # l_Q = len(Q[0])
-            # # L, Q, Q, Q
-            # d_Q = np.tile(np.expand_dims(Q, axis=1), (1, l_Q, 1, 1)) - np.expand_dims(Q, axis=2)
-            # # L, Q
-            # d_Q = np.sqrt(np.linalg.norm(d_Q, ord=1, axis=(2, 3)) * np.linalg.norm(d_Q, ord=np.inf, axis=(2, 3)))
-            # # L
-            # d_Q = np.min(d_Q, axis=1)
-            # Q_d_values.append(d_Q)
+            # L, Q, Q
+            l_Q = len(Q[0])
+            # L, Q, Q, Q
+            d_Q = np.tile(np.expand_dims(Q, axis=1), (1, l_Q, 1, 1)) - np.expand_dims(Q, axis=2)
+            # L, Q
+            d_Q = np.sqrt(np.linalg.norm(d_Q, ord=1, axis=(2, 3)) * np.linalg.norm(d_Q, ord=np.inf, axis=(2, 3)))
+            # L
+            d_Q = np.min(d_Q, axis=1)
+            Q_d_values.append(d_Q)
 
     if diversity:
         K_d_values = np.stack(K_d_values, axis=0)
-        # Q_d_values = np.stack(Q_d_values, axis=0)
+        Q_d_values = np.stack(Q_d_values, axis=0)
 
         K_d_mean = np.mean(K_d_values, axis=0)
         K_d_vars = np.std(K_d_values, axis=0)
 
-        # Q_d_mean = np.mean(Q_d_values, axis=0)
-        # Q_d_vars = np.std(Q_d_values, axis=0)
+        Q_d_mean = np.mean(Q_d_values, axis=0)
+        Q_d_vars = np.std(Q_d_values, axis=0)
 
         print("=" * 50)
         print("Epoch {:02d}: Diversity".format(epoch + 1))
         print("Encoder: {} / {}".format(K_d_mean, K_d_vars))
-        # print("Decoder: {} / {}".format(Q_d_mean, Q_d_vars))
+        print("Decoder: {} / {}".format(Q_d_mean, Q_d_vars))
         print("=" * 50)
 
     # accumulate predictions from all videos
