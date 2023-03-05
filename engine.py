@@ -181,56 +181,30 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 a_i += 1
 
         if diversity:
-            print(outputs["K_in"].shape)
-            exit()
-            K_in = outputs["K_in"][:, 0].detach().cpu().numpy()
-            K_out = outputs["K_out"][:, 0].detach().cpu().numpy()
-            Q_in = outputs["Q_in"][:, 0].detach().cpu().numpy()
-            Q_out = outputs["Q_out"][:, 0].detach().cpu().numpy()
-            C_in = outputs["C_in"][:, 0].detach().cpu().numpy()
-            C_out = outputs["C_out"][:, 0].detach().cpu().numpy()
+            K_in = outputs["K_in"].detach().cpu().numpy()
+            K_out = outputs["K_out"].detach().cpu().numpy()
+            Q_in = outputs["Q_in"].detach().cpu().numpy()
+            Q_out = outputs["Q_out"].detach().cpu().numpy()
+            C_in = outputs["C_in"].detach().cpu().numpy()
+            C_out = outputs["C_out"].detach().cpu().numpy()
 
-            # L, K, D
-            l_K = len(K_in[0])
-            # L, K, K, D
-            d_K_in = np.tile(np.expand_dims(K_in, axis=1), (1, l_K, 1, 1)) - np.expand_dims(K_in, axis=2)
-            d_K_out = np.tile(np.expand_dims(K_out, axis=1), (1, l_K, 1, 1)) - np.expand_dims(K_out, axis=2)
-            # L, D
-            d_K_in = np.sqrt(np.linalg.norm(d_K_in, ord=1, axis=(2, 3)) * np.linalg.norm(d_K_in, ord=np.inf, axis=(2, 3)))
-            d_K_out = np.sqrt(np.linalg.norm(d_K_out, ord=1, axis=(2, 3)) * np.linalg.norm(d_K_out, ord=np.inf, axis=(2, 3)))
-            # L
-            d_K_in = np.min(d_K_in, axis=1)
-            d_K_out = np.min(d_K_out, axis=1)
+            tgt_ins = [K_in, Q_in, C_in]
+            tgt_outs = [K_out, Q_out, C_out]
+            tgt_lists = [K_d_values, Q_d_values, C_d_values]
+            for tgt_in, tgt_out, tgt_list in zip(tgt_ins, tgt_outs, tgt_lists):
+                # L, N, W, D
+                W = tgt_inshape[2]
+                # L, N, W, W, D
+                d_in = np.tile(np.expand_dims(tgt_in, axis=2), (1, 1, W, 1, 1)) - np.expand_dims(tgt_in, axis=3)
+                d_out = np.tile(np.expand_dims(tgt_out, axis=2), (1, 1, W, 1, 1)) - np.expand_dims(tgt_out, axis=3)
+                # L, W
+                d_in = np.sqrt(np.linalg.norm(d_in, ord=1, axis=(2, 3)) * np.linalg.norm(d_in, ord=np.inf, axis=(2, 3)))
+                d_out = np.sqrt(np.linalg.norm(d_out, ord=1, axis=(2, 3)) * np.linalg.norm(d_out, ord=np.inf, axis=(2, 3)))
+                # L
+                d_in = np.min(d_in, axis=1)
+                d_out = np.min(d_out, axis=1)
 
-            K_d_values.append(d_K_out / d_K_in)
-
-            # L, Q, Q
-            l_Q = len(Q_in[0])
-            # L, Q, Q, Q
-            d_Q_in = np.tile(np.expand_dims(Q_in, axis=1), (1, l_Q, 1, 1)) - np.expand_dims(Q_in, axis=2)
-            d_Q_out = np.tile(np.expand_dims(Q_out, axis=1), (1, l_Q, 1, 1)) - np.expand_dims(Q_out, axis=2)
-            # L, Q
-            d_Q_in = np.sqrt(np.linalg.norm(d_Q_in, ord=1, axis=(2, 3)) * np.linalg.norm(d_Q_in, ord=np.inf, axis=(2, 3)))
-            d_Q_out = np.sqrt(np.linalg.norm(d_Q_out, ord=1, axis=(2, 3)) * np.linalg.norm(d_Q_out, ord=np.inf, axis=(2, 3)))
-            # L
-            d_Q_in = np.min(d_Q_in, axis=1)
-            d_Q_out = np.min(d_Q_out, axis=1)
-
-            Q_d_values.append(d_Q_out / d_Q_in)
-
-            # L, Q, K
-            l_C = len(C_in[0])
-            # L, Q, Q, K
-            d_C_in = np.tile(np.expand_dims(C_in, axis=1), (1, l_C, 1, 1)) - np.expand_dims(C_in, axis=2)
-            d_C_out = np.tile(np.expand_dims(C_out, axis=1), (1, l_C, 1, 1)) - np.expand_dims(C_out, axis=2)
-            # L, Q
-            d_C_in = np.sqrt(np.linalg.norm(d_C_in, ord=1, axis=(2, 3)) * np.linalg.norm(d_C_in, ord=np.inf, axis=(2, 3)))
-            d_C_out = np.sqrt(np.linalg.norm(d_C_out, ord=1, axis=(2, 3)) * np.linalg.norm(d_C_out, ord=np.inf, axis=(2, 3)))
-            # L
-            d_C_in = np.min(d_C_in, axis=1)
-            d_C_out = np.min(d_C_out, axis=1)
-
-            C_d_values.append(d_C_out / d_C_in)
+                tgt_list.append(d_out / d_in)
 
     if diversity:
         K_d_values = np.stack(K_d_values, axis=0)
