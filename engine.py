@@ -186,8 +186,6 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             Q_in = outputs["Q_in"].detach().cpu().transpose(1, 0).numpy()
             Q_out = outputs["Q_out"].detach().transpose(1, 0).cpu().numpy()
             C_in = outputs["C_in"].detach().transpose(1, 0).cpu().numpy()
-            print(C_in.shape)
-            exit()
             C_out = outputs["C_out"].detach().transpose(1, 0).cpu().numpy()
 
             tgt_ins = [K_in, Q_in, C_in]
@@ -211,6 +209,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
     if diversity:
         K_d_values = np.concatenate(K_d_values, axis=0)
         Q_d_values = np.concatenate(Q_d_values, axis=0)
+        C_d_values = np.concatenate(C_d_values, axis=0)
 
         K_d_mean = np.mean(K_d_values, axis=0)
         K_d_vars = np.std(K_d_values, axis=0)
