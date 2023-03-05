@@ -9,7 +9,6 @@ from easydict import EasyDict
 import yaml
 
 
-
 def str2bool(x):
     if x.lower() in ['true', 't', '1', 'y']:
         return True
@@ -27,7 +26,7 @@ def get_args_parser():
     parser.add_argument('--seed', default=42, type=int)
 
     parser.add_argument('--resume', default='', help='resume from checkpoint')
-    
+
     parser.add_argument('--eval', action='store_true', help='perform testing')
     parser.add_argument('--num_workers', default=2, type=int, help='number of dataloader workers')
 
@@ -46,7 +45,6 @@ def get_args_parser():
     return parser
 
 
-
 cfg = EasyDict()
 # ---- Basic option ----
 # whether to enable tensorboard
@@ -59,11 +57,10 @@ cfg.dfm_att_backend = 'pytorch'
 # path where to save, empty for no saving
 cfg.output_dir = ''
 
-
 # # ------ Data options ------
 cfg.dataset_name = 'thumos14'
 # Use feature input or raw image input (jointly train the video encoder and the detection head). Choices: {feature, image}
-cfg.input_type = 'feature'   
+cfg.input_type = 'feature'
 # Which kind of feature to use. e.g. i3d, tsn.
 cfg.feature = 'i3d2s'
 # dimension (channels) of the video feature
@@ -80,7 +77,6 @@ cfg.slice_len = None
 cfg.slice_overlap = 0
 # overlap ratio between adjacent slices during inference 
 cfg.test_slice_overlap = 0
-
 
 # ---- Model option --------
 # Name of the convolutional backbone to use. If we use video features as input, backbone should be 'none' 
@@ -114,10 +110,9 @@ cfg.activation = 'relu'
 # Whether to enable segment refinement mechanism
 cfg.seg_refine = True
 # Whether to enable actionness regression head
-cfg.act_reg = False # True
+cfg.act_reg = False  # True
 # whether to disable self-attention between action queries
 cfg.disable_query_self_att = False
-
 
 # ----- Loss and matcher setting -------
 # Enable auxiliary decoding losses (loss at each layer)
@@ -134,10 +129,9 @@ cfg.eos_coef = 0.1
 cfg.focal_alpha = 0.25
 
 # Set cost weight
-cfg.set_cost_class = 6    # Class coefficient
-cfg.set_cost_seg = 5      # Segment L1 coefficient 
-cfg.set_cost_iou = 2      # Segment IoU coefficient
-
+cfg.set_cost_class = 6  # Class coefficient
+cfg.set_cost_seg = 5  # Segment L1 coefficient
+cfg.set_cost_iou = 2  # Segment IoU coefficient
 
 # ----- Training option -------
 # base learning rate. If you set lr in yaml file, don't use this format, use 0.0002 instead
@@ -162,17 +156,16 @@ cfg.weight_decay = 1e-4
 cfg.clip_max_norm = 0.1
 
 # maximum number of training epochs
-cfg.epochs = 300 # 16
+cfg.epochs = 300  # 16
 
 # when to decay lr
-cfg.lr_step = [260, 290] # [14]
+cfg.lr_step = [260, 290]  # [14]
 # save checkpoint every N epochs. Set it to a small value if you want to save intermediate models
 cfg.ckpt_interval = 10
 # update parameters every N forward-backward passes. N=1 (default)
 cfg.iter_size = 1
 # test model every N epochs. N=1 (default)
 cfg.test_interval = 1
-
 
 # ----- Postproc option -------
 # How to rank the predicted instances. 
@@ -188,7 +181,6 @@ cfg.postproc_ins_topk = 100
 cfg.nms_thr = 0.4
 
 
-
 def update_cfg_with_args(cfg, arg_list):
     from ast import literal_eval
     for i in range(0, len(arg_list), 2):
@@ -198,10 +190,10 @@ def update_cfg_with_args(cfg, arg_list):
             cur_entry = cur_entry[k]
         node = key_parts[-1]
         try:
-            cur_entry[node] = literal_eval(arg_list[i+1])
+            cur_entry[node] = literal_eval(arg_list[i + 1])
         except:
             # print(f'literal_eval({arg_list[i+1]}) failed, directly take the value')
-            cur_entry[node] = arg_list[i+1]
+            cur_entry[node] = arg_list[i + 1]
 
 
 def update_cfg_from_file(cfg, cfg_path):
