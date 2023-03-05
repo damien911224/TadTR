@@ -188,6 +188,14 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             C_in = outputs["C_in"].detach().transpose(1, 0).cpu().numpy()
             C_out = outputs["C_out"].detach().transpose(1, 0).cpu().numpy()
 
+            K_in = utputs["K_weights"].detach().cpu().numpy()
+            Q_in = utputs["K_weights"].detach().cpu().numpy()
+            C_in = utputs["K_weights"].detach().cpu().numpy()
+
+            K_out = K_in
+            Q_out = Q_in
+            C_out = C_in
+
             tgt_ins = [K_in, Q_in, C_in]
             tgt_outs = [K_out, Q_out, C_out]
             tgt_lists = [K_d_values, Q_d_values, C_d_values]
@@ -195,11 +203,13 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 # N, L, W, D
                 W = tgt_in.shape[2]
                 # N, L, W, W, D
-                d_in = np.tile(np.expand_dims(tgt_in, axis=2), (1, 1, W, 1, 1)) - np.expand_dims(tgt_in, axis=3)
-                d_out = np.tile(np.expand_dims(tgt_out, axis=2), (1, 1, W, 1, 1)) - np.expand_dims(tgt_out, axis=3)
+                d_in = np.expand_dims(tgt_in, axis=2), (1, 1, W, 1, 1) - np.expand_dims(tgt_in, axis=3)
+                d_out = np.expand_dims(tgt_out, axis=2), (1, 1, W, 1, 1) - np.expand_dims(tgt_out, axis=3)
                 # N, L, W
                 d_in = np.sqrt(np.linalg.norm(d_in, ord=1, axis=(3, 4)) * np.linalg.norm(d_in, ord=np.inf, axis=(3, 4)))
                 d_out = np.sqrt(np.linalg.norm(d_out, ord=1, axis=(3, 4)) * np.linalg.norm(d_out, ord=np.inf, axis=(3, 4)))
+                print(d_out[0, 0])
+                exit()
                 # N, L
                 d_in = np.min(d_in, axis=2)
                 d_out = np.min(d_out, axis=2)
