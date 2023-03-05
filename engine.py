@@ -181,20 +181,20 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 a_i += 1
 
         if diversity and cnt <= 10:
-            K_in = outputs["K_in"].detach().cpu().transpose(1, 0).numpy()
-            K_out = outputs["K_out"].detach().cpu().transpose(1, 0).numpy()
-            Q_in = outputs["Q_in"].detach().cpu().transpose(1, 0).numpy()
-            Q_out = outputs["Q_out"].detach().transpose(1, 0).cpu().numpy()
-            C_in = outputs["C_in"].detach().transpose(1, 0).cpu().numpy()
-            C_out = outputs["C_out"].detach().transpose(1, 0).cpu().numpy()
+            # K_in = outputs["K_in"].detach().cpu().transpose(1, 0).numpy()
+            # K_out = outputs["K_out"].detach().cpu().transpose(1, 0).numpy()
+            # Q_in = outputs["Q_in"].detach().cpu().transpose(1, 0).numpy()
+            # Q_out = outputs["Q_out"].detach().transpose(1, 0).cpu().numpy()
+            # C_in = outputs["C_in"].detach().transpose(1, 0).cpu().numpy()
+            # C_out = outputs["C_out"].detach().transpose(1, 0).cpu().numpy()
 
-            # K_in = outputs["K_weights"].detach().cpu().transpose(1, 0).numpy()
-            # Q_in = outputs["Q_weights"].detach().cpu().transpose(1, 0).numpy()
-            # C_in = outputs["C_weights"].detach().cpu().transpose(1, 0).numpy()
+            K_in = outputs["K_weights"].detach().cpu().transpose(1, 0).numpy()
+            Q_in = outputs["Q_weights"].detach().cpu().transpose(1, 0).numpy()
+            C_in = outputs["C_weights"].detach().cpu().transpose(1, 0).numpy()
 
-            # K_out = K_in
-            # Q_out = Q_in
-            # C_out = C_in
+            K_out = K_in
+            Q_out = Q_in
+            C_out = C_in
 
             tgt_ins = [K_in, Q_in, C_in]
             tgt_outs = [K_out, Q_out, C_out]
@@ -214,8 +214,8 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
 
                 l_out = np.sqrt(np.linalg.norm(tgt_out, ord=1, axis=(2, 3)) * np.linalg.norm(tgt_out, ord=np.inf, axis=(2, 3)))
 
-                tgt_list.append(d_out / d_in)
-                # tgt_list.append(d_out / l_out)
+                # tgt_list.append(d_out / d_in)
+                tgt_list.append(d_out / l_out)
 
     if diversity:
         K_d_values = np.concatenate(K_d_values, axis=0)
