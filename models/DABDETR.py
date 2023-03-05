@@ -69,14 +69,11 @@ class TadTR(nn.Module):
         self.transformer = transformer
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes)
-        # self.pre_class_embed = nn.Linear(hidden_dim, num_classes)
         self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
-        # self.pre_segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
 
         self.query_dim = query_dim
 
         self.refpoint_embed = nn.Embedding(num_queries, query_dim)
-        # self.pre_refpoint_embed = nn.Embedding(num_queries, query_dim)
         self.random_refpoints_xy = random_refpoints_xy
         # if random_refpoints_xy:
         #     # import ipdb; ipdb.set_trace()
@@ -102,11 +99,8 @@ class TadTR(nn.Module):
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         self.class_embed.bias.data = torch.ones(num_classes) * bias_value
-        # self.pre_class_embed.bias.data = torch.ones(num_classes) * bias_value
         nn.init.constant_(self.segment_embed.layers[-1].weight.data, 0)
         nn.init.constant_(self.segment_embed.layers[-1].bias.data, 0)
-        # nn.init.constant_(self.pre_segment_embed.layers[-1].weight.data, 0)
-        # nn.init.constant_(self.pre_segment_embed.layers[-1].bias.data, 0)
         for proj in self.input_proj:
             nn.init.xavier_uniform_(proj[0].weight, gain=1)
             nn.init.constant_(proj[0].bias, 0)
@@ -115,7 +109,6 @@ class TadTR(nn.Module):
         if with_segment_refine:
             # hack implementation for segment refinement
             self.transformer.decoder.segment_embed = self.segment_embed
-            # self.transformer.pre_decoder.segment_embed = self.pre_segment_embed
 
         if with_act_reg:
             # RoIAlign params
@@ -142,7 +135,7 @@ class TadTR(nn.Module):
         rois_center = rois[:, :, 0:1]
         rois_size = rois[:, :, 1:2] * scale_factor
         rois_abs = torch.cat(
-            (rois_center - rois_size/2, rois_center + rois_size/2), dim=2) * T
+            (rois_center - rois_size / 2, rois_center + rois_size / 2), dim=2) * T
         # expand the RoIs
         rois_abs = torch.clamp(rois_abs, min=0, max=T)  # (N, T, 2)
         # add batch index
@@ -150,7 +143,7 @@ class TadTR(nn.Module):
         batch_ind = batch_ind.repeat(1, N, 1)
         rois_abs = torch.cat((batch_ind, rois_abs), dim=2)
         # NOTE: stop gradient here to stablize training
-        return rois_abs.view((B*N, 3)).detach()
+        return rois_abs.view((B * N, 3)).detach()
 
     def forward(self, samples):
         """ The forward expects a NestedTensor, which consists of:
@@ -178,25 +171,41 @@ class TadTR(nn.Module):
         src, mask = samples.tensors, samples.mask
 
         embedweight = self.refpoint_embed.weight
-        # pre_embedweight = self.refpoint_embed.weight
         hs, reference, memory, Q_weights, K_weights, C_weights = \
             self.transformer(self.input_proj[0](src), mask, embedweight, pos[-1])
-
-        # pre_reference_before_sigmoid = inverse_sigmoid(reference)
-        # tmp = self.pre_segment_embed(hs)
-        # tmp[..., :self.query_dim] += pre_reference_before_sigmoid
-        # pre_outputs_coord = tmp.sigmoid()
-        # pre_outputs_class = self.pre_class_embed(hs)
 
         reference_before_sigmoid = inverse_sigmoid(reference)
         tmp = self.segment_embed(hs)
         tmp[..., :self.query_dim] += reference_before_sigmoid
         outputs_coord = tmp.sigmoid()
+        # outputs_coord = segment_ops.segment_t1t2_to_cw(tmp.sigmoid())
+
         outputs_class = self.class_embed(hs)
 
-        # outputs_coord = torch.cat((pre_outputs_coord, outputs_coord))
-        # outputs_class = torch.cat((pre_outputs_class, outputs_class))
+        # normalized_Q_weights = Q_weights[0]
+        # for i in range(len(Q_weights) - 1):
+        #     normalized_Q_weights = torch.sqrt(torch.bmm(normalized_Q_weights, Q_weights[i + 1].transpose(1, 2)))
+        #     normalized_Q_weights = normalized_Q_weights / torch.sum(normalized_Q_weights, dim=-1, keepdim=True)
+        # normalized_K_weights = K_weights[0]
+        # for i in range(len(K_weights) - 1):
+        #     normalized_K_weights = torch.sqrt(torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)))
+        #     normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
 
+        # print(torch.argsort(-normalized_Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        # print(torch.max(normalized_Q_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
+        # print(torch.argsort(-normalized_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+        # print(torch.max(normalized_K_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
+
+        # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
+        #        'Q_weights': Q_weights[-1], 'K_weights': K_weights[-1], 'C_weights': C_weights[-1]}
+        # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
+        #        'Q_weights': torch.mean(Q_weights, dim=0), 'K_weights': torch.mean(K_weights, dim=0),
+        #        'C_weights': C_weights[-1]}
+        # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
+        #        'Q_weights': torch.mean(Q_weights, dim=0), 'K_weights': torch.mean(K_weights, dim=0),
+        #        'C_weights': torch.mean(C_weights, dim=0)}
+        # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
+        #        'Q_weights': normalized_Q_weights, 'K_weights': normalized_K_weights, 'C_weights': C_weights[-1]}
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
                'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
 
@@ -280,8 +289,9 @@ class SetCriterion(nn.Module):
 
         target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
 
-        target_classes_onehot = target_classes_onehot[:,:,:-1]
-        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments, alpha=self.focal_alpha, gamma=2) * src_logits.shape[1]  # nq
+        target_classes_onehot = target_classes_onehot[:, :, :-1]
+        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments, alpha=self.focal_alpha, gamma=2) * \
+                  src_logits.shape[1]  # nq
         losses = {'loss_ce': loss_ce}
 
         if log:
@@ -342,7 +352,7 @@ class SetCriterion(nn.Module):
 
         gt_iou = iou_mat.max(dim=1)[0]
         pred_actionness = outputs['pred_actionness']
-        loss_actionness = F.l1_loss(pred_actionness.view(-1), gt_iou.view(-1).detach())   
+        loss_actionness = F.l1_loss(pred_actionness.view(-1), gt_iou.view(-1).detach())
 
         losses['loss_iou'] = loss_actionness
         return losses
@@ -355,6 +365,8 @@ class SetCriterion(nn.Module):
         assert 'Q_weights' in outputs
         assert 'C_weights' in outputs
 
+        # Q_weights = torch.mean(outputs["Q_weights"], dim=0)
+
         # Q_weights = outputs["Q_weights"]
         # normalized_Q_weights = Q_weights[0]
         # for i in range(len(Q_weights) - 1):
@@ -363,9 +375,6 @@ class SetCriterion(nn.Module):
         #     normalized_Q_weights = normalized_Q_weights / torch.sum(normalized_Q_weights, dim=-1, keepdim=True)
         # Q_weights = normalized_Q_weights
 
-        # L_Q = len(outputs["Q_weights"])
-        # Q_weights = outputs["Q_weights"][-1]
-        # Q_weights = torch.mean(outputs["Q_weights"], dim=0)
         Q_weights = outputs["Q_weights"].flatten(0, 1)
 
         # src_segments = outputs['pred_segments'].detach()
@@ -387,7 +396,6 @@ class SetCriterion(nn.Module):
 
         # C_weights = C_weights * IoUs.unsqueeze(-1)
         # C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
-
 
         # iou_mat = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments), target_segments[..., :2])
         # gt_iou = iou_mat.max(dim=1)[0]
@@ -436,10 +444,7 @@ class SetCriterion(nn.Module):
         #     normalized_QQ_weights = normalized_QQ_weights / torch.sum(normalized_QQ_weights, dim=-1, keepdim=True)
         # target_Q_weights = normalized_QQ_weights
 
-        # C_weights = outputs["C_weights"][-1]
-        # C_weights = torch.mean(outputs["C_weights"], dim=0)
         C_weights = outputs["C_weights"].flatten(0, 1).detach()
-        # C_weights = torch.mean(outputs["C_weights"], dim=0).detach().repeat(L_Q, 1, 1)
         QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
         target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
 
@@ -494,8 +499,6 @@ class SetCriterion(nn.Module):
 
         # K_weights = torch.mean(outputs["K_weights"], dim=0)
 
-        # K_weights = outputs["K_weights"][-1]
-
         K_weights = outputs["K_weights"]
         normalized_K_weights = K_weights[0]
         for i in range(len(K_weights) - 1):
@@ -503,8 +506,6 @@ class SetCriterion(nn.Module):
                 torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)) + 1.0e-7)
             normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
         K_weights = normalized_K_weights
-
-        split = 0
 
         # C_weights = outputs["C_weights"].detach()
 
@@ -547,7 +548,6 @@ class SetCriterion(nn.Module):
         # target_K_weights = normalized_KK_weights
 
         C_weights = torch.mean(outputs["C_weights"], dim=0).detach()
-        # C_weights = outputs["C_weights"][-1].detach()
         KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
         KK_weights = torch.sqrt(KK_weights + 1.0e-7)
         target_K_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
@@ -633,7 +633,7 @@ class SetCriterion(nn.Module):
 
                     if 'QQ' in loss or 'KK' in loss:
                         continue
-         
+
                     kwargs = {}
                     if loss == 'labels':
                         # Logging is enabled only for the last layer
@@ -661,16 +661,16 @@ class PostProcess(nn.Module):
         assert len(out_logits) == len(target_sizes)
         # assert target_sizes.shape[1] == 1
 
-        prob = out_logits.sigmoid()   # [bs, nq, C]
+        prob = out_logits.sigmoid()  # [bs, nq, C]
         if fuse_score:
             prob *= outputs['pred_actionness']
 
-        segments = segment_ops.segment_cw_to_t1t2(out_segments)   # bs, nq, 2
+        segments = segment_ops.segment_cw_to_t1t2(out_segments)  # bs, nq, 2
 
-        if cfg.postproc_rank == 1:     # default
+        if cfg.postproc_rank == 1:  # default
             # sort across different instances, pick top 100 at most
             topk_values, topk_indexes = torch.topk(prob.view(
-                out_logits.shape[0], -1), min(cfg.postproc_ins_topk, prob.shape[1]*prob.shape[2]), dim=1)
+                out_logits.shape[0], -1), min(cfg.postproc_ins_topk, prob.shape[1] * prob.shape[2]), dim=1)
             scores = topk_values
             topk_segments = topk_indexes // out_logits.shape[2]
             labels = topk_indexes % out_logits.shape[2]
@@ -686,9 +686,11 @@ class PostProcess(nn.Module):
             scores, labels = scores.flatten(1), labels.flatten(1)
             # (bs, nq, 1, 2)
             segments = segments[:, [
-                i//cfg.postproc_cls_topk for i in range(cfg.postproc_cls_topk*segments.shape[1])], :]
-            query_ids = (torch.arange(0, cfg.postproc_cls_topk*segments.shape[1], 1, dtype=labels.dtype,
-                         device=labels.device) // cfg.postproc_cls_topk)[None, :].repeat(labels.shape[0], 1)
+                                       i // cfg.postproc_cls_topk for i in
+                                       range(cfg.postproc_cls_topk * segments.shape[1])], :]
+            query_ids = (torch.arange(0, cfg.postproc_cls_topk * segments.shape[1], 1, dtype=labels.dtype,
+                                      device=labels.device) // cfg.postproc_cls_topk)[None, :].repeat(labels.shape[0],
+                                                                                                      1)
 
         # from normalized [0, 1] to absolute [0, length] coordinates
         vid_length = target_sizes
@@ -747,7 +749,7 @@ def build(args):
     losses = ['labels', 'segments']
 
     weight_dict = {
-        'loss_ce': args.cls_loss_coef, 
+        'loss_ce': args.cls_loss_coef,
         'loss_segments': args.seg_loss_coef,
         'loss_iou': args.iou_loss_coef}
 
@@ -765,14 +767,13 @@ def build(args):
 
     if args.aux_loss:
         aux_weight_dict = {}
-        # for i in range(args.dec_layers  - 1):
-        for i in range(args.dec_layers * 2 - 1):
+        for i in range(args.dec_layers - 1):
             aux_weight_dict.update({k + f'_{i}': v for k, v in weight_dict.items()})
         aux_weight_dict.update({k + f'_enc': v for k, v in weight_dict.items()})
         weight_dict.update(aux_weight_dict)
 
     criterion = SetCriterion(num_classes, matcher,
-        weight_dict, losses, focal_alpha=args.focal_alpha)
+                             weight_dict, losses, focal_alpha=args.focal_alpha)
 
     postprocessor = PostProcess()
 
