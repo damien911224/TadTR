@@ -135,6 +135,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
     if diversity:
         K_d_values = list()
         Q_d_values = list()
+        C_d_values = list()
 
     for (samples, targets) in tqdm.tqdm(data_loader, total=len(data_loader)):
         samples = samples.to(device)
@@ -215,7 +216,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             # L
             d_C = np.min(d_C, axis=1)
             s_C = np.sqrt(np.linalg.norm(C, ord=1, axis=(1, 2)) * np.linalg.norm(C, ord=np.inf, axis=(1, 2)))
-            Q_d_values.append(d_C / s_C)
+            C_d_values.append(d_C / s_C)
 
     if diversity:
         K_d_values = np.stack(K_d_values, axis=0)
@@ -227,10 +228,14 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         Q_d_mean = np.mean(Q_d_values, axis=0)
         Q_d_vars = np.std(Q_d_values, axis=0)
 
+        C_d_mean = np.mean(Q_d_values, axis=0)
+        C_d_vars = np.std(Q_d_values, axis=0)
+
         print("=" * 50)
         print("Epoch {:02d}: Diversity".format(epoch + 1))
-        print("Encoder: {} / {}".format(K_d_mean, K_d_vars))
-        print("Decoder: {} / {}".format(Q_d_mean, Q_d_vars))
+        print("QQ: {} / {}".format(K_d_mean, K_d_vars))
+        print("KK: {} / {}".format(Q_d_mean, Q_d_vars))
+        print("QK: {} / {}".format(C_d_mean, C_d_vars))
         print("=" * 50)
 
     # accumulate predictions from all videos
