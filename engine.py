@@ -181,16 +181,16 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 a_i += 1
 
         if diversity and cnt <= 10:
-            K_in = outputs["K_in"].detach().cpu().transpose(1, 0).numpy()
-            K_out = outputs["K_out"].detach().cpu().transpose(1, 0).numpy()
-            Q_in = outputs["Q_in"].detach().cpu().transpose(1, 0).numpy()
-            Q_out = outputs["Q_out"].detach().transpose(1, 0).cpu().numpy()
-            C_in = outputs["C_in"].detach().transpose(1, 0).cpu().numpy()
-            C_out = outputs["C_out"].detach().transpose(1, 0).cpu().numpy()
+            # K_in = outputs["K_in"].detach().cpu().transpose(1, 0).numpy()
+            # K_out = outputs["K_out"].detach().cpu().transpose(1, 0).numpy()
+            # Q_in = outputs["Q_in"].detach().cpu().transpose(1, 0).numpy()
+            # Q_out = outputs["Q_out"].detach().transpose(1, 0).cpu().numpy()
+            # C_in = outputs["C_in"].detach().transpose(1, 0).cpu().numpy()
+            # C_out = outputs["C_out"].detach().transpose(1, 0).cpu().numpy()
 
-            K_in = utputs["K_weights"].detach().cpu().numpy()
-            Q_in = utputs["K_weights"].detach().cpu().numpy()
-            C_in = utputs["K_weights"].detach().cpu().numpy()
+            K_in = outputs["K_weights"].detach().cpu().numpy()
+            Q_in = outputs["K_weights"].detach().cpu().numpy()
+            C_in = outputs["K_weights"].detach().cpu().numpy()
 
             K_out = K_in
             Q_out = Q_in
