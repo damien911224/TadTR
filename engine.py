@@ -182,6 +182,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         if diversity:
             K = outputs["K_weights"][:, 0].detach().cpu().numpy()
             Q = outputs["Q_weights"][:, 0].detach().cpu().numpy()
+            C = outputs["Q_weights"][:, 0].detach().cpu().numpy()
 
             # L, K, K
             l_K = len(K[0])
@@ -204,6 +205,17 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             d_Q = np.min(d_Q, axis=1)
             s_Q = np.sqrt(np.linalg.norm(Q, ord=1, axis=(1, 2)) * np.linalg.norm(Q, ord=np.inf, axis=(1, 2)))
             Q_d_values.append(d_Q / s_Q)
+
+            # L, Q, K
+            l_C = len(C[0])
+            # L, Q, Q, K
+            d_C = np.tile(np.expand_dims(C, axis=1), (1, l_C, 1, 1)) - np.expand_dims(C, axis=2)
+            # L, Q
+            d_C = np.sqrt(np.linalg.norm(d_C, ord=1, axis=(2, 3)) * np.linalg.norm(d_C, ord=np.inf, axis=(2, 3)))
+            # L
+            d_C = np.min(d_C, axis=1)
+            s_C = np.sqrt(np.linalg.norm(C, ord=1, axis=(1, 2)) * np.linalg.norm(C, ord=np.inf, axis=(1, 2)))
+            Q_d_values.append(d_C / s_C)
 
     if diversity:
         K_d_values = np.stack(K_d_values, axis=0)
