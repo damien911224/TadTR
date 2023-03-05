@@ -200,10 +200,10 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             d_Q = np.tile(np.expand_dims(Q, axis=1), (1, l_Q, 1, 1)) - np.expand_dims(Q, axis=2)
             # L, Q
             d_Q = np.sqrt(np.linalg.norm(d_Q, ord=1, axis=(2, 3)) * np.linalg.norm(d_Q, ord=np.inf, axis=(2, 3)))
-            s_Q = np.sqrt(np.linalg.norm(Q, ord=1, axis=(1, 2)) * np.linalg.norm(Q, ord=np.inf, axis=(1, 2)))
             # L
             d_Q = np.min(d_Q, axis=1)
-            Q_d_values.append(d_Q)
+            s_Q = np.sqrt(np.linalg.norm(Q, ord=1, axis=(1, 2)) * np.linalg.norm(Q, ord=np.inf, axis=(1, 2)))
+            Q_d_values.append(d_Q / s_Q)
 
     if diversity:
         K_d_values = np.stack(K_d_values, axis=0)
