@@ -228,13 +228,13 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         Q_d_mean = np.mean(Q_d_values, axis=0)
         Q_d_vars = np.std(Q_d_values, axis=0)
 
-        C_d_mean = np.mean(Q_d_values, axis=0)
-        C_d_vars = np.std(Q_d_values, axis=0)
+        C_d_mean = np.mean(C_d_values, axis=0)
+        C_d_vars = np.std(C_d_values, axis=0)
 
         print("=" * 50)
         print("Epoch {:02d}: Diversity".format(epoch + 1))
-        print("QQ: {} / {}".format(K_d_mean, K_d_vars))
-        print("KK: {} / {}".format(Q_d_mean, Q_d_vars))
+        print("KK: {} / {}".format(K_d_mean, K_d_vars))
+        print("QQ: {} / {}".format(Q_d_mean, Q_d_vars))
         print("QK: {} / {}".format(C_d_mean, C_d_vars))
         print("=" * 50)
 
