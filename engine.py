@@ -203,8 +203,8 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 # N, L, W, D
                 W = tgt_in.shape[2]
                 # N, L, W, W, D
-                d_in = np.expand_dims(tgt_in, axis=2), (1, 1, W, 1, 1) - np.expand_dims(tgt_in, axis=3)
-                d_out = np.expand_dims(tgt_out, axis=2), (1, 1, W, 1, 1) - np.expand_dims(tgt_out, axis=3)
+                d_in = np.expand_dims(tgt_in, axis=2) - np.expand_dims(tgt_in, axis=3)
+                d_out = np.expand_dims(tgt_out, axis=2) - np.expand_dims(tgt_out, axis=3)
                 # N, L, W
                 d_in = np.sqrt(np.linalg.norm(d_in, ord=1, axis=(3, 4)) * np.linalg.norm(d_in, ord=np.inf, axis=(3, 4)))
                 d_out = np.sqrt(np.linalg.norm(d_out, ord=1, axis=(3, 4)) * np.linalg.norm(d_out, ord=np.inf, axis=(3, 4)))
