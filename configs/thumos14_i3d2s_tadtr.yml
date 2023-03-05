@@ -21,7 +21,7 @@ postproc_cls_topk: 1 # 1
 postproc_ins_topk: 200 # 100
 nms_thr: 0.4 # 0.4
 
-nheads = 1
+nheads: 1
 
 act_reg: False
 aux_loss: True
