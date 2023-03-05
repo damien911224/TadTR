@@ -186,6 +186,8 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             Q_in = outputs["Q_in"].detach().cpu().transpose(1, 0).numpy()
             Q_out = outputs["Q_out"].detach().transpose(1, 0).cpu().numpy()
             C_in = outputs["C_in"].detach().transpose(1, 0).cpu().numpy()
+            print(C_in.shape)
+            exit()
             C_out = outputs["C_out"].detach().transpose(1, 0).cpu().numpy()
 
             tgt_ins = [K_in, Q_in, C_in]
