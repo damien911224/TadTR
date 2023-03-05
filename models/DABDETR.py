@@ -355,7 +355,6 @@ class SetCriterion(nn.Module):
         assert 'Q_weights' in outputs
         assert 'C_weights' in outputs
 
-
         # Q_weights = outputs["Q_weights"]
         # normalized_Q_weights = Q_weights[0]
         # for i in range(len(Q_weights) - 1):
