@@ -180,7 +180,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
 
                 a_i += 1
 
-        if diversity:
+        if diversity and cnt <= 10:
             K_in = outputs["K_in"].detach().cpu().transpose(1, 0).numpy()
             K_out = outputs["K_out"].detach().cpu().transpose(1, 0).numpy()
             Q_in = outputs["Q_in"].detach().cpu().transpose(1, 0).numpy()
