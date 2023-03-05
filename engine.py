@@ -204,7 +204,8 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 d_in = np.min(d_in, axis=2)
                 d_out = np.min(d_out, axis=2)
 
-                tgt_list.append(d_out / d_in)
+                # tgt_list.append(d_out / d_in)
+                tgt_list.append(d_out)
 
     if diversity:
         K_d_values = np.concatenate(K_d_values, axis=0)
