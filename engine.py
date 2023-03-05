@@ -181,6 +181,8 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 a_i += 1
 
         if diversity:
+            print(outputs["K_in"].shape)
+            exit()
             K_in = outputs["K_in"][:, 0].detach().cpu().numpy()
             K_out = outputs["K_out"][:, 0].detach().cpu().numpy()
             Q_in = outputs["Q_in"][:, 0].detach().cpu().numpy()
@@ -188,12 +190,12 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             C_in = outputs["C_in"][:, 0].detach().cpu().numpy()
             C_out = outputs["C_out"][:, 0].detach().cpu().numpy()
 
-            # L, K, K
+            # L, K, D
             l_K = len(K_in[0])
-            # L, K, K, K
+            # L, K, K, D
             d_K_in = np.tile(np.expand_dims(K_in, axis=1), (1, l_K, 1, 1)) - np.expand_dims(K_in, axis=2)
             d_K_out = np.tile(np.expand_dims(K_out, axis=1), (1, l_K, 1, 1)) - np.expand_dims(K_out, axis=2)
-            # L, K
+            # L, D
             d_K_in = np.sqrt(np.linalg.norm(d_K_in, ord=1, axis=(2, 3)) * np.linalg.norm(d_K_in, ord=np.inf, axis=(2, 3)))
             d_K_out = np.sqrt(np.linalg.norm(d_K_out, ord=1, axis=(2, 3)) * np.linalg.norm(d_K_out, ord=np.inf, axis=(2, 3)))
             # L
