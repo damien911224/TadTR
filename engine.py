@@ -181,28 +181,28 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 a_i += 1
 
         if diversity:
-            K_in = outputs["K_in"].detach().cpu().numpy()
-            K_out = outputs["K_out"].detach().cpu().numpy()
-            Q_in = outputs["Q_in"].detach().cpu().numpy()
-            Q_out = outputs["Q_out"].detach().cpu().numpy()
-            C_in = outputs["C_in"].detach().cpu().numpy()
-            C_out = outputs["C_out"].detach().cpu().numpy()
+            K_in = outputs["K_in"].detach().cpu().numpy().transpose(1, 0)
+            K_out = outputs["K_out"].detach().cpu().numpy().transpose(1, 0)
+            Q_in = outputs["Q_in"].detach().cpu().numpy().transpose(1, 0)
+            Q_out = outputs["Q_out"].detach().cpu().numpy().transpose(1, 0)
+            C_in = outputs["C_in"].detach().cpu().numpy().transpose(1, 0)
+            C_out = outputs["C_out"].detach().cpu().numpy().transpose(1, 0)
 
             tgt_ins = [K_in, Q_in, C_in]
             tgt_outs = [K_out, Q_out, C_out]
             tgt_lists = [K_d_values, Q_d_values, C_d_values]
             for tgt_in, tgt_out, tgt_list in zip(tgt_ins, tgt_outs, tgt_lists):
-                # L, N, W, D
+                # N, L, W, D
                 W = tgt_inshape[2]
-                # L, N, W, W, D
+                # N, L, W, W, D
                 d_in = np.tile(np.expand_dims(tgt_in, axis=2), (1, 1, W, 1, 1)) - np.expand_dims(tgt_in, axis=3)
                 d_out = np.tile(np.expand_dims(tgt_out, axis=2), (1, 1, W, 1, 1)) - np.expand_dims(tgt_out, axis=3)
-                # L, W
-                d_in = np.sqrt(np.linalg.norm(d_in, ord=1, axis=(2, 3)) * np.linalg.norm(d_in, ord=np.inf, axis=(2, 3)))
-                d_out = np.sqrt(np.linalg.norm(d_out, ord=1, axis=(2, 3)) * np.linalg.norm(d_out, ord=np.inf, axis=(2, 3)))
-                # L
-                d_in = np.min(d_in, axis=1)
-                d_out = np.min(d_out, axis=1)
+                # N, L, W
+                d_in = np.sqrt(np.linalg.norm(d_in, ord=1, axis=(3, 4)) * np.linalg.norm(d_in, ord=np.inf, axis=(3, 4)))
+                d_out = np.sqrt(np.linalg.norm(d_out, ord=1, axis=(3, 4)) * np.linalg.norm(d_out, ord=np.inf, axis=(3, 4)))
+                # N, L
+                d_in = np.min(d_in, axis=2)
+                d_out = np.min(d_out, axis=2)
 
                 tgt_list.append(d_out / d_in)
 
