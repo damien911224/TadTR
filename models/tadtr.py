@@ -206,7 +206,7 @@ class TadTR(nn.Module):
         query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
 
         hs, init_reference, inter_references, memory, \
-        Q_weights, K_weights, C_weights = \
+        Q_weights, K_weights, C_weights, K_in, K_out, Q_in, Q_out, C_in, C_out = \
             self.transformer(srcs, masks, pos, query_embeds)
 
         # T = srcs[0].size(2)
@@ -299,7 +299,8 @@ class TadTR(nn.Module):
         if not self.with_act_reg:
             out = {'pred_logits': outputs_class[-1],
                    'pred_segments': outputs_coord[-1],
-                   'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
+                   'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights,
+                   'Q_in': Q_in, 'Q_out': Q_out, 'K_in': K_in, 'K_out': K_out, 'C_in': C_in, 'C_out': C_out}
         else:
             # perform RoIAlign
             B, N = outputs_coord[-1].shape[:2]
