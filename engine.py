@@ -183,7 +183,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         if diversity:
             K = outputs["K_weights"][:, 0].detach().cpu().numpy()
             Q = outputs["Q_weights"][:, 0].detach().cpu().numpy()
-            C = outputs["Q_weights"][:, 0].detach().cpu().numpy()
+            C = outputs["C_weights"][:, 0].detach().cpu().numpy()
 
             # L, K, K
             l_K = len(K[0])
