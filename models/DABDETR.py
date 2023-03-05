@@ -179,7 +179,7 @@ class TadTR(nn.Module):
 
         embedweight = self.refpoint_embed.weight
         # pre_embedweight = self.refpoint_embed.weight
-        hs, reference, memory, Q_weights, K_weights, C_weights, K_in, K_out, Q_in, Q_out, C_in, C_out  = \
+        hs, reference, memory, Q_weights, K_weights, C_weights = \
             self.transformer(self.input_proj[0](src), mask, embedweight, pos[-1])
 
         # pre_reference_before_sigmoid = inverse_sigmoid(reference)
@@ -198,8 +198,7 @@ class TadTR(nn.Module):
         # outputs_class = torch.cat((pre_outputs_class, outputs_class))
 
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-               'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights,
-               'Q_in': Q_in, 'Q_out': Q_out, 'K_in': K_in, 'K_out': K_out, 'C_in': C_in, 'C_out': C_out}
+               'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
 
         if self.with_act_reg:
             # perform RoIAlign
