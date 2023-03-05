@@ -188,11 +188,9 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             # C_in = outputs["C_in"].detach().transpose(1, 0).cpu().numpy()
             # C_out = outputs["C_out"].detach().transpose(1, 0).cpu().numpy()
 
-            K_in = outputs["K_weights"].detach().cpu().numpy()
-            Q_in = outputs["Q_weights"].detach().cpu().numpy()
-            C_in = outputs["C_weights"].detach().cpu().numpy()
-            print(K_in.shape)
-            exit()
+            K_in = outputs["K_weights"].detach().cpu().transpose(1, 0).numpy()
+            Q_in = outputs["Q_weights"].detach().cpu().transpose(1, 0).numpy()
+            C_in = outputs["C_weights"].detach().cpu().transpose(1, 0).numpy()
 
             K_out = K_in
             Q_out = Q_in
