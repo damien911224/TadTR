@@ -183,8 +183,6 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         if diversity:
             K_in = outputs["K_in"].detach().cpu().transpose(1, 0).numpy()
             K_out = outputs["K_out"].detach().cpu().transpose(1, 0).numpy()
-            print(K_out.shape)
-            exit()
             Q_in = outputs["Q_in"].detach().cpu().transpose(1, 0).numpy()
             Q_out = outputs["Q_out"].detach().transpose(1, 0).cpu().numpy()
             C_in = outputs["C_in"].detach().transpose(1, 0).cpu().numpy()
