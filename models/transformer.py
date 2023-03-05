@@ -174,7 +174,7 @@ class DeformableTransformerEncoderLayer(nn.Module):
         q = k = self.with_pos_embed(src, pos)
         K_in = src
         src2, K_weights = self.self_attn(q.transpose(0, 1), k.transpose(0, 1), src.transpose(0, 1))
-        K_out = src2
+        K_out = src2.transpose(0, 1)
 
         # print(torch.argsort(-K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
 
