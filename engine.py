@@ -126,7 +126,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
     # raw_res = []
     cnt = 0
     visualize = False
-    diversity = False
+    diversity = True
     if visualize and (epoch + 1) % 10 == 0:
         a_i = 0
         attention_dir = os.path.join(output_dir, "attention", "E{:02d}".format(epoch + 1))
