@@ -209,7 +209,6 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 d_in = np.sqrt(np.linalg.norm(d_in, ord=1, axis=(3, 4)) * np.linalg.norm(d_in, ord=np.inf, axis=(3, 4)))
                 d_out = np.sqrt(np.linalg.norm(d_out, ord=1, axis=(3, 4)) * np.linalg.norm(d_out, ord=np.inf, axis=(3, 4)))
                 print(d_out[0, 0])
-                exit()
                 # N, L
                 d_in = np.min(d_in, axis=2)
                 d_out = np.min(d_out, axis=2)
