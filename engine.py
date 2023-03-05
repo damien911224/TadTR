@@ -207,8 +207,8 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 tgt_list.append(d_out / d_in)
 
     if diversity:
-        K_d_values = np.stack(K_d_values, axis=0)
-        Q_d_values = np.stack(Q_d_values, axis=0)
+        K_d_values = np.concatenate(K_d_values, axis=0)
+        Q_d_values = np.concatenate(Q_d_values, axis=0)
 
         K_d_mean = np.mean(K_d_values, axis=0)
         K_d_vars = np.std(K_d_values, axis=0)
