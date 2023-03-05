@@ -192,6 +192,10 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             Q_in = outputs["Q_weights"].detach().cpu().transpose(1, 0).numpy()
             C_in = outputs["C_weights"].detach().cpu().transpose(1, 0).numpy()
 
+            K_in = np.argsort(K_in, axis=-1)
+            Q_in = np.argsort(Q_in, axis=-1)
+            C_in = np.argsort(C_in, axis=-1)
+
             K_out = K_in
             Q_out = Q_in
             C_out = C_in
