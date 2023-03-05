@@ -215,7 +215,8 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 l_out = np.sqrt(np.linalg.norm(tgt_out, ord=1, axis=(2, 3)) * np.linalg.norm(tgt_out, ord=np.inf, axis=(2, 3)))
 
                 # tgt_list.append(d_out / d_in)
-                tgt_list.append(d_out / l_out)
+                # tgt_list.append(d_out / l_out)
+                tgt_list.append(d_out)
 
     if diversity:
         K_d_values = np.concatenate(K_d_values, axis=0)
