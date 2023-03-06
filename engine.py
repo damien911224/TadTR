@@ -200,9 +200,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             tgt_outs = [K_out, Q_out, C_out]
             tgt_lists = [K_d_values, Q_d_values, C_d_values]
             for tgt_in, tgt_out, tgt_list in zip(tgt_ins, tgt_outs, tgt_lists):
-                # tgt_in = tgt_in.permute(0, 1, 3, 2)
-                print(tgt_in.shape)
-                exit()
+                tgt_in = np.transpose(tgt_in, (0, 1, 3, 2))
                 # N, L, W, D
                 # W = tgt_in.shape[2]
                 # N, L, W, W, D
