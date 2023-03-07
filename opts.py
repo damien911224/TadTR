@@ -23,7 +23,7 @@ def get_args_parser():
 
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
-    parser.add_argument('--seed', default=1224 # 42, type=int)
+    parser.add_argument('--seed', default=1224, type=int) # 42
 
     parser.add_argument('--resume', default='', help='resume from checkpoint')
 
