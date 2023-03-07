@@ -24,7 +24,7 @@ nms_thr: 0.4 # 0.4
 act_reg: False
 aux_loss: True
 
-use_KK:
+use_KK: False
 use_QQ: False
 
 KK_loss_coef: 5.0
