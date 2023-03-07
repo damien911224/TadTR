@@ -241,9 +241,9 @@ class TransformerDecoder(nn.Module):
             # query_sine_embed = query_sine_embed * pos_transformation
 
             # modulated HW attentions
-            if self.modulate_hw_attn:
-                refHW_cond = self.ref_anchor_head(output).sigmoid()  # nq, bs, 2
-                query_sine_embed *= (refHW_cond[..., 0] / obj_center[..., 1]).unsqueeze(-1)
+            # if self.modulate_hw_attn:
+            #     refHW_cond = self.ref_anchor_head(output).sigmoid()  # nq, bs, 2
+            #     query_sine_embed *= (refHW_cond[..., 0] / obj_center[..., 1]).unsqueeze(-1)
 
             output, Q_weights, C_weights = \
                 layer(output, memory, tgt_mask=tgt_mask,
