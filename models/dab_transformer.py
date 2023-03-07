@@ -401,8 +401,8 @@ class TransformerDecoderLayer(nn.Module):
         self.ca_kpos_proj = nn.Linear(d_model, d_model)
         self.ca_v_proj = nn.Linear(d_model, d_model)
         self.ca_qpos_sine_proj = nn.Linear(d_model, d_model)
-        self.cross_attn = MultiheadAttention(d_model * 2, nhead, dropout=dropout, vdim=d_model)
-        # self.cross_attn = MultiheadAttention(d_model, nhead, dropout=dropout, vdim=d_model)
+        # self.cross_attn = MultiheadAttention(d_model * 2, nhead, dropout=dropout, vdim=d_model)
+        self.cross_attn = MultiheadAttention(d_model, nhead, dropout=dropout, vdim=d_model)
 
         self.nhead = nhead
         self.rm_self_attn_decoder = rm_self_attn_decoder
