@@ -500,6 +500,8 @@ class SetCriterion(nn.Module):
         assert 'K_weights' in outputs
         assert 'C_weights' in outputs
 
+        L, N, K, K = outputs["K_weights"].shape
+
         # K_weights = torch.mean(outputs["K_weights"], dim=0)
 
         K_weights = outputs["K_weights"]
@@ -554,6 +556,8 @@ class SetCriterion(nn.Module):
         KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
         KK_weights = torch.sqrt(KK_weights + 1.0e-7)
         target_K_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
+
+        target_K_weights = torch.eye(K).unsqueeze(0)
 
         # print(torch.argsort(-target_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
         # print(torch.max(target_K_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
