@@ -450,7 +450,7 @@ class SetCriterion(nn.Module):
         QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
         target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
 
-        # target_Q_weights = torch.eye(Q).unsqueeze(0)
+        target_Q_weights = torch.eye(Q).unsqueeze(0).repeat(L * N, 1, 1)
 
         # src_C_weights = C_weights.unsqueeze(2).tile(1, 1, Q, 1).flatten(0, 2)
         # src_C_weights = (src_C_weights + 1.0e-7).log()
@@ -492,16 +492,16 @@ class SetCriterion(nn.Module):
 
         losses['loss_QQ'] = loss_QQ
 
-        tgt = Q_weights
-        # NL, W, W, D
-        diversity = tgt.unsqueeze(1) - tgt.unsqueeze(2)
-        # NL, W
-        diversity = torch.sqrt(torch.linalg.norm(diversity, ord=1, dim=(2, 3)) *
-                               torch.linalg.norm(diversity, ord=np.inf, dim=(2, 3)))
-        # NL
-        diversity = torch.min(diversity, dim=1)[0]
-        diversity_loss = torch.mean(diversity)
-        losses['loss_QQ'] = -diversity_loss
+        # tgt = Q_weights
+        # # NL, W, W, D
+        # diversity = tgt.unsqueeze(1) - tgt.unsqueeze(2)
+        # # NL, W
+        # diversity = torch.sqrt(torch.linalg.norm(diversity, ord=1, dim=(2, 3)) *
+        #                        torch.linalg.norm(diversity, ord=np.inf, dim=(2, 3)))
+        # # NL
+        # diversity = torch.min(diversity, dim=1)[0]
+        # diversity_loss = torch.mean(diversity)
+        # losses['loss_QQ'] = -diversity_loss
 
         return losses
 
@@ -570,7 +570,7 @@ class SetCriterion(nn.Module):
         KK_weights = torch.sqrt(KK_weights + 1.0e-7)
         target_K_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
 
-        # target_K_weights = torch.eye(K).unsqueeze(0)
+        target_K_weights = torch.eye(K).unsqueeze(0).repeat(L * N, 1, 1)
 
         # print(torch.argsort(-target_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
         # print(torch.max(target_K_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
@@ -592,17 +592,17 @@ class SetCriterion(nn.Module):
 
         losses['loss_KK'] = loss_KK
 
-        tgt = outputs["K_weights"].flatten(0, 1)
-        # NL, W, W, D
-        diversity = tgt.unsqueeze(1) - tgt.unsqueeze(2)
-        # NL, W
-        diversity = torch.sqrt(torch.linalg.norm(diversity, ord=1, dim=(2, 3)) *
-                               torch.linalg.norm(diversity, ord=np.inf, dim=(2, 3)))
-        # NL
-        diversity = torch.min(diversity, dim=1)[0]
-        diversity_loss = torch.mean(diversity)
-
-        losses['loss_KK'] = -diversity_loss
+        # tgt = outputs["K_weights"].flatten(0, 1)
+        # # NL, W, W, D
+        # diversity = tgt.unsqueeze(1) - tgt.unsqueeze(2)
+        # # NL, W
+        # diversity = torch.sqrt(torch.linalg.norm(diversity, ord=1, dim=(2, 3)) *
+        #                        torch.linalg.norm(diversity, ord=np.inf, dim=(2, 3)))
+        # # NL
+        # diversity = torch.min(diversity, dim=1)[0]
+        # diversity_loss = torch.mean(diversity)
+        #
+        # losses['loss_KK'] = -diversity_loss
 
         return losses
 
