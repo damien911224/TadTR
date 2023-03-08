@@ -18,7 +18,7 @@ lr_step: [80, 100] # [14]
 
 postproc_rank: 1 # 1
 postproc_cls_topk: 1 # 1
-postproc_ins_topk: 100 # 100
+postproc_ins_topk: 200 # 100
 nms_thr: 0.4 # 0.4
 
 act_reg: False
