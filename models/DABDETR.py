@@ -29,6 +29,7 @@ from models.position_encoding import build_position_encoding
 from .custom_loss import sigmoid_focal_loss
 from .dab_transformer import build_transformer
 from opts import cfg
+import numpy as np
 
 if not cfg.disable_cuda:
     from models.ops.roi_align import ROIAlign
