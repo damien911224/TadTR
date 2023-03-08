@@ -501,7 +501,7 @@ class SetCriterion(nn.Module):
         # NL
         diversity = torch.min(diversity, dim=1)[0]
         diversity_loss = torch.mean(diversity)
-        losses['loss_QQ'] = diversity_loss
+        losses['loss_QQ'] = -diversity_loss
 
         return losses
 
