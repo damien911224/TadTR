@@ -570,7 +570,7 @@ class SetCriterion(nn.Module):
         KK_weights = torch.sqrt(KK_weights + 1.0e-7)
         target_K_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
 
-        target_K_weights = torch.eye(K).unsqueeze(0).unsqueeze(0).repeat(L, N, 1, 1)
+        target_K_weights = torch.eye(K).unsqueeze(0).repeat(N, 1, 1)
 
         # print(torch.argsort(-target_K_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
         # print(torch.max(target_K_weights[0].detach().cpu(), dim=-1)[0][:10].numpy())
