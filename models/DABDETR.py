@@ -449,7 +449,7 @@ class SetCriterion(nn.Module):
         QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
         target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
 
-        # target_Q_weights = torch.eye(Q).unsqueeze(0)
+        target_Q_weights = torch.eye(Q).unsqueeze(0)
 
         # src_C_weights = C_weights.unsqueeze(2).tile(1, 1, Q, 1).flatten(0, 2)
         # src_C_weights = (src_C_weights + 1.0e-7).log()
