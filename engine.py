@@ -151,7 +151,8 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             action_evaluator.update(res, assign_cls_labels=cfg.binary)
 
         cnt += 1
-        if visualize and (epoch + 1) % 10 == 0:
+        # if visualize and (epoch + 1) % 10 == 0:
+        if visualize and (epoch + 1) >= 70 and (epoch + 1) % 10 == 0:
             if cnt - 1 in sampled_indices:
                 this_targets = targets[0]["segments"].detach().cpu().numpy()
 
@@ -168,7 +169,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 # map -= np.min(map)
                 # map /= np.max(map)
                 df = pd.DataFrame(map, H_labels, W_labels)
-                ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=False)
+                ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
                 # ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True,
                 #                 vmin=0.0, vmax=0.25)
                 plt.savefig(os.path.join(attention_dir, "K_N{:02d}.png".format(a_i + 1)))
@@ -183,6 +184,25 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 df = pd.DataFrame(map, H_labels, W_labels)
                 ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
                 plt.savefig(os.path.join(attention_dir, "Q_N{:02d}.png".format(a_i + 1)))
+                plt.close()
+
+                map = outputs["C_weights"][-1, 0].detach().cpu().numpy()
+                H, W = map.shape
+                QK_box = np.zeros(dtype=np.float32, shape=(1 + H // 40, W))
+                for box in this_targets:
+                    s_i = round((box[0] - box[1] / 2) * (W - 1))
+                    e_i = round((box[0] + box[1] / 2) * (W - 1))
+                    QK_box[1:, s_i:e_i + 1] = 1.0
+                map = np.concatenate((map, QK_box), axis=0)
+                H_labels = ["{}".format(x) for x in range(1, H + 1, 1)] + [""] + ["GT"] * (H // 40)
+                W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+                # map -= np.min(map)
+                # map /= np.max(map)
+                df = pd.DataFrame(map, H_labels, W_labels)
+                ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+                # ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True,
+                #                 vmin=0.0, vmax=0.25)
+                plt.savefig(os.path.join(attention_dir, "C_N{:02d}.png".format(a_i + 1)))
                 plt.close()
 
                 a_i += 1
