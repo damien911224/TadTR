@@ -130,7 +130,8 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         a_i = 0
         attention_dir = os.path.join(output_dir, "attention", "E{:02d}".format(epoch + 1))
         os.makedirs(attention_dir, exist_ok=True)
-        sampled_indices = random.sample(range(len(data_loader)), 3)
+        # sampled_indices = random.sample(range(len(data_loader)), 3)
+        sampled_indices = range(10)
     if diversity:
         K_d_values = list()
         Q_d_values = list()
@@ -152,7 +153,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
 
         cnt += 1
         # if visualize and (epoch + 1) % 10 == 0:
-        if visualize and (epoch + 1) >= 70 and (epoch + 1) % 10 == 0:
+        if visualize and (epoch + 1) >= 0 and (epoch + 1) % 10 == 0:
             if cnt - 1 in sampled_indices:
                 this_targets = targets[0]["segments"].detach().cpu().numpy()
 
