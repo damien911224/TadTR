@@ -157,7 +157,8 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         # if visualize and (epoch + 1) >= 0 and (epoch + 1) % 10 == 0:
         if visualize and (epoch + 1) >= 0:
             if cnt - 1 in sampled_indices:
-                this_targets = targets[0]["segments"]
+                this_targets = targets[0]["segments"].detach().cpu().numpy()
+                print(this_targets)
 
                 map = outputs["K_weights"][-1, 0].detach().cpu().numpy()
                 H, W = map.shape
