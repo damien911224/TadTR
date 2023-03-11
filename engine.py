@@ -168,7 +168,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 for box in this_targets:
                     s_i = round((box[0] - box[1] / 2) * (W - 1))
                     e_i = round((box[0] + box[1] / 2) * (W - 1))
-                    KK_box[1:, s_i:e_i + 1] = 1.0
+                    KK_box[1:, s_i:e_i + 1] = np.max(map)
                 map = np.concatenate((map, KK_box), axis=0)
                 H_labels = ["{}".format(x) for x in range(1, H + 1, 1)] + [""] + ["GT"] * (H // 40)
                 W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
@@ -198,7 +198,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 for box in this_targets:
                     s_i = round((box[0] - box[1] / 2) * (W - 1))
                     e_i = round((box[0] + box[1] / 2) * (W - 1))
-                    QK_box[1:, s_i:e_i + 1] = 1.0
+                    QK_box[1:, s_i:e_i + 1] = np.max(map)
                 map = np.concatenate((map, QK_box), axis=0)
                 H_labels = ["{}".format(x) for x in range(1, H + 1, 1)] + [""] + ["GT"] * (H // 40)
                 W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
