@@ -162,30 +162,31 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 if torch.is_tensor(this_targets):
                     this_targets = this_targets.detach().cpu().numpy()
 
-                entire_map = outputs["K_weights"][:, 0].detach().cpu().numpy()
-                L, H, W = entire_map.shape
-                for l_i in range(L):
-                    map = entire_map[l_i]
-                    KK_box = np.zeros(dtype=np.float32, shape=(1 + H // 40, W))
-                    for box in this_targets:
-                        s_i = round((box[0] - box[1] / 2) * (W - 1))
-                        e_i = round((box[0] + box[1] / 2) * (W - 1))
-                        KK_box[1:, s_i:e_i + 1] = np.max(map)
-                    map = np.concatenate((map, KK_box), axis=0)
-                    H_labels = ["{}".format(x) for x in range(1, H + 1, 1)] + [""] + ["GT"] * (H // 40)
-                    W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
-                    # map -= np.min(map)
-                    # map /= np.max(map)
-                    df = pd.DataFrame(map, H_labels, W_labels)
-                    ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
-                    # ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True,
-                    #                 vmin=0.0, vmax=0.25)
-                    plt.savefig(os.path.join(attention_dir, "K_N{:02d}_L{:02d}.png".format(a_i + 1, l_i + 1)))
-                    plt.close()
+                # entire_map = outputs["K_weights"][:, 0].detach().cpu().numpy()
+                # L, H, W = entire_map.shape
+                # for l_i in range(L):
+                #     map = entire_map[l_i]
+                #     KK_box = np.zeros(dtype=np.float32, shape=(1 + H // 40, W))
+                #     for box in this_targets:
+                #         s_i = round((box[0] - box[1] / 2) * (W - 1))
+                #         e_i = round((box[0] + box[1] / 2) * (W - 1))
+                #         KK_box[1:, s_i:e_i + 1] = np.max(map)
+                #     map = np.concatenate((map, KK_box), axis=0)
+                #     H_labels = ["{}".format(x) for x in range(1, H + 1, 1)] + [""] + ["GT"] * (H // 40)
+                #     W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+                #     # map -= np.min(map)
+                #     # map /= np.max(map)
+                #     df = pd.DataFrame(map, H_labels, W_labels)
+                #     ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+                #     # ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True,
+                #     #                 vmin=0.0, vmax=0.25)
+                #     plt.savefig(os.path.join(attention_dir, "K_N{:02d}_L{:02d}.png".format(a_i + 1, l_i + 1)))
+                #     plt.close()
 
                 entire_map = outputs["Q_weights"][:, 0].detach().cpu().numpy()
                 L, H, W = entire_map.shape
-                for l_i in range(L):
+                # for l_i in range(L):
+                for l_i in range(1):
                     map = entire_map[l_i]
                     H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
                     W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
@@ -196,26 +197,26 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                     plt.savefig(os.path.join(attention_dir, "Q_N{:02d}_L{:02d}.png".format(a_i + 1, l_i + 1)))
                     plt.close()
 
-                entire_map = outputs["C_weights"][:, 0].detach().cpu().numpy()
-                L, H, W = entire_map.shape
-                for l_i in range(L):
-                    map = entire_map[l_i]
-                    QK_box = np.zeros(dtype=np.float32, shape=(1 + H // 40, W))
-                    for box in this_targets:
-                        s_i = round((box[0] - box[1] / 2) * (W - 1))
-                        e_i = round((box[0] + box[1] / 2) * (W - 1))
-                        QK_box[1:, s_i:e_i + 1] = np.max(map)
-                    map = np.concatenate((map, QK_box), axis=0)
-                    H_labels = ["{}".format(x) for x in range(1, H + 1, 1)] + [""] + ["GT"] * (H // 40)
-                    W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
-                    # map -= np.min(map)
-                    # map /= np.max(map)
-                    df = pd.DataFrame(map, H_labels, W_labels)
-                    ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
-                    # ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True,
-                    #                 vmin=0.0, vmax=0.25)
-                    plt.savefig(os.path.join(attention_dir, "C_N{:02d}_L{:02d}.png".format(a_i + 1, l_i + 1)))
-                    plt.close()
+                # entire_map = outputs["C_weights"][:, 0].detach().cpu().numpy()
+                # L, H, W = entire_map.shape
+                # for l_i in range(L):
+                #     map = entire_map[l_i]
+                #     QK_box = np.zeros(dtype=np.float32, shape=(1 + H // 40, W))
+                #     for box in this_targets:
+                #         s_i = round((box[0] - box[1] / 2) * (W - 1))
+                #         e_i = round((box[0] + box[1] / 2) * (W - 1))
+                #         QK_box[1:, s_i:e_i + 1] = np.max(map)
+                #     map = np.concatenate((map, QK_box), axis=0)
+                #     H_labels = ["{}".format(x) for x in range(1, H + 1, 1)] + [""] + ["GT"] * (H // 40)
+                #     W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+                #     # map -= np.min(map)
+                #     # map /= np.max(map)
+                #     df = pd.DataFrame(map, H_labels, W_labels)
+                #     ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+                #     # ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True,
+                #     #                 vmin=0.0, vmax=0.25)
+                #     plt.savefig(os.path.join(attention_dir, "C_N{:02d}_L{:02d}.png".format(a_i + 1, l_i + 1)))
+                #     plt.close()
 
                 a_i += 1
 
