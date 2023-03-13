@@ -163,7 +163,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                     this_targets = this_targets.detach().cpu().numpy()
 
                 entire_map = outputs["K_weights"][:, 0].detach().cpu().numpy()
-                L, H, W = map.shape
+                L, H, W = entire_map.shape
                 for l_i in range(L):
                     map = entire_map[l_i]
                     KK_box = np.zeros(dtype=np.float32, shape=(1 + H // 40, W))
@@ -184,7 +184,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                     plt.close()
 
                 entire_map = outputs["Q_weights"][:, 0].detach().cpu().numpy()
-                L, H, W = map.shape
+                L, H, W = entire_map.shape
                 for l_i in range(L):
                     map = entire_map[l_i]
                     H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
@@ -197,7 +197,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                     plt.close()
 
                 entire_map = outputs["C_weights"][:, 0].detach().cpu().numpy()
-                L, H, W = map.shape
+                L, H, W = entire_map.shape
                 for l_i in range(L):
                     map = entire_map[l_i]
                     QK_box = np.zeros(dtype=np.float32, shape=(1 + H // 40, W))
