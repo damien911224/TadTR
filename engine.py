@@ -133,7 +133,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         attention_dir = os.path.join(output_dir, "attention", "E{:02d}".format(epoch + 1))
         os.makedirs(attention_dir, exist_ok=True)
         # sampled_indices = random.sample(range(len(data_loader)), 3)
-        sampled_indices = range(10, 30)
+        sampled_indices = range(30)
     if diversity:
         K_d_values = list()
         Q_d_values = list()
