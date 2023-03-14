@@ -131,7 +131,7 @@ class TADDataset(torch.utils.data.Dataset):
         else:
             feature_data = load_feature(local_ft_path, ft_format, shape)
 
-        feature_data = feature_data.T   # T x C to C x T.
+        feature_data = feature_data.T   # slice_overlapT x C to C x T.
 
         if self.online_slice:
             slice_start, slice_end = [int(x) for x in video_name.split('_')[-2:]]
