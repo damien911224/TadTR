@@ -160,8 +160,8 @@ class TransformerEncoder(nn.Module):
         if self.norm is not None:
             output = self.norm(output)
 
-        return output, torch.stack(inter_K_weights)
-        # return output, None
+        # return output, torch.stack(inter_K_weights)
+        return output, None
 
 
 class TransformerDecoder(nn.Module):
