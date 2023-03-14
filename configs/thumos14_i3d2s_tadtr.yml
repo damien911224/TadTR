@@ -1,5 +1,5 @@
 # model setting
-enc_layers: 2
+enc_layers: 0
 dec_layers: 4
 dim_feedforward: 1024
 num_queries: 40 # 40
