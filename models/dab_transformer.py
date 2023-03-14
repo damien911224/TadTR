@@ -443,7 +443,7 @@ class TransformerDecoderLayer(nn.Module):
                 is_first=False, ref_points=None):
 
         # ========== Begin of Self-Attention =============
-        if not self.rm_self_attn_decoder and True:
+        if not self.rm_self_attn_decoder and False:
             # Apply projections here
             # shape: num_queries x batch_size x 256
             # query_pos = torch.bmm(C_weights.detach(), pos.transpose(0, 1)).transpose(0, 1)
