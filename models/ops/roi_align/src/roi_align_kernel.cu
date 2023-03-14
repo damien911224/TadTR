@@ -1,18 +1,13 @@
 // Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 // Modifies by Frost for 1D ussage
 #include <ATen/ATen.h>
+#include <ATen/cuda/CUDAEvent.h>
 #include <ATen/cuda/CUDAContext.h>
+#include <ATen/ceil_div.h>
 
-//for pytorch lower 1.8 version
-#include <THC/THC.h>
-#include <THC/THCAtomics.cuh>
-#include <THC/THCDeviceUtils.cuh>
-
-//for pytorch 1.9 version
-// #include <ATen/ceil_div.h>
-// #include <ATen/cuda/ThrustAllocator.h>
-// #include <ATen/cuda/DeviceUtils.cuh>
-
+// #include <THC/THC.h>
+// #include <THC/THCAtomics.cuh>
+// #include <THC/THCDeviceUtils.cuh>
 
 // TODO make it in a common file
 #define CUDA_1D_KERNEL_LOOP(i, n)                            \
@@ -72,15 +67,9 @@ __global__ void Align1DForward(const int nthreads, const T* bottom_data,
     int c = (index / pooled_height) % channels;
     int n = index / pooled_height / channels;
 
-    //输入(batchsize,256,4Ts)
-    //输出（bz*Nq,256,16） 16是划分bin的数量
-    //rois(bz*Nq,3)
-    //sampling_ratio=0
-
-
     // printf("Debug Main Loop: get pt, c, n are %d, %d, %d \n", pt, c, n);
 
-    const T* offset_bottom_rois = bottom_rois + n * 3;//取第n条rois数据
+    const T* offset_bottom_rois = bottom_rois + n * 3;
     int roi_batch_ind = offset_bottom_rois[0];
 
     // Do not using rounding; this implementation detail is critical
@@ -89,10 +78,10 @@ __global__ void Align1DForward(const int nthreads, const T* bottom_data,
     // printf("Debug roi boundary: w1,  w2,  is  %f, %f \n", roi_start,roi_end,);
 
     // Force malformed ROIs to be 1x1
-    T roi_height = max(roi_end- roi_start, (T)1.);//0-T取值范围
-    T bin_size = static_cast<T>(roi_height) / static_cast<T>(pooled_height); //长度除bin
+    T roi_height = max(roi_end- roi_start, (T)1.);
+    T bin_size = static_cast<T>(roi_height) / static_cast<T>(pooled_height);
 
-    const T* offset_bottom_data = bottom_data + (roi_batch_ind * channels + c) * height; //取第ind个batch，第c个channel的数据，height是4Ts
+    const T* offset_bottom_data = bottom_data + (roi_batch_ind * channels + c) * height;
 
     // We use roi_bin_grid to sample the grid and mimic integral
     int roi_bin_grid = (sampling_ratio > 0) ? sampling_ratio : ceil(roi_height / pooled_height); // e.g., = 2
@@ -227,16 +216,13 @@ at::Tensor Align_forward_cuda(const at::Tensor& input,
   auto output_size = num_rois * pooled_height * channels;
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 
-//   dim3 grid(std::min(THCCeilDiv((long)output_size, 512L), 4096L));
   dim3 grid(std::min(at::ceil_div((long)output_size, 512L), 4096L));
   dim3 block(512);
 
   // printf("Debug main function: height:%d\n", height);
 
   if (output.numel() == 0) {
-//     THCudaCheck(cudaGetLastError());
-//     c10::cuda::CUDACachingAllocator::raw_alloc(cudaGetLastError());
-    C10_CUDA_CHECK(cudaGetLastError());
+    AT_CUDA_CHECK(cudaGetLastError());
     return output;
   }
 
@@ -252,9 +238,7 @@ at::Tensor Align_forward_cuda(const at::Tensor& input,
          rois.contiguous().data<scalar_t>(),
          output.data<scalar_t>());
   });
-//   THCudaCheck(cudaGetLastError());
-//     c10::cuda::CUDACachingAllocator::raw_alloc(cudaGetLastError());
-    C10_CUDA_CHECK(cudaGetLastError());
+  AT_CUDA_CHECK(cudaGetLastError());
   return output;
 }
 
@@ -275,15 +259,12 @@ at::Tensor Align_backward_cuda(const at::Tensor& grad,
 
   cudaStream_t stream = at::cuda::getCurrentCUDAStream();
 
-//   dim3 grid(std::min(THCCeilDiv((long)grad.numel(), 512L), 4096L));
   dim3 grid(std::min(at::ceil_div((long)grad.numel(), 512L), 4096L));
   dim3 block(512);
 
   // handle possibly empty gradients
   if (grad.numel() == 0) {
-//     THCudaCheck(cudaGetLastError());
-//     c10::cuda::CUDACachingAllocator::raw_alloc(cudaGetLastError());
-    C10_CUDA_CHECK(cudaGetLastError());
+    AT_CUDA_CHECK(cudaGetLastError());
     return grad_input;
   }
 
@@ -300,8 +281,6 @@ at::Tensor Align_backward_cuda(const at::Tensor& grad,
          grad_input.data<scalar_t>(),
          rois.contiguous().data<scalar_t>());
   });
-//   THCudaCheck(cudaGetLastError());
-//   c10::cuda::CUDACachingAllocator::raw_alloc(cudaGetLastError());
-  C10_CUDA_CHECK(cudaGetLastError());
+  AT_CUDA_CHECK(cudaGetLastError());
   return grad_input;
 }
