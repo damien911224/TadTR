@@ -160,8 +160,8 @@ class TransformerEncoder(nn.Module):
         if self.norm is not None:
             output = self.norm(output)
 
-        return output, torch.stack(inter_K_weights)
-        # return output, None
+        # return output, torch.stack(inter_K_weights)
+        return output, None
 
 
 class TransformerDecoder(nn.Module):
@@ -280,18 +280,18 @@ class TransformerDecoder(nn.Module):
 
         if self.return_intermediate:
             if self.segment_embed is not None:
-                return [
-                    torch.stack(intermediate).transpose(1, 2),
-                    torch.stack(ref_points).transpose(1, 2),
-                    torch.stack(inter_Q_weights),
-                    torch.stack(inter_C_weights),
-                ]
                 # return [
                 #     torch.stack(intermediate).transpose(1, 2),
                 #     torch.stack(ref_points).transpose(1, 2),
-                #     None,
+                #     torch.stack(inter_Q_weights),
                 #     torch.stack(inter_C_weights),
                 # ]
+                return [
+                    torch.stack(intermediate).transpose(1, 2),
+                    torch.stack(ref_points).transpose(1, 2),
+                    None,
+                    torch.stack(inter_C_weights),
+                ]
             else:
                 return [
                     torch.stack(intermediate).transpose(1, 2),

@@ -124,7 +124,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
 
     # raw_res = []
     cnt = 0
-    visualize = True
+    visualize = False
     diversity = False
     # if visualize and (epoch + 1) % 10 == 0:
     # if visualize and (epoch + 1) >= 0:
