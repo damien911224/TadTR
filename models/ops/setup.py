@@ -49,7 +49,6 @@ def get_extensions():
     else:
         raise NotImplementedError('Cuda is not available')
 
-
     ext_modules = [
         # Temporal Deformable Attention, optional
         CUDAExtension(
