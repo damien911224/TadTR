@@ -1,11 +1,3 @@
-"""
-MultiheadAttention that support query, key, and value to have different dimensions.
-Query, key, and value projections are removed.
-
-Mostly copy-paste from https://github.com/pytorch/pytorch/blob/master/torch/nn/modules/activation.py#L873
-and https://github.com/pytorch/pytorch/blob/master/torch/nn/functional.py#L4837
-"""
-
 import copy
 from typing import Optional, List
 
