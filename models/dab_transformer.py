@@ -160,8 +160,8 @@ class TransformerEncoder(nn.Module):
         if self.norm is not None:
             output = self.norm(output)
 
-        # return output, torch.stack(inter_K_weights)
-        return output, None
+        return output, torch.stack(inter_K_weights)
+        # return output, None
 
 
 class TransformerDecoder(nn.Module):
@@ -280,18 +280,18 @@ class TransformerDecoder(nn.Module):
 
         if self.return_intermediate:
             if self.segment_embed is not None:
-                # return [
-                #     torch.stack(intermediate).transpose(1, 2),
-                #     torch.stack(ref_points).transpose(1, 2),
-                #     torch.stack(inter_Q_weights),
-                #     torch.stack(inter_C_weights),
-                # ]
                 return [
                     torch.stack(intermediate).transpose(1, 2),
                     torch.stack(ref_points).transpose(1, 2),
-                    None,
+                    torch.stack(inter_Q_weights),
                     torch.stack(inter_C_weights),
                 ]
+                # return [
+                #     torch.stack(intermediate).transpose(1, 2),
+                #     torch.stack(ref_points).transpose(1, 2),
+                #     None,
+                #     torch.stack(inter_C_weights),
+                # ]
             else:
                 return [
                     torch.stack(intermediate).transpose(1, 2),
@@ -443,7 +443,7 @@ class TransformerDecoderLayer(nn.Module):
                 is_first=False, ref_points=None):
 
         # ========== Begin of Self-Attention =============
-        if not self.rm_self_attn_decoder and False:
+        if not self.rm_self_attn_decoder and True:
             # Apply projections here
             # shape: num_queries x batch_size x 256
             # query_pos = torch.bmm(C_weights.detach(), pos.transpose(0, 1)).transpose(0, 1)
@@ -573,8 +573,8 @@ class TransformerDecoderLayer(nn.Module):
         tgt = tgt + self.dropout3(tgt2)
         tgt = self.norm3(tgt)
 
-        # return tgt, Q_weights, C_weights
-        return tgt, None, C_weights
+        return tgt, Q_weights, C_weights
+        # return tgt, None, C_weights
 
 
 def _get_clones(module, N):
