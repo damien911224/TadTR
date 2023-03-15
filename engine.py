@@ -265,7 +265,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         # for n_i in range(len(samples.tensors)):
         print(samples.tensors.shape)
         exit()
-        macs, params = profile(model, inputs=(samples.tensors[-1][None][:, :100], ))
+        macs, params = profile(model, inputs=(samples.tensors[-1][None][..., :100], ))
         macs, params = clever_format([macs, params], "%.3f")
         print(macs, params)
         exit()
