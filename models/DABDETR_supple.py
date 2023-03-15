@@ -12,7 +12,7 @@ from util.misc import (NestedTensor, nested_tensor_from_tensor_list,
 from models.matcher import build_matcher
 from models.position_encoding import build_position_encoding
 from .custom_loss import sigmoid_focal_loss
-from .dab_transformer import build_transformer
+from .transformer import build_transformer
 from opts import cfg
 import numpy as np
 
@@ -38,7 +38,7 @@ class SelfDETR(nn.Module):
         """ Initializes the model.
         Parameters:
             backbone: torch module of the backbone to be used. See backbone.py
-            transformer: torch module of the transformer architecture. See deformable_transformer.py
+            transformer: torch module of the transformer architecture. See transformer.py
             num_classes: number of action classes
             num_queries: number of action queries, ie detection slot. This is the maximal number of actions
                          TadTR can detect in a single video.
