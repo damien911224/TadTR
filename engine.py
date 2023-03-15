@@ -264,7 +264,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
 
         # flops = flop_count(model, (samples.tensors, ))
         for n_i in range(len(samples.tensors)):
-            macs, params = profile(model, inputs=(samples.tensors[n_i][None], ))
+            macs, params = profile(model, inputs=(samples[n_i][None], ))
             all_macs.append(macs)
             all_params.append(params)
 
