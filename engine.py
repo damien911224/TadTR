@@ -260,7 +260,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 tgt_list.append(d_out / l_out)
                 # tgt_list.append(d_out)
 
-        flops = flop_count(model, (samples.tensors, samples.mask))
+        flops = flop_count(model.modules, (samples.tensors, samples.mask))
         print(flops)
         exit()
 
