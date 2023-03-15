@@ -141,7 +141,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         Q_d_values = list()
         C_d_values = list()
 
-    all_macs, all_params = list()
+    all_macs, all_params = list(), list()
     for (samples, targets) in tqdm.tqdm(data_loader, total=len(data_loader)):
         samples = samples.to(device)
         outputs = model((samples.tensors, samples.mask))
