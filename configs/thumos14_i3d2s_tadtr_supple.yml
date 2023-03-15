@@ -2,7 +2,11 @@
 enc_layers: 2
 dec_layers: 4
 dim_feedforward: 1024
-num_queries: 40 # 40
+num_queries: 40
+nheads: 8
+activation: 'relu'
+seg_refine: True
+dropout: 0.1
 
 # data setting
 dataset_name: thumos14
@@ -13,21 +17,18 @@ slice_len: 128
 slice_overlap: 0.75
 test_slice_overlap: 0.25
 
-epochs: 120 # 16
-lr_step: [80, 100] # [14]
+epochs: 120
+lr_step: [80, 100]
 
-postproc_rank: 1 # 1
-postproc_cls_topk: 1 # 1
-postproc_ins_topk: 200 # 200
-nms_thr: 0.4 # 0.4
+postproc_rank: 1
+postproc_cls_topk: 1
+postproc_ins_topk: 200
+nms_thr: 0.4
 
 aux_loss: True
 use_KK: True
 use_QQ: True
 
-nheads: 8
-activation: 'relu'
-seg_refine: True
 cls_loss_coef: 2
 seg_loss_coef: 5
 iou_loss_coef: 2
@@ -45,6 +46,3 @@ clip_max_norm: 0.1
 
 KK_loss_coef: 5.0
 QQ_loss_coef: 5.0
-
-# output
-output_dir: outputs/thumos14_i3d2s_tadtr
