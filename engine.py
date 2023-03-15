@@ -141,7 +141,6 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         Q_d_values = list()
         C_d_values = list()
 
-    all_macs, all_params = list(), list()
     for (samples, targets) in tqdm.tqdm(data_loader, total=len(data_loader)):
         samples = samples.to(device)
         outputs = model((samples.tensors, samples.mask))
@@ -265,7 +264,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         # flops = flop_count(model, (samples.tensors, ))
         for n_i in range(len(samples.tensors)):
             macs, params = profile(model, inputs=(samples.tensors[n_i][None], ))
-            macs, params = clever_format([all_macs, all_params], "%.3f")
+            macs, params = clever_format([macs, params], "%.3f")
             print(macs, params)
     exit()
 
