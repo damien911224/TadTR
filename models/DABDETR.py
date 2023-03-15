@@ -31,8 +31,8 @@ from .dab_transformer import build_transformer
 from opts import cfg
 import numpy as np
 
-if not cfg.disable_cuda:
-    from models.ops.roi_align import ROIAlign
+# if not cfg.disable_cuda:
+#     from models.ops.roi_align import ROIAlign
 
 
 def _get_clones(module, N):
@@ -111,40 +111,40 @@ class TadTR(nn.Module):
             # hack implementation for segment refinement
             self.transformer.decoder.segment_embed = self.segment_embed
 
-        if with_act_reg:
-            # RoIAlign params
-            self.roi_size = 16
-            self.roi_scale = 0
-            self.roi_extractor = ROIAlign(self.roi_size, self.roi_scale)
-            self.actionness_pred = nn.Sequential(
-                nn.Linear(self.roi_size * hidden_dim, hidden_dim),
-                nn.ReLU(inplace=True),
-                nn.Linear(hidden_dim, hidden_dim),
-                nn.ReLU(inplace=True),
-                nn.Linear(hidden_dim, 1),
-                nn.Sigmoid()
-            )
+        # if with_act_reg:
+        #     # RoIAlign params
+        #     self.roi_size = 16
+        #     self.roi_scale = 0
+        #     self.roi_extractor = ROIAlign(self.roi_size, self.roi_scale)
+        #     self.actionness_pred = nn.Sequential(
+        #         nn.Linear(self.roi_size * hidden_dim, hidden_dim),
+        #         nn.ReLU(inplace=True),
+        #         nn.Linear(hidden_dim, hidden_dim),
+        #         nn.ReLU(inplace=True),
+        #         nn.Linear(hidden_dim, 1),
+        #         nn.Sigmoid()
+        #     )
 
-    def _to_roi_align_format(self, rois, T, scale_factor=1):
-        '''Convert RoIs to RoIAlign format.
-        Params:
-            RoIs: normalized segments coordinates, shape (batch_size, num_segments, 4)
-            T: length of the video feature sequence
-        '''
-        # transform to absolute axis
-        B, N = rois.shape[:2]
-        rois_center = rois[:, :, 0:1]
-        rois_size = rois[:, :, 1:2] * scale_factor
-        rois_abs = torch.cat(
-            (rois_center - rois_size / 2, rois_center + rois_size / 2), dim=2) * T
-        # expand the RoIs
-        rois_abs = torch.clamp(rois_abs, min=0, max=T)  # (N, T, 2)
-        # add batch index
-        batch_ind = torch.arange(0, B).view((B, 1, 1)).to(rois_abs.device)
-        batch_ind = batch_ind.repeat(1, N, 1)
-        rois_abs = torch.cat((batch_ind, rois_abs), dim=2)
-        # NOTE: stop gradient here to stablize training
-        return rois_abs.view((B * N, 3)).detach()
+    # def _to_roi_align_format(self, rois, T, scale_factor=1):
+    #     '''Convert RoIs to RoIAlign format.
+    #     Params:
+    #         RoIs: normalized segments coordinates, shape (batch_size, num_segments, 4)
+    #         T: length of the video feature sequence
+    #     '''
+    #     # transform to absolute axis
+    #     B, N = rois.shape[:2]
+    #     rois_center = rois[:, :, 0:1]
+    #     rois_size = rois[:, :, 1:2] * scale_factor
+    #     rois_abs = torch.cat(
+    #         (rois_center - rois_size / 2, rois_center + rois_size / 2), dim=2) * T
+    #     # expand the RoIs
+    #     rois_abs = torch.clamp(rois_abs, min=0, max=T)  # (N, T, 2)
+    #     # add batch index
+    #     batch_ind = torch.arange(0, B).view((B, 1, 1)).to(rois_abs.device)
+    #     batch_ind = batch_ind.repeat(1, N, 1)
+    #     rois_abs = torch.cat((batch_ind, rois_abs), dim=2)
+    #     # NOTE: stop gradient here to stablize training
+    #     return rois_abs.view((B * N, 3)).detach()
 
     def forward(self, samples):
         """ The forward expects a NestedTensor, which consists of:
