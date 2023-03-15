@@ -139,6 +139,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         Q_d_values = list()
         C_d_values = list()
 
+    all_flops = list()
     for (samples, targets) in tqdm.tqdm(data_loader, total=len(data_loader)):
         samples = samples.to(device)
         outputs = model((samples.tensors, samples.mask))
@@ -258,6 +259,11 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 # tgt_list.append(d_out / d_in)
                 tgt_list.append(d_out / l_out)
                 # tgt_list.append(d_out)
+
+        flops = flop_count(model, (samples.tensors, samples.mask))
+        print(flops)
+        exit()
+
 
     if diversity:
         K_d_values = np.concatenate(K_d_values, axis=0)
