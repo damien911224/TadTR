@@ -27,7 +27,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sn
 import matplotlib.pyplot as plt
-from util.flop_count import flop_count
+
+# from util.flop_count import flop_count
+from thop import profile
 
 def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
@@ -260,8 +262,9 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 tgt_list.append(d_out / l_out)
                 # tgt_list.append(d_out)
 
-        flops = flop_count(model, (samples.tensors, ))
-        print(flops)
+        # flops = flop_count(model, (samples.tensors, ))
+        macs, params = profile(model, inputs=(samples.tensors, samples.mask))
+        print(macs, params)
         exit()
 
 
