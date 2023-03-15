@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 from functools import partial
 
-from jit_handles import (
+from .jit_handles import (
     addmm_flop_jit,
     batchnorm_flop_jit,
     conv_flop_jit,
