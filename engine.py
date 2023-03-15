@@ -263,7 +263,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
 
         # flops = flop_count(model, (samples.tensors, ))
         # for n_i in range(len(samples.tensors)):
-        macs, params = profile(model, inputs=(samples.tensors[-1][None], ))
+        macs, params = profile(model, inputs=(samples.tensors[-1][None][:, :100], ))
         macs, params = clever_format([macs, params], "%.3f")
         print(macs, params)
         exit()
