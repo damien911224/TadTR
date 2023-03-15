@@ -35,16 +35,6 @@ class SelfDETR(nn.Module):
 
     def __init__(self, position_embedding, transformer, num_classes, num_queries,
                  aux_loss=True, with_segment_refine=True, query_dim=2):
-        """ Initializes the model.
-        Parameters:
-            backbone: torch module of the backbone to be used. See backbone.py
-            transformer: torch module of the transformer architecture. See transformer.py
-            num_classes: number of action classes
-            num_queries: number of action queries, ie detection slot. This is the maximal number of actions
-                         TadTR can detect in a single video.
-            aux_loss: True if auxiliary decoding losses (loss at each decoder layer) are to be used.
-            with_segment_refine: iterative segment refinement
-        """
         super().__init__()
         self.num_queries = num_queries
         self.transformer = transformer
@@ -74,7 +64,6 @@ class SelfDETR(nn.Module):
             nn.init.xavier_uniform_(proj[0].weight, gain=1)
             nn.init.constant_(proj[0].bias, 0)
 
-        num_pred = transformer.decoder.num_layers
         if with_segment_refine:
             # hack implementation for segment refinement
             self.transformer.decoder.segment_embed = self.segment_embed
@@ -114,21 +103,8 @@ class SelfDETR(nn.Module):
 
 
 class SetCriterion(nn.Module):
-    """ This class computes the loss for TadTR.
-    The process happens in two steps:
-        1) we compute hungarian assignment between ground truth segments and the outputs of the model
-        2) we supervise each pair of matched ground-truth / prediction (supervise class and segment)
-    """
 
     def __init__(self, num_classes, matcher, weight_dict, losses, focal_alpha=0.25):
-        """ Create the criterion.
-        Parameters:
-            num_classes: number of action categories, omitting the special no-action category
-            matcher: module able to compute a matching between targets and proposals
-            weight_dict: dict containing as key the names of the losses and as values their relative weight.
-            losses: list of all the losses to be applied. See get_loss for list of available losses.
-            focal_alpha: alpha in Focal Loss
-        """
         super().__init__()
         self.num_classes = num_classes
         self.matcher = matcher
@@ -137,9 +113,6 @@ class SetCriterion(nn.Module):
         self.focal_alpha = focal_alpha
 
     def loss_labels(self, outputs, targets, indices, num_segments, log=True):
-        """Classification loss (NLL)
-        targets dicts must contain the key "labels" containing a tensor of dim [nb_target_segments]
-        """
         assert 'pred_logits' in outputs
         src_logits = outputs['pred_logits']
         idx = self._get_src_permutation_idx(indices)
@@ -165,10 +138,6 @@ class SetCriterion(nn.Module):
         return losses
 
     def loss_segments(self, outputs, targets, indices, num_segments):
-        """Compute the losses related to the segmentes, the L1 regression loss and the IoU loss
-           targets dicts must contain the key "segments" containing a tensor of dim [nb_target_segments, 2]
-           The target segments are expected in format (center, width), normalized by the video length.
-        """
         assert 'pred_segments' in outputs
         idx = self._get_src_permutation_idx(indices)
         src_segments = outputs['pred_segments'][idx]
@@ -262,12 +231,6 @@ class SetCriterion(nn.Module):
         return loss_map[loss](outputs, targets, indices, num_segments, **kwargs)
 
     def forward(self, outputs, targets):
-        """ This performs the loss computation.
-        Parameters:
-             outputs: dict of tensors, see the output specification of the model for the format
-             targets: list of dicts, such that len(targets) == batch_size.
-                      The expected keys in each dict depends on the losses applied, see each loss' doc
-        """
         outputs_without_aux = {k: v for k, v in outputs.items() if k != 'aux_outputs'}
 
         # Retrieve the matching between the outputs of the last layer and the targets
