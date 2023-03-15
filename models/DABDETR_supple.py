@@ -307,8 +307,6 @@ class SetCriterion(nn.Module):
 
 
 class PostProcess(nn.Module):
-    """ This module converts the model's output into the format expected by the TADEvaluator"""
-
     @torch.no_grad()
     def forward(self, outputs, target_sizes):
         out_logits, out_segments = outputs['pred_logits'], outputs['pred_segments']
