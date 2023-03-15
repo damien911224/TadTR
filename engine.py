@@ -266,7 +266,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
             macs, params = profile(model, inputs=(samples.tensors[n_i][None], ))
             macs, params = clever_format([macs, params], "%.3f")
             print(macs, params)
-    exit()
+            exit()
 
     if diversity:
         K_d_values = np.concatenate(K_d_values, axis=0)
