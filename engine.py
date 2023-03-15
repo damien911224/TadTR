@@ -265,14 +265,8 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
         # flops = flop_count(model, (samples.tensors, ))
         for n_i in range(len(samples.tensors)):
             macs, params = profile(model, inputs=(samples.tensors[n_i][None], ))
-            all_macs.append(macs)
-            all_params.append(params)
-
-    all_macs = np.mean(all_macs)
-    all_params = np.mean(all_params)
-
-    macs, params = clever_format([all_macs, all_params], "%.3f")
-    print(macs, params)
+            macs, params = clever_format([all_macs, all_params], "%.3f")
+            print(macs, params)
     exit()
 
     if diversity:
