@@ -29,7 +29,7 @@ import seaborn as sn
 import matplotlib.pyplot as plt
 
 # from util.flop_count import flop_count
-from thop import profile
+from thop import profile, clever_format
 
 def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
@@ -264,6 +264,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
 
         # flops = flop_count(model, (samples.tensors, ))
         macs, params = profile(model, inputs=(samples.tensors, ))
+        macs, params = clever_format([macs, params], "%.3f")
         print(macs, params)
         exit()
 
