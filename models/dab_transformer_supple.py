@@ -11,7 +11,6 @@ from .attention import MultiheadAttention
 
 
 class MLP(nn.Module):
-    """ Very simple multi-layer perceptron (also called FFN)"""
 
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers):
         super().__init__()
@@ -324,8 +323,6 @@ class TransformerDecoderLayer(nn.Module):
             self.sa_kpos_proj = nn.Linear(d_model, d_model)
             self.sa_v_proj = nn.Linear(d_model, d_model)
             self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout, vdim=d_model)
-            self.weight_buffer = nn.Linear(40, 40)
-            self.sa_output_proj = nn.Linear(d_model, d_model)
 
             self.norm1 = nn.LayerNorm(d_model)
             self.dropout1 = nn.Dropout(dropout)
@@ -448,7 +445,7 @@ def build_transformer(args):
         normalize_before=False,
         return_intermediate_dec=True,
         query_dim=2,
-        activation="relu"
+        activation="prelu"
     )
 
 
