@@ -1090,7 +1090,7 @@ def build(args):
 
     criterion = SetCriterion(num_classes, matcher=matcher, weight_dict=weight_dict,
                              focal_alpha=args.focal_alpha, losses=losses)
-    criterion.to(device)
+    # criterion.to(device)
 
     # postprocessors = {'bbox': PostProcess(num_select=args.num_select, nms_iou_threshold=args.nms_iou_threshold)}
 
