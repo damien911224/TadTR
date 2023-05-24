@@ -302,7 +302,7 @@ class DINO(nn.Module):
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
                'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
         if self.aux_loss:
-            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord_list)
+            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
 
         # for encoder output
         # if hs_enc is not None:
