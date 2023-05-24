@@ -290,7 +290,7 @@ class DINO(nn.Module):
         bs, c, w = src.shape
         refpoint_embed = self.refpoint_embed.weight
         refpoint_embed = refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
-        tgt = torch.zeros(self.num_queries, bs, self.d_model, device=refpoint_embed.device)
+        tgt = torch.zeros(self.num_queries, bs, self.hidden_dim, device=refpoint_embed.device)
 
         input_query_bbox = torch.cat((input_query_bbox, refpoint_embed), dim=0)
         input_query_label = torch.cat((input_query_label, tgt), dim=0)
