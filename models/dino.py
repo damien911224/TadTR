@@ -817,6 +817,8 @@ class SetCriterion(nn.Module):
             output_known_lbs_bboxes = dn_meta['output_known_lbs_bboxes']
             l_dict = {}
             for loss in self.losses:
+                if 'QQ' in loss or 'KK' in loss:
+                    continue
                 kwargs = {}
                 if 'labels' in loss:
                     kwargs = {'log': False}
