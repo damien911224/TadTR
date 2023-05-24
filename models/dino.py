@@ -112,8 +112,8 @@ class DINO(nn.Module):
             nn.init.xavier_uniform_(proj[0].weight, gain=1)
             nn.init.constant_(proj[0].bias, 0)
 
-        num_pred = transformer.decoder.num_layers
-        if with_segment_refine:
+        # num_pred = transformer.decoder.num_layers
+        if iter_update:
             # hack implementation for segment refinement
             self.transformer.decoder.segment_embed = self.segment_embed
 
