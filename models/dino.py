@@ -276,24 +276,27 @@ class DINO(nn.Module):
         pos = [self.position_embedding(samples)]
         src, mask = samples.tensors, samples.mask
 
-        bs, c, w = src.shape
-        refpoint_embed = self.refpoint_embed.weight
-        refpoint_embed = refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
-        tgt = torch.zeros(self.num_queries, bs, self.hidden_dim, device=refpoint_embed.device)
-
         if self.dn_number > 0 or targets is not None:
             input_query_label, input_query_bbox, attn_mask, dn_meta = \
                 prepare_for_cdn(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
                                 training=self.training, num_queries=self.num_queries, num_classes=self.num_classes,
                                 hidden_dim=self.hidden_dim, label_enc=self.label_enc)
+        else:
+            assert targets is None
+            input_query_label = input_query_bbox = attn_mask = dn_meta = None
+
+        bs, c, w = src.shape
+        refpoint_embed = self.refpoint_embed.weight
+        refpoint_embed = refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
+        tgt = torch.zeros(self.num_queries, bs, self.hidden_dim, device=refpoint_embed.device)
+
+        if input_query_bbox is not None:
             input_query_label = input_query_label.transpose(0, 1)
             input_query_bbox = input_query_bbox.transpose(0, 1)
 
             input_query_bbox = torch.cat((input_query_bbox, refpoint_embed), dim=0)
             input_query_label = torch.cat((input_query_label, tgt), dim=0)
         else:
-            assert targets is None
-            attn_mask = dn_meta = None
             input_query_bbox = refpoint_embed
             input_query_label = tgt
 
