@@ -149,7 +149,7 @@ class DINO(nn.Module):
         #             nn.GroupNorm(32, hidden_dim),
         #         )])
 
-        self.backbone = backbone
+        # self.backbone = backbone
         self.aux_loss = aux_loss
         self.box_pred_damping = None
 
