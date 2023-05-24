@@ -283,7 +283,6 @@ class DINO(nn.Module):
                                 hidden_dim=self.hidden_dim, label_enc=self.label_enc)
             input_query_label = input_query_label.transpose(0, 1)
             input_query_bbox = input_query_bbox.transpose(0, 1)
-            attn_mask = attn_mask.repeat(self.nheads, 1, 1)
         else:
             assert targets is None
             input_query_bbox = input_query_label = attn_mask = dn_meta = None
