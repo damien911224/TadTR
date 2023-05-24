@@ -66,10 +66,10 @@ def prepare_for_cdn(dn_args, training, num_queries, num_classes, hidden_dim, lab
             new_label = torch.randint_like(chosen_indice, 0, num_classes)  # randomly put a new one here
             known_labels_expaned.scatter_(0, chosen_indice, new_label)
         single_pad = int(max(known_num))
-        print(single_pad)
-        exit()
 
         pad_size = int(single_pad * 2 * dn_number)
+        print(pad_size)
+        exit()
         positive_idx = torch.tensor(range(len(boxes))).long().cuda().unsqueeze(0).repeat(dn_number, 1)
         positive_idx += (torch.tensor(range(dn_number)) * len(boxes) * 2).long().cuda().unsqueeze(1)
         positive_idx = positive_idx.flatten()
