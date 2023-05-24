@@ -47,7 +47,7 @@ def prepare_for_cdn(dn_args, training, num_queries, num_classes, hidden_dim, lab
             dn_number = 1
         unmask_bbox = unmask_label = torch.cat(known)
         labels = torch.cat([t['labels'] for t in targets])
-        boxes = torch.cat([t['boxes'] for t in targets])
+        boxes = torch.cat([t['segments'] for t in targets])
         batch_idx = torch.cat([torch.full_like(t['labels'].long(), i) for i, t in enumerate(targets)])
 
         known_indice = torch.nonzero(unmask_label + unmask_bbox)
@@ -146,7 +146,7 @@ def dn_post_process(outputs_class, outputs_coord, dn_meta, aux_loss, _set_aux_lo
         output_known_coord = outputs_coord[:, :, :dn_meta['pad_size'], :]
         outputs_class = outputs_class[:, :, dn_meta['pad_size']:, :]
         outputs_coord = outputs_coord[:, :, dn_meta['pad_size']:, :]
-        out = {'pred_logits': output_known_class[-1], 'pred_boxes': output_known_coord[-1]}
+        out = {'pred_logits': output_known_class[-1], 'pred_segments': output_known_coord[-1]}
         if aux_loss:
             out['aux_outputs'] = _set_aux_loss(output_known_class, output_known_coord)
         dn_meta['output_known_lbs_bboxes'] = out
