@@ -281,6 +281,8 @@ class DINO(nn.Module):
                 prepare_for_cdn(dn_args=(targets, self.dn_number, self.dn_label_noise_ratio, self.dn_box_noise_scale),
                                 training=self.training, num_queries=self.num_queries, num_classes=self.num_classes,
                                 hidden_dim=self.hidden_dim, label_enc=self.label_enc)
+            input_query_label = input_query_label.transpose(0, 1)
+            input_query_bbox = input_query_bbox.transpose(0, 1)
         else:
             assert targets is None
             input_query_bbox = input_query_label = attn_mask = dn_meta = None
