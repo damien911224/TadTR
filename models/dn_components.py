@@ -68,8 +68,6 @@ def prepare_for_cdn(dn_args, training, num_queries, num_classes, hidden_dim, lab
         single_pad = int(max(known_num))
 
         pad_size = int(single_pad * 2 * dn_number)
-        print(pad_size)
-        exit()
         positive_idx = torch.tensor(range(len(boxes))).long().cuda().unsqueeze(0).repeat(dn_number, 1)
         positive_idx += (torch.tensor(range(dn_number)) * len(boxes) * 2).long().cuda().unsqueeze(1)
         positive_idx = positive_idx.flatten()

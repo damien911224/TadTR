@@ -107,7 +107,7 @@ class Transformer(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-    def forward(self, src, mask, refpoint_embed, pos_embed):
+    def forward(self, src, mask, refpoint_embed, pos_embed, tgt=None, attn_mask=None):
         # flatten NxCxHxW to HWxNxC
         bs, c, w = src.shape
         src = src.flatten(2).permute(2, 0, 1)
@@ -119,15 +119,16 @@ class Transformer(nn.Module):
 
         # query_embed = gen_sineembed_for_position(refpoint_embed)
         num_queries = refpoint_embed.shape[0]
-        if self.num_patterns == 0:
-            tgt = torch.zeros(num_queries, bs, self.d_model, device=refpoint_embed.device)
-        else:
-            tgt = self.patterns.weight[:, None, None, :].repeat(1, self.num_queries, bs, 1).flatten(0,
-                                                                                                    1)  # n_q*n_pat, bs, d_model
-            refpoint_embed = refpoint_embed.repeat(self.num_patterns, 1, 1)  # n_q*n_pat, bs, d_model
-            # import ipdb; ipdb.set_trace()
+        if tgt is not None:
+            if self.num_patterns == 0:
+                tgt = torch.zeros(num_queries, bs, self.d_model, device=refpoint_embed.device)
+            else:
+                tgt = self.patterns.weight[:, None, None, :].repeat(1, self.num_queries, bs, 1).flatten(0, 1)  # n_q*n_pat, bs, d_model
+                refpoint_embed = refpoint_embed.repeat(self.num_patterns, 1, 1)  # n_q*n_pat, bs, d_model
+                # import ipdb; ipdb.set_trace()
         hs, references, Q_weights, C_weights = \
-            self.decoder(tgt, memory, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
+            self.decoder(tgt, memory, tgt_mask=attn_mask,
+                         memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
 
         return hs, references, memory, Q_weights, K_weights, C_weights
 
@@ -211,6 +212,7 @@ class TransformerDecoder(nn.Module):
                 memory_key_padding_mask: Optional[Tensor] = None,
                 pos: Optional[Tensor] = None,
                 refpoints_unsigmoid: Optional[Tensor] = None,  # num_queries, bs, 2
+                attn_mask: Optional[Tensor] = None
                 ):
         output = tgt
 
