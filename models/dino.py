@@ -285,9 +285,10 @@ class DINO(nn.Module):
             assert targets is None
             input_query_bbox = input_query_label = attn_mask = dn_meta = None
 
-        embedweight = self.refpoint_embed.weight
+        # embedweight = self.refpoint_embed.weight
         hs, reference, memory, Q_weights, K_weights, C_weights = \
-            self.transformer(self.input_proj[0](src), mask, embedweight, pos[-1])
+            self.transformer(self.input_proj[0](src), mask, input_query_bbox, pos[-1],
+                             tgt=input_query_label, attn_mask=attn_mask)
 
         # In case num object=0
         hs[0] += self.label_enc.weight[0, 0] * 0.0
