@@ -306,7 +306,7 @@ class DINO(nn.Module):
 
         Q_weights = Q_weights[:, :, dn_meta["pad_size"]:, dn_meta["pad_size"]:]
         Q_weights = Q_weights / torch.sum(Q_weights, dim=-1, keepdim=True)
-        C_weights = C_weights[:, :, :, dn_meta["pad_size"]:]
+        C_weights = C_weights[:, :, dn_meta["pad_size"]:]
         C_weights = C_weights / torch.sum(C_weights, dim=-1, keepdim=True)
 
         # In case num object=0
