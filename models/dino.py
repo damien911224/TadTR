@@ -96,6 +96,8 @@ class DINO(nn.Module):
         self.random_refpoints_xy = random_refpoints_xy
         self.fix_refpoints_hw = fix_refpoints_hw
 
+        self.refpoint_embed = nn.Embedding(num_queries, query_dim)
+
         self.input_proj = nn.ModuleList([
             nn.Sequential(
                 nn.Conv1d(2048, hidden_dim, kernel_size=1),
