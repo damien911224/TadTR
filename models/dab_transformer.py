@@ -112,7 +112,8 @@ class Transformer(nn.Module):
         bs, c, w = src.shape
         src = src.flatten(2).permute(2, 0, 1)
         pos_embed = pos_embed.flatten(2).permute(2, 0, 1)
-        refpoint_embed = refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
+        if tgt is None:
+            refpoint_embed = refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
         mask = mask.flatten(1)
 
         memory, K_weights = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
