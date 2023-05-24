@@ -992,7 +992,7 @@ class MLP(nn.Module):
 
 
 # @MODULE_BUILD_FUNCS.registe_with_name(module_name='dino')
-def build_dino(args):
+def build(args):
     if args.binary:
         num_classes = 1
     else:
