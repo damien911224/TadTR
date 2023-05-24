@@ -65,6 +65,10 @@ class HungarianMatcher(nn.Module):
         out_prob = outputs["pred_logits"].flatten(0, 1).sigmoid()  #  [batch_size * num_queries, num_classes]
         out_seg = outputs["pred_segments"].flatten(0, 1)  # [batch_size * num_queries, 2]
 
+        print(out_prob.shape)
+        print(out_seg.shape)
+        exit()
+
         # Also concat the target labels and segments
         tgt_ids = torch.cat([v["labels"] for v in targets])  # shape = n1+n2+...
         tgt_seg = torch.cat([v["segments"] for v in targets])
