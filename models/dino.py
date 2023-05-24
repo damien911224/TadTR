@@ -865,6 +865,8 @@ class SetCriterion(nn.Module):
                     aux_outputs_known = output_known_lbs_bboxes['aux_outputs'][idx]
                     l_dict = {}
                     for loss in self.losses:
+                        if 'QQ' in loss or 'KK' in loss:
+                            continue
                         kwargs = {}
                         if 'labels' in loss:
                             kwargs = {'log': False}
