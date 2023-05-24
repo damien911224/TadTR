@@ -283,16 +283,19 @@ class DINO(nn.Module):
                                 hidden_dim=self.hidden_dim, label_enc=self.label_enc)
             input_query_label = input_query_label.transpose(0, 1)
             input_query_bbox = input_query_bbox.transpose(0, 1)
-            print(input_query_bbox.shape)
-            exit()
             attn_mask = attn_mask.repeat(self.nheads, 1, 1)
-            print(attn_mask.shape)
-            exit()
         else:
             assert targets is None
             input_query_bbox = input_query_label = attn_mask = dn_meta = None
 
-        # embedweight = self.refpoint_embed.weight
+        bs, c, w = src.shape
+        refpoint_embed = self.refpoint_embed.weight
+        refpoint_embed = refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
+        tgt = torch.zeros(self.num_queries, bs, self.d_model, device=refpoint_embed.device)
+
+        input_query_bbox = torch.cat((input_query_bbox, refpoint_embed), dim=0)
+        input_query_label = torch.cat((input_query_label, tgt), dim=0)
+
         hs, reference, memory, Q_weights, K_weights, C_weights = \
             self.transformer(self.input_proj[0](src), mask, input_query_bbox, pos[-1],
                              tgt=input_query_label, attn_mask=attn_mask)
