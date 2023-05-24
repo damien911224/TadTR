@@ -28,12 +28,13 @@ from util.misc import (NestedTensor, nested_tensor_from_tensor_list,
 
 # from .backbone import build_backbone
 from .matcher import build_matcher
-from .segmentation import (DETRsegm, PostProcessPanoptic, PostProcessSegm,
-                           dice_loss)
+# from .segmentation import (DETRsegm, PostProcessPanoptic, PostProcessSegm,
+#                            dice_loss)
+from .custom_loss import sigmoid_focal_loss
 # from .deformable_transformer import build_deformable_transformer
-from .utils import sigmoid_focal_loss, MLP
+# from .utils import sigmoid_focal_loss, MLP
 
-from ..registry import MODULE_BUILD_FUNCS
+# from ..registry import MODULE_BUILD_FUNCS
 from .dn_components import prepare_for_cdn, dn_post_process
 
 from models.position_encoding import build_position_encoding
@@ -974,7 +975,23 @@ class PostProcess(nn.Module):
         return results
 
 
-@MODULE_BUILD_FUNCS.registe_with_name(module_name='dino')
+class MLP(nn.Module):
+    """ Very simple multi-layer perceptron (also called FFN)"""
+
+    def __init__(self, input_dim, hidden_dim, output_dim, num_layers):
+        super().__init__()
+        self.num_layers = num_layers
+        h = [hidden_dim] * (num_layers - 1)
+        self.layers = nn.ModuleList(nn.Linear(n, k)
+                                    for n, k in zip([input_dim] + h, h + [output_dim]))
+
+    def forward(self, x):
+        for i, layer in enumerate(self.layers):
+            x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
+        return x
+
+
+# @MODULE_BUILD_FUNCS.registe_with_name(module_name='dino')
 def build_dino(args):
     if args.binary:
         num_classes = 1
