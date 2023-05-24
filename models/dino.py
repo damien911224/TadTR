@@ -304,9 +304,10 @@ class DINO(nn.Module):
             self.transformer(self.input_proj[0](src), mask, input_query_bbox, pos[-1],
                              tgt=input_query_label, attn_mask=attn_mask)
 
-        Q_weights = Q_weights[:, :, dn_meta["pad_size"]:, dn_meta["pad_size"]:]
-        Q_weights = Q_weights / torch.sum(Q_weights, dim=-1, keepdim=True)
-        C_weights = C_weights[:, :, dn_meta["pad_size"]:]
+        if Q_weights is not None:
+            Q_weights = Q_weights[:, :, dn_meta["pad_size"]:, dn_meta["pad_size"]:]
+            Q_weights = Q_weights / torch.sum(Q_weights, dim=-1, keepdim=True)
+            C_weights = C_weights[:, :, dn_meta["pad_size"]:]
 
         # In case num object=0
         hs[0] += self.label_enc.weight[0, 0] * 0.0
