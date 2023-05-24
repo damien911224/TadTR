@@ -308,9 +308,6 @@ class DINO(nn.Module):
         K_weights = K_weights[:, :, dn_meta["pad_size"]:, dn_meta["pad_size"]:]
         C_weights = C_weights[:, :, dn_meta["pad_size"]:, dn_meta["pad_size"]:]
 
-        print(Q_weights.shape)
-        exit()
-
         # In case num object=0
         hs[0] += self.label_enc.weight[0, 0] * 0.0
 
