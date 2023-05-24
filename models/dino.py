@@ -304,6 +304,13 @@ class DINO(nn.Module):
             self.transformer(self.input_proj[0](src), mask, input_query_bbox, pos[-1],
                              tgt=input_query_label, attn_mask=attn_mask)
 
+        Q_weights = Q_weights[:, :, dn_meta["pad_size"]:, dn_meta["pad_size"]:]
+        K_weights = K_weights[:, :, dn_meta["pad_size"]:, dn_meta["pad_size"]:]
+        C_weights = C_weights[:, :, dn_meta["pad_size"]:, dn_meta["pad_size"]:]
+
+        print(Q_weights.shape)
+        exit()
+
         # In case num object=0
         hs[0] += self.label_enc.weight[0, 0] * 0.0
 
