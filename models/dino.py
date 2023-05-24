@@ -298,10 +298,16 @@ class DINO(nn.Module):
         outputs_coord = tmp.sigmoid()
         outputs_class = self.class_embed(hs)
 
+        print(outputs_coord.shape)
+
         if self.dn_number > 0 and dn_meta is not None:
             outputs_class, outputs_coord = \
                 dn_post_process(outputs_class, outputs_coord,
                                 dn_meta, self.aux_loss, self._set_aux_loss)
+
+        print(outputs_coord.shape)
+        exit()
+
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
                'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
         if self.aux_loss:
