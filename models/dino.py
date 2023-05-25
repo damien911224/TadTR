@@ -63,10 +63,10 @@ class DINO(nn.Module):
                  two_stage_bbox_embed_share=True,
                  decoder_sa_type='sa',
                  num_patterns=0,
-                 dn_number=100,
-                 dn_box_noise_scale=0.4,
-                 dn_label_noise_ratio=0.5,
-                 dn_labelbook_size=100,
+                 dn_number=100, # 100
+                 dn_box_noise_scale=0.4, # 0.4
+                 dn_label_noise_ratio=0.0, # 0.5
+                 dn_labelbook_size=100, # 100
                  ):
         """ Initializes the model.
         Parameters:
