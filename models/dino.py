@@ -65,7 +65,7 @@ class DINO(nn.Module):
                  num_patterns=0,
                  dn_number=100, # 100
                  dn_box_noise_scale=0.4, # 0.4
-                 dn_label_noise_ratio=0.0, # 0.5
+                 dn_label_noise_ratio=0.5, # 0.5
                  dn_labelbook_size=100, # 100
                  ):
         """ Initializes the model.
@@ -218,13 +218,13 @@ class DINO(nn.Module):
         #         layer.label_embedding = None
         #     self.label_embedding = None
 
-        self._reset_parameters()
+        # self._reset_parameters()
 
-    def _reset_parameters(self):
-        # init input_proj
-        for proj in self.input_proj:
-            nn.init.xavier_uniform_(proj[0].weight, gain=1)
-            nn.init.constant_(proj[0].bias, 0)
+    # def _reset_parameters(self):
+    #     # init input_proj
+    #     for proj in self.input_proj:
+    #         nn.init.xavier_uniform_(proj[0].weight, gain=1)
+    #         nn.init.constant_(proj[0].bias, 0)
 
     def init_ref_points(self, use_num_queries):
         self.refpoint_embed = nn.Embedding(use_num_queries, self.query_dim)
