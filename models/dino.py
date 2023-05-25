@@ -453,7 +453,7 @@ class SetCriterion(nn.Module):
         losses = {'cardinality_error': card_err}
         return losses
 
-    def loss_boxes(self, outputs, targets, indices, num_segments):
+    def loss_segments(self, outputs, targets, indices, num_segments):
         """Compute the losses related to the segmentes, the L1 regression loss and the IoU loss
            targets dicts must contain the key "segments" containing a tensor of dim [nb_target_segments, 2]
            The target segments are expected in format (center, width), normalized by the video length.
@@ -767,7 +767,7 @@ class SetCriterion(nn.Module):
         loss_map = {
             'labels': self.loss_labels,
             'cardinality': self.loss_cardinality,
-            'boxes': self.loss_boxes,
+            'segments': self.loss_boxes,
             'masks': self.loss_masks,
             "QQ": self.loss_QQ,
             "KK": self.loss_KK,
@@ -1070,20 +1070,20 @@ def build(args):
     matcher = build_matcher(args)
 
     # prepare weight dict
-    weight_dict = {'loss_ce': args.cls_loss_coef, 'loss_bbox': args.seg_loss_coef}
-    weight_dict['loss_giou'] = args.iou_loss_coef
+    weight_dict = {'loss_ce': args.cls_loss_coef, 'loss_segments': args.seg_loss_coef}
+    weight_dict['loss_iou'] = args.iou_loss_coef
 
     clean_weight_dict_wo_dn = copy.deepcopy(weight_dict)
 
     # for DN training
     if args.use_dn:
         weight_dict['loss_ce_dn'] = args.cls_loss_coef
-        weight_dict['loss_bbox_dn'] = args.seg_loss_coef
-        weight_dict['loss_giou_dn'] = args.iou_loss_coef
+        weight_dict['loss_segments_dn'] = args.seg_loss_coef
+        weight_dict['loss_iou_dn'] = args.iou_loss_coef
 
     clean_weight_dict = copy.deepcopy(weight_dict)
 
-    losses = ['labels', 'boxes']
+    losses = ['labels', 'segments']
     if args.use_KK:
         weight_dict["loss_KK"] = args.KK_loss_coef
         losses.append("KK")
