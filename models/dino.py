@@ -767,7 +767,7 @@ class SetCriterion(nn.Module):
         loss_map = {
             'labels': self.loss_labels,
             'cardinality': self.loss_cardinality,
-            'segments': self.loss_boxes,
+            'segments': self.loss_segments,
             'masks': self.loss_masks,
             "QQ": self.loss_QQ,
             "KK": self.loss_KK,
