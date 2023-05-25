@@ -27,7 +27,7 @@ aux_loss: True
 use_KK: False
 use_QQ: False
 
-use_dn: True
+use_dn: False
 
 KK_loss_coef: 5.0
 QQ_loss_coef: 5.0
