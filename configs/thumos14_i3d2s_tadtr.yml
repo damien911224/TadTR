@@ -17,8 +17,8 @@ epochs: 100 # 16
 lr_step: [70, 90] # [14]
 
 postproc_rank: 1 # 1
-postproc_cls_topk: 1 # 1
-postproc_ins_topk: 200 # 200
+postproc_cls_topk: 2 # 1
+postproc_ins_topk: 100 # 200
 nms_thr: 0.4 # 0.4
 
 act_reg: False
