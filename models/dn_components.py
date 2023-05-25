@@ -53,7 +53,7 @@ def prepare_for_cdn(dn_args, training, num_queries, num_classes, hidden_dim, lab
         known_indice = torch.nonzero(unmask_label + unmask_bbox)
         known_indice = known_indice.view(-1)
 
-        known_indice = known_indice.repeat(2 * dn_number, 1).view(-1)
+        # known_indice = known_indice.repeat(2 * dn_number, 1).view(-1)
         known_labels = labels.repeat(2 * dn_number, 1).view(-1)
         known_bid = batch_idx.repeat(2 * dn_number, 1).view(-1)
         known_bboxs = boxes.repeat(2 * dn_number, 1)
