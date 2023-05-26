@@ -596,8 +596,8 @@ def build_transformer(args):
         normalize_before=False,
         return_intermediate_dec=True,
         query_dim=2,
-        activation="prelu",
-        # activation="relu"
+        # activation="prelu",
+        activation="relu"
     )
 
 
