@@ -75,7 +75,7 @@ def main(args):
 
     best_metric = -1
     best_metric_txt = ''
-    for train_i in range(3):
+    for train_i in range(10):
         seed = np.random.randint(5000)
 
         # fix the seed
