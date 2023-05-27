@@ -151,13 +151,13 @@ def main(args):
         elif args.resume == 'best':
             args.resume = osp.join(cfg.output_dir, 'model_best.pth')
 
-        if 'model_best.pth' in os.listdir(cfg.output_dir) and not args.resume and not args.eval:
-            # for many times, my trained models were accidentally overwrittern by new models😂. So I add this to avoid that
-            logging.error(
-                'Danger! You are overwriting an existing output dir {}, probably because you forget to change the output_dir option'.format(cfg.output_dir))
-            confirm = input('confirm: y/n')
-            if confirm != 'y':
-                return
+        # if 'model_best.pth' in os.listdir(cfg.output_dir) and not args.resume and not args.eval:
+        #     # for many times, my trained models were accidentally overwrittern by new models😂. So I add this to avoid that
+        #     logging.error(
+        #         'Danger! You are overwriting an existing output dir {}, probably because you forget to change the output_dir option'.format(cfg.output_dir))
+        #     confirm = input('confirm: y/n')
+        #     if confirm != 'y':
+        #         return
 
         last_epoch = -1
 
