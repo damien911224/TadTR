@@ -308,14 +308,15 @@ def main(args):
 
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-        if utils.is_main_process():
-            logging.info('Training time {}'.format(total_time_str))
-            logging.info(str(
-                ['{}:{}'.format(k, v) for k, v in test_stats.items() if 'AP' in k or 'AR' in k]))
-            if smry_writer is not None:
-                smry_writer.close()
-        logging.info('best det result\n{}'.format(best_metric_txt))
-        logging.info(log_path)
+
+    if utils.is_main_process():
+        logging.info('Training time {}'.format(total_time_str))
+        logging.info(str(
+            ['{}:{}'.format(k, v) for k, v in test_stats.items() if 'AP' in k or 'AR' in k]))
+        if smry_writer is not None:
+            smry_writer.close()
+    logging.info('best det result\n{}'.format(best_metric_txt))
+    logging.info(log_path)
 
 
 if __name__ == '__main__':
