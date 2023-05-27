@@ -227,9 +227,9 @@ def main(args):
 
         return
 
+    exit()
     logging.info("Start training")
     start_time = time.time()
-
     for epoch in range(start_epoch, cfg.epochs):
         if (epoch + 1) % cfg.test_interval == 0:
             test_stats = test(
