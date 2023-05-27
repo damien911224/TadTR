@@ -227,7 +227,6 @@ def main(args):
 
         return
 
-    exit()
     logging.info("Start training")
     start_time = time.time()
     for epoch in range(start_epoch, cfg.epochs):
