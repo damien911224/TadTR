@@ -120,7 +120,7 @@ class Transformer(nn.Module):
 
         # query_embed = gen_sineembed_for_position(refpoint_embed)
         num_queries = refpoint_embed.shape[0]
-        if tgt is not None:
+        if tgt is None:
             if self.num_patterns == 0:
                 tgt = torch.zeros(num_queries, bs, self.d_model, device=refpoint_embed.device)
             else:
