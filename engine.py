@@ -16,6 +16,7 @@ import tqdm
 import logging
 
 import torch
+import clip
 
 import util.misc as utils
 from datasets.tad_eval import TADEvaluator
