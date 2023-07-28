@@ -276,7 +276,7 @@ def main(args):
 
         if (epoch + 1) % cfg.test_interval == 0:
             test_stats = test(
-                model, criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg, epoch=epoch
+                model, clip_model, criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg, epoch=epoch
             )
             prime_metric = 'mAP_raw'
             if test_stats[prime_metric] > best_metric:
