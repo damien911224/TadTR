@@ -7,5 +7,5 @@ thumos14:
     local_path: data/thumos14/I3D_2stream_Pth
     ft_info_file: 'data/thumos14/th14_i3d2s_ft_info.json'
   slowfast:
-    local_path: data/thumos14/slowfast_TadTR
+    local_path: data/thumos14/slowfast_npy
     ft_info_file: 'data/thumos14/th14_slowfast_ft_info.json'
