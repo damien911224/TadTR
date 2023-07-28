@@ -33,4 +33,4 @@ KK_loss_coef: 5.0
 QQ_loss_coef: 5.0
 
 # output
-output_dir: outputs/thumos14_i3d2s_tadtr
+output_dir: outputs/thumos14_slowfast_tadtr
