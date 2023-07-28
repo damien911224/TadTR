@@ -107,29 +107,29 @@ class Transformer(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-    def forward(self, src, mask, refpoint_embed, pos_embed, tgt=None, attn_mask=None):
+    def forward(self, src, mask, refpoint_embed, pos_embed, query_embed=None):
         # flatten NxCxHxW to HWxNxC
         bs, c, w = src.shape
-        src = src.flatten(2).permute(2, 0, 1)
-        pos_embed = pos_embed.flatten(2).permute(2, 0, 1)
-        if tgt is None:
-            refpoint_embed = refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
+        src = src.permute(2, 0, 1)
+        pos_embed = pos_embed.permute(2, 0, 1)
+        refpoint_embed = refpoint_embed.unsqueeze(1).repeat(1, bs, 1)
         mask = mask.flatten(1)
 
         memory, K_weights = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
 
         # query_embed = gen_sineembed_for_position(refpoint_embed)
         num_queries = refpoint_embed.shape[0]
-        if tgt is None:
-            if self.num_patterns == 0:
-                tgt = torch.zeros(num_queries, bs, self.d_model, device=refpoint_embed.device)
-            else:
-                tgt = self.patterns.weight[:, None, None, :].repeat(1, self.num_queries, bs, 1).flatten(0, 1)  # n_q*n_pat, bs, d_model
-                refpoint_embed = refpoint_embed.repeat(self.num_patterns, 1, 1)  # n_q*n_pat, bs, d_model
-                # import ipdb; ipdb.set_trace()
+        if self.num_patterns == 0:
+            tgt = torch.zeros(num_queries, bs, self.d_model, device=refpoint_embed.device)
+        else:
+            tgt = self.patterns.weight[:, None, None, :].repeat(1, self.num_queries, bs, 1).flatten(0,
+                                                                                                    1)  # n_q*n_pat, bs, d_model
+            refpoint_embed = refpoint_embed.repeat(self.num_patterns, 1, 1)  # n_q*n_pat, bs, d_model
+            # import ipdb; ipdb.set_trace()
+        if query_embed is not None:
+            tgt = tgt + query_embed.unsqueeze(0)
         hs, references, Q_weights, C_weights = \
-            self.decoder(tgt, memory, tgt_mask=attn_mask,
-                         memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
+            self.decoder(tgt, memory, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
 
         return hs, references, memory, Q_weights, K_weights, C_weights
 
@@ -163,7 +163,6 @@ class TransformerEncoder(nn.Module):
             output = self.norm(output)
 
         return output, torch.stack(inter_K_weights)
-        # return output, None
 
 
 class TransformerDecoder(nn.Module):
@@ -213,7 +212,6 @@ class TransformerDecoder(nn.Module):
                 memory_key_padding_mask: Optional[Tensor] = None,
                 pos: Optional[Tensor] = None,
                 refpoints_unsigmoid: Optional[Tensor] = None,  # num_queries, bs, 2
-                attn_mask: Optional[Tensor] = None
                 ):
         output = tgt
 
@@ -289,12 +287,6 @@ class TransformerDecoder(nn.Module):
                     torch.stack(inter_Q_weights),
                     torch.stack(inter_C_weights),
                 ]
-                # return [
-                #     torch.stack(intermediate).transpose(1, 2),
-                #     torch.stack(ref_points).transpose(1, 2),
-                #     None,
-                #     torch.stack(inter_C_weights),
-                # ]
             else:
                 return [
                     torch.stack(intermediate).transpose(1, 2),
@@ -337,6 +329,7 @@ class TransformerEncoderLayer(nn.Module):
         src2, K_weights = self.self_attn(q, k, value=src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask)
 
         # q = k = src.transpose(1, 0)
+        # # q = k = self.with_pos_embed(src, pos).transpose(1, 0)
         # src2, K_weights = self.self_attn(q, k, value=src.transpose(1, 0),
         #                                  attn_mask=src_mask, key_padding_mask=src_key_padding_mask)
         # src2 = src2.transpose(1, 0)
@@ -369,7 +362,6 @@ class TransformerDecoderLayer(nn.Module):
             self.sa_v_proj = nn.Linear(d_model, d_model)
             self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout, vdim=d_model)
             self.weight_buffer = nn.Linear(40, 40)
-            self.sa_output_proj = nn.Linear(d_model, d_model)
 
             # self.self_attn = ChainAttention(d_model*2, nhead, dropout=dropout, vdim=d_model)
 
@@ -413,7 +405,6 @@ class TransformerDecoderLayer(nn.Module):
         self.ca_v_proj = nn.Linear(d_model, d_model)
         self.ca_qpos_sine_proj = nn.Linear(d_model, d_model)
         self.cross_attn = MultiheadAttention(d_model * 2, nhead, dropout=dropout, vdim=d_model)
-        # self.cross_attn = MultiheadAttention(d_model, nhead, dropout=dropout, vdim=d_model)
 
         self.nhead = nhead
         self.rm_self_attn_decoder = rm_self_attn_decoder
@@ -513,6 +504,86 @@ class TransformerDecoderLayer(nn.Module):
             tgt = tgt + self.dropout1(tgt2)
             tgt = self.norm1(tgt)
 
+        if not self.rm_self_attn_decoder and False:
+            q_content = self.sa_QK_qcontent_proj(tgt)
+            k_content = self.sa_QK_kcontent_proj(memory)
+            v = self.sa_QK_v_proj(tgt)
+
+            num_queries, bs, n_model = q_content.shape
+            hw, _, _ = k_content.shape
+
+            k_pos = self.sa_QK_kpos_proj(pos)
+
+            # For the first decoder layer, we concatenate the positional embedding predicted from
+            # the object query (the positional embedding) into the original query (key) in DETR.
+            if is_first or self.keep_query_pos:
+                q_pos = self.sa_QK_qpos_proj(query_pos)
+                q = q_content + q_pos
+                k = k_content + k_pos
+            else:
+                q = q_content
+                k = k_content
+
+            q = q.view(num_queries, bs, self.nhead, n_model // self.nhead)
+            query_sine_embed_ = self.sa_QK_qpos_sine_proj(query_sine_embed)
+            query_sine_embed_ = query_sine_embed_.view(num_queries, bs, self.nhead, n_model // self.nhead)
+            q = torch.cat([q, query_sine_embed_], dim=3).view(num_queries, bs, n_model * 2)
+            k = k.view(hw, bs, self.nhead, n_model // self.nhead)
+            k_pos = k_pos.view(hw, bs, self.nhead, n_model // self.nhead)
+            k = torch.cat([k, k_pos], dim=3).view(hw, bs, n_model * 2)
+
+            src, QK_weights = self.QK_attn(query=k,
+                                           key=q,
+                                           value=v, attn_mask=tgt_mask,
+                                           key_padding_mask=tgt_key_padding_mask)
+
+            # print(torch.argsort(-QK_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+
+            src = memory + self.dropout0(src)
+            src = self.norm0(src)
+
+            src = self.sa_activation_1(self.sa_conv_norm_1(self.sa_conv_1(src.permute(1, 2, 0)).permute(2, 0, 1)))
+            src = self.sa_activation_2(self.sa_conv_norm_2(self.sa_conv_2(src.permute(1, 2, 0)).permute(2, 0, 1)))
+
+            q_content = self.sa_KQ_qcontent_proj(tgt)
+            k_content = self.sa_KQ_kcontent_proj(src)
+            v = self.sa_KQ_v_proj(src)
+
+            num_queries, bs, n_model = q_content.shape
+            hw, _, _ = k_content.shape
+
+            k_pos = self.sa_KQ_kpos_proj(pos)
+
+            # For the first decoder layer, we concatenate the positional embedding predicted from
+            # the object query (the positional embedding) into the original query (key) in DETR.
+            if is_first or self.keep_query_pos:
+                q_pos = self.sa_KQ_qpos_proj(query_pos)
+                q = q_content + q_pos
+                k = k_content + k_pos
+            else:
+                q = q_content
+                k = k_content
+
+            q = q.view(num_queries, bs, self.nhead, n_model // self.nhead)
+            query_sine_embed_ = self.sa_KQ_qpos_sine_proj(query_sine_embed)
+            query_sine_embed_ = query_sine_embed_.view(num_queries, bs, self.nhead, n_model // self.nhead)
+            q = torch.cat([q, query_sine_embed_], dim=3).view(num_queries, bs, n_model * 2)
+            k = k.view(hw, bs, self.nhead, n_model // self.nhead)
+            k_pos = k_pos.view(hw, bs, self.nhead, n_model // self.nhead)
+            k = torch.cat([k, k_pos], dim=3).view(hw, bs, n_model * 2)
+
+            tgt2, KQ_weights = self.KQ_attn(query=q,
+                                            key=k,
+                                            value=v, attn_mask=memory_mask,
+                                            key_padding_mask=memory_key_padding_mask)
+
+            Q_weights = torch.bmm(KQ_weights, QK_weights)
+
+            print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+
+            tgt = tgt + self.dropout1(tgt2)
+            tgt = self.norm1(tgt)
+
         if True:
             # ========== Begin of Cross-Attention =============
             # Apply projections here
@@ -540,11 +611,11 @@ class TransformerDecoderLayer(nn.Module):
             query_sine_embed_ = self.ca_qpos_sine_proj(query_sine_embed)
             query_sine_embed_ = query_sine_embed_.view(num_queries, bs, self.nhead, n_model // self.nhead)
             q = torch.cat([q, query_sine_embed_], dim=3).view(num_queries, bs, n_model * 2)
-            # q = (q + query_sine_embed_).view(num_queries, bs, n_model)
+            # q = torch.cat([q, q], dim=3).view(num_queries, bs, n_model * 2)
             k = k.view(hw, bs, self.nhead, n_model // self.nhead)
             k_pos = k_pos.view(hw, bs, self.nhead, n_model // self.nhead)
             k = torch.cat([k, k_pos], dim=3).view(hw, bs, n_model * 2)
-            # k = (k + k_pos).view(hw, bs, n_model)
+            # k = torch.cat([k, k], dim=3).view(hw, bs, n_model * 2)
 
             tgt2, C_weights = self.cross_attn(query=q,
                                               key=k,
@@ -572,12 +643,33 @@ class TransformerDecoderLayer(nn.Module):
             tgt = tgt + self.dropout2(tgt2)
             tgt = self.norm2(tgt)
 
+        if not self.rm_self_attn_decoder and False:
+            # Apply projections here
+            # shape: num_queries x batch_size x 256
+            q_content = self.sa_qcontent_proj(tgt)
+            if is_first or self.keep_query_pos:
+                q_pos = self.ca_qpos_proj(query_pos)
+                q = q_content + q_pos
+            else:
+                q = q_content
+            q = q.view(num_queries, bs, self.nhead, n_model // self.nhead)
+            q = torch.cat([q, query_sine_embed_], dim=3).view(num_queries, bs, n_model * 2)
+            v = self.sa_v_proj(tgt)
+
+            tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=memory_mask,
+                                             key_padding_mask=memory_key_padding_mask)
+            # ========== End of Self-Attention =============
+
+            print(torch.argsort(-Q_weights[0].detach().cpu(), dim=-1)[:10, :10].numpy())
+
+            tgt = tgt + self.dropout1(tgt2)
+            tgt = self.norm1(tgt)
+
         tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt))))
         tgt = tgt + self.dropout3(tgt2)
         tgt = self.norm3(tgt)
 
         return tgt, Q_weights, C_weights
-        # return tgt, None, C_weights
 
 
 def _get_clones(module, N):
@@ -596,8 +688,7 @@ def build_transformer(args):
         normalize_before=False,
         return_intermediate_dec=True,
         query_dim=2,
-        activation="prelu",
-        # activation="relu"
+        activation="prelu"
     )
 
 

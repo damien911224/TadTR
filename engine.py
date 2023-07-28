@@ -31,7 +31,9 @@ import matplotlib.pyplot as plt
 # from util.flop_count import flop_count
 from thop import profile, clever_format
 
-def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
+def train_one_epoch(model: torch.nn.Module,
+                    clip_model,
+                    criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
                     device: torch.device, epoch: int, cfg, max_norm: float = 0):
     model.train()
@@ -49,8 +51,13 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         targets = [{k: v.to(device) if k in ['segments', 'labels']
                     else v for k, v in t.items()} for t in targets]
 
+        with torch.no_grad():
+            queries = ["all actions"]
+            queries = clip.tokenize(queries).cuda()
+            queries = (clip_model.encode_text(queries)).float().detach().repeat(len(samples.tensors), 1)
+
         # outputs = model((samples.tensors, samples.mask))
-        outputs = model((samples.tensors, samples.mask), targets=targets)
+        outputs = model((samples.tensors, samples.mask), targets=targets, queries=queries)
         loss_dict = criterion(outputs, targets)
         weight_dict = criterion.weight_dict
         losses = sum(loss_dict[k] * weight_dict[k]
@@ -106,7 +113,7 @@ def to_device(t, device):
 
 
 @torch.no_grad()
-def test(model, criterion, postprocessor, data_loader, base_ds, device, output_dir, cfg, subset='val', epoch=None, test_mode=False):
+def test(model, clip_model, criterion, postprocessor, data_loader, base_ds, device, output_dir, cfg, subset='val', epoch=None, test_mode=False):
     '''
     Run inference and evaluation. Do not compute loss
     test_mode: indicates that we are evaluating specific epoch during testing

@@ -108,7 +108,7 @@ class TADDataset(torch.utils.data.Dataset):
         else:
             return self._get_feature_data(index)
 
-    def _get_feature_data(self,index):
+    def _get_feature_data(self, index):
         video_name = self.video_list[index]
         # directly fetch from memory
         if video_name in self.cached_data:

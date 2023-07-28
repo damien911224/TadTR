@@ -48,6 +48,153 @@ def get_norm(norm_type, dim, num_groups=None):
     else:
         raise NotImplementedError
 
+class DABDETR(nn.Module):
+    """ This is the TadTR module that performs temporal action detection """
+
+    def __init__(self, position_embedding, transformer, num_classes, num_queries,
+                 aux_loss=True, with_segment_refine=True, with_act_reg=False,
+                 random_refpoints_xy=True, query_dim=2, clip_dim=512):
+        """ Initializes the model.
+        Parameters:
+            backbone: torch module of the backbone to be used. See backbone.py
+            transformer: torch module of the transformer architecture. See deformable_transformer.py
+            num_classes: number of action classes
+            num_queries: number of action queries, ie detection slot. This is the maximal number of actions
+                         TadTR can detect in a single video.
+            aux_loss: True if auxiliary decoding losses (loss at each decoder layer) are to be used.
+            with_segment_refine: iterative segment refinement
+        """
+        super().__init__()
+        self.num_queries = num_queries
+        self.transformer = transformer
+        hidden_dim = transformer.d_model
+        self.class_embed = nn.Linear(hidden_dim, num_classes)
+        self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
+        self.query_embed = MLP(clip_dim, hidden_dim, hidden_dim, 3)
+        # self.recon_embed = MLP(hidden_dim, hidden_dim, hidden_dim, 3)
+        # self.token_embed = MLP(clip_dim, hidden_dim, hidden_dim, 3)
+
+        self.query_dim = query_dim
+
+        self.refpoint_embed = nn.Embedding(num_queries, query_dim)
+        self.random_refpoints_xy = random_refpoints_xy
+        if random_refpoints_xy:
+            # import ipdb; ipdb.set_trace()
+            self.refpoint_embed.weight.data[:, :1].uniform_(0, 1)
+            self.refpoint_embed.weight.data[:, :1] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :1])
+            self.refpoint_embed.weight.data[:, :1].requires_grad = False
+
+            # self.refpoint_embed.weight.data[:, :2].uniform_(0, 1)
+            # self.refpoint_embed.weight.data[:, :2] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :2])
+            # self.refpoint_embed.weight.data[:, :2].requires_grad = False
+
+        self.input_proj = nn.ModuleList([
+            nn.Sequential(
+                nn.Conv1d(2304, hidden_dim, kernel_size=1),
+                # nn.Conv1d(2048, hidden_dim, kernel_size=1),
+                nn.GroupNorm(32, hidden_dim),
+            )])
+        # self.backbone = backbone
+        self.position_embedding = position_embedding
+        self.aux_loss = aux_loss
+        self.with_segment_refine = with_segment_refine
+        self.with_act_reg = with_act_reg
+
+        prior_prob = 0.01
+        bias_value = -math.log((1 - prior_prob) / prior_prob)
+        self.class_embed.bias.data = torch.ones(num_classes) * bias_value
+        nn.init.constant_(self.segment_embed.layers[-1].weight.data, 0)
+        nn.init.constant_(self.segment_embed.layers[-1].bias.data, 0)
+        for proj in self.input_proj:
+            nn.init.xavier_uniform_(proj[0].weight, gain=1)
+            nn.init.constant_(proj[0].bias, 0)
+
+        num_pred = transformer.decoder.num_layers
+        if with_segment_refine:
+            # hack implementation for segment refinement
+            self.transformer.decoder.segment_embed = self.segment_embed
+
+    def _to_roi_align_format(self, rois, T, scale_factor=1):
+        '''Convert RoIs to RoIAlign format.
+        Params:
+            RoIs: normalized segments coordinates, shape (batch_size, num_segments, 4)
+            T: length of the video feature sequence
+        '''
+        # transform to absolute axis
+        B, N = rois.shape[:2]
+        rois_center = rois[:, :, 0:1]
+        rois_size = rois[:, :, 1:2] * scale_factor
+        rois_abs = torch.cat(
+            (rois_center - rois_size/2, rois_center + rois_size/2), dim=2) * T
+        # expand the RoIs
+        rois_abs = torch.clamp(rois_abs, min=0, max=T)  # (N, T, 2)
+        # add batch index
+        batch_ind = torch.arange(0, B).view((B, 1, 1)).to(rois_abs.device)
+        batch_ind = batch_ind.repeat(1, N, 1)
+        rois_abs = torch.cat((batch_ind, rois_abs), dim=2)
+        # NOTE: stop gradient here to stablize training
+        return rois_abs.view((B*N, 3)).detach()
+
+    def forward(self, samples, queries=None):
+        """ The forward expects a NestedTensor, which consists of:
+               - samples.tensors: batched images, of shape [batch_size x 3 x H x W]
+               - samples.mask: a binary mask of shape [batch_size x H x W], containing 1 on padded pixels
+            or a tuple of tensors and mask
+
+            It returns a dict with the following elements:
+               - "pred_logits": the classification logits (including no-action) for all queries.
+                                Shape= [batch_size x num_queries x (num_classes + 1)]
+               - "pred_segments": The normalized segments coordinates for all queries, represented as
+                               (center, width). These values are normalized in [0, 1],
+                               relative to the size of each individual image (disregarding possible padding).
+                               See PostProcess for information on how to retrieve the unnormalized segment.
+               - "aux_outputs": Optional, only returned when auxilary losses are activated. It is a list of
+                                dictionnaries containing the two above keys for each decoder layer.
+        """
+        if not isinstance(samples, NestedTensor):
+            if isinstance(samples, (list, tuple)):
+                samples = NestedTensor(*samples)
+            else:
+                samples = nested_tensor_from_tensor_list(samples)  # (n, c, t)
+
+        pos = self.position_embedding(samples)
+        src, mask = samples.tensors, samples.mask
+        src = self.input_proj[0](src)
+        if queries is not None:
+            query_embed = self.query_embed(queries)
+            # token_embed = self.token_embed(queries)
+            # src = torch.concat((src, token_embed.unsqueeze(-1)), dim=-1)
+            # pos = torch.concat((pos, torch.zeros_like(pos[..., 0].unsqueeze(-1))), dim=-1)
+            # mask = torch.concat((mask, torch.ones_like(mask[..., 0].unsqueeze(-1))), dim=-1)
+        else:
+            query_embed = None
+
+        embedweight = self.refpoint_embed.weight
+        hs, reference, memory, Q_weights, K_weights, C_weights = \
+            self.transformer(src, mask, embedweight, pos, query_embed)
+
+        reference_before_sigmoid = inverse_sigmoid(reference)
+        tmp = self.segment_embed(hs)
+        tmp[..., :self.query_dim] += reference_before_sigmoid
+        outputs_coord = tmp.sigmoid()
+
+        outputs_class = self.class_embed(hs)
+        # outputs_recon = self.recon_embed(hs)
+
+        out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
+               'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights, 'queries': query_embed}
+
+        if self.aux_loss:
+            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
+
+        return out
+
+    @torch.jit.unused
+    def _set_aux_loss(self, outputs_class, outputs_coord):
+        # this is a workaround to make torchscript happy, as torchscript
+        # doesn't support dictionary with non-homogeneous values, such
+        # as a dict having both a Tensor and a list.
+        return [{'pred_logits': a, 'pred_segments': b} for a, b in zip(outputs_class[:-1], outputs_coord[:-1])]
 
 class TadTR(nn.Module):
     """ This is the TadTR module that performs temporal action detection """
@@ -768,7 +915,7 @@ def build(args):
     pos_embed = build_position_encoding(args)
     transformer = build_transformer(args)
 
-    model = TadTR(
+    model = DABDETR(
         pos_embed,
         transformer,
         num_classes=num_classes,
