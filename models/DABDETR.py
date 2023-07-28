@@ -196,6 +196,7 @@ class DABDETR(nn.Module):
         # as a dict having both a Tensor and a list.
         return [{'pred_logits': a, 'pred_segments': b} for a, b in zip(outputs_class[:-1], outputs_coord[:-1])]
 
+
 class TadTR(nn.Module):
     """ This is the TadTR module that performs temporal action detection """
 
