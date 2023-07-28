@@ -98,7 +98,7 @@ def main(args):
 
     model, criterion, postprocessors = build_model(cfg)
 
-    checkpoint = torch.load("ckpt/kinetics_slowfast_test_IoU_semantic_cond/pretrain/epoch_024.pth.tar")
+    checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_slowfast_test_IoU/pretrain/epoch_024.pth.tar")
     filtered_ckpt = dict()
     for k, v in checkpoint['state_dict_ema'].items():
         if "class_embed" not in k:
