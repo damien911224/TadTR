@@ -9,7 +9,7 @@ dataset_name: thumos14
 feature: slowfast
 feature_dim: 2304
 online_slice: True
-slice_len: 192
+slice_len: 128
 slice_overlap: 0.75
 test_slice_overlap: 0.25
 
