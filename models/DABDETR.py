@@ -70,7 +70,7 @@ class DABDETR(nn.Module):
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
-        self.query_embed = MLP(clip_dim, hidden_dim, hidden_dim, 3)
+        # self.query_embed = MLP(clip_dim, hidden_dim, hidden_dim, 3)
         # self.recon_embed = MLP(hidden_dim, hidden_dim, hidden_dim, 3)
         # self.token_embed = MLP(clip_dim, hidden_dim, hidden_dim, 3)
 
@@ -90,8 +90,8 @@ class DABDETR(nn.Module):
 
         self.input_proj = nn.ModuleList([
             nn.Sequential(
-                nn.Conv1d(2304, hidden_dim, kernel_size=1),
-                # nn.Conv1d(2048, hidden_dim, kernel_size=1),
+                # nn.Conv1d(2304, hidden_dim, kernel_size=1),
+                nn.Conv1d(2048, hidden_dim, kernel_size=1),
                 nn.GroupNorm(32, hidden_dim),
             )])
         # self.backbone = backbone
