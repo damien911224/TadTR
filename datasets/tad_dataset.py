@@ -99,6 +99,7 @@ class TADDataset(torch.utils.data.Dataset):
             if not self.online_slice:
                 self.cached_data = self.all_video_data
 
+
     def __len__(self):
         return len(self.video_list)
 
