@@ -25,7 +25,7 @@ from torch import nn, Tensor
 from torch.nn.init import xavier_uniform_, constant_, uniform_, normal_
 
 from util.misc import inverse_sigmoid
-from .ops.deform_attn.modules import MSDeformAttn
+from .ops.temporal_deform_attn import DeformAttn
 
 class DeformableTransformer(nn.Module):
     def __init__(self, d_model=256, nhead=8,
