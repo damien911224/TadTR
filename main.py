@@ -98,13 +98,13 @@ def main(args):
 
     model, criterion, postprocessors = build_model(cfg)
 
-    checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_v1_all/pretrain/epoch_019.pth.tar")
-    filtered_ckpt = dict()
-    for k, v in checkpoint['state_dict'].items():
-        if "class_embed" not in k and "query_embed" not in k:
-            filtered_ckpt[k] = v
-    model.load_state_dict(filtered_ckpt, strict=False)
-    del checkpoint
+    # checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_v1_all/pretrain/epoch_019.pth.tar")
+    # filtered_ckpt = dict()
+    # for k, v in checkpoint['state_dict'].items():
+    #     if "class_embed" not in k and "query_embed" not in k:
+    #         filtered_ckpt[k] = v
+    # model.load_state_dict(filtered_ckpt, strict=False)
+    # del checkpoint
 
     model.to(device)
     model_without_ddp = model
