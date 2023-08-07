@@ -52,9 +52,8 @@ def get_norm(norm_type, dim, num_groups=None):
 class TadTR(nn.Module):
     """ This is the TadTR module that performs temporal action detection """
 
-    def __init__(self, position_embedding, transformer, num_classes, num_queries,
-                 aux_loss=True, with_segment_refine=True, with_act_reg=True,
-                 random_refpoints_xy=True, query_dim=2):
+    def __init__(self, position_embedding, transformer, num_classes, num_queries, aux_loss=True,
+                 with_segment_refine=True, with_act_reg=False, clip_dim=512):
         """ Initializes the model.
         Parameters:
             backbone: torch module of the backbone to be used. See backbone.py
@@ -71,16 +70,12 @@ class TadTR(nn.Module):
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
-        self.query_embed = nn.Embedding(num_queries, hidden_dim*2)
-        self.tgt_embed = nn.Embedding(num_queries, hidden_dim)
-        self.refpoint_embed = nn.Embedding(num_queries, 2)
-
-        self.query_dim = query_dim
-        self.random_refpoints_xy = random_refpoints_xy
+        self.query_embed = nn.Embedding(num_queries, hidden_dim * 2)
+        self.clip_embed = MLP(clip_dim, hidden_dim, hidden_dim, 3)
 
         self.input_proj = nn.ModuleList([
             nn.Sequential(
-                nn.Conv1d(2048, hidden_dim, kernel_size=1),
+                nn.Conv1d(2304, hidden_dim, kernel_size=1),
                 nn.GroupNorm(32, hidden_dim),
             )])
         # self.backbone = backbone
@@ -94,10 +89,6 @@ class TadTR(nn.Module):
         self.class_embed.bias.data = torch.ones(num_classes) * bias_value
         nn.init.constant_(self.segment_embed.layers[-1].weight.data, 0)
         nn.init.constant_(self.segment_embed.layers[-1].bias.data, 0)
-        # nn.init.constant_(self.S_segment_embed.layers[-1].weight.data, 0)
-        # nn.init.constant_(self.S_segment_embed.layers[-1].bias.data, 0)
-        # nn.init.constant_(self.E_segment_embed.layers[-1].weight.data, 0)
-        # nn.init.constant_(self.E_segment_embed.layers[-1].bias.data, 0)
         for proj in self.input_proj:
             nn.init.xavier_uniform_(proj[0].weight, gain=1)
             nn.init.constant_(proj[0].bias, 0)
@@ -108,17 +99,8 @@ class TadTR(nn.Module):
             self.segment_embed = _get_clones(self.segment_embed, num_pred)
             nn.init.constant_(
                 self.segment_embed[0].layers[-1].bias.data[1:], -2.0)
-            # self.S_segment_embed = _get_clones(self.S_segment_embed, num_pred)
-            # nn.init.constant_(
-            #     self.S_segment_embed[0].layers[-1].bias.data[1:], -2.0)
-            # self.E_segment_embed = _get_clones(self.E_segment_embed, num_pred)
-            # nn.init.constant_(
-            #     self.E_segment_embed[0].layers[-1].bias.data[1:], -2.0)
             # hack implementation for segment refinement
             self.transformer.decoder.segment_embed = self.segment_embed
-            # self.transformer.decoder.S_segment_embed = self.S_segment_embed
-            # self.transformer.decoder.E_segment_embed = self.E_segment_embed
-            self.transformer.decoder.class_embed = self.class_embed
         else:
             nn.init.constant_(
                 self.segment_embed.layers[-1].bias.data[1:], -2.0)
@@ -127,29 +109,6 @@ class TadTR(nn.Module):
             self.segment_embed = nn.ModuleList(
                 [self.segment_embed for _ in range(num_pred)])
             self.transformer.decoder.segment_embed = None
-
-        if with_act_reg:
-            # RoIAlign params
-            self.roi_size = 16
-            self.roi_scale = 0
-            self.roi_extractor = ROIAlign(self.roi_size, self.roi_scale)
-            self.actionness_pred = nn.Sequential(
-                nn.Linear(self.roi_size * hidden_dim, hidden_dim),
-                nn.ReLU(inplace=True),
-                nn.Linear(hidden_dim, hidden_dim),
-                nn.ReLU(inplace=True),
-                nn.Linear(hidden_dim, 1),
-                nn.Sigmoid()
-            )
-
-        T, C = 100, hidden_dim
-        self.s_embeds = nn.Embedding(T, C // 2)
-        self.e_embeds = nn.Embedding(T, C // 2)
-        nn.init.uniform_(self.s_embeds.weight)
-        nn.init.uniform_(self.e_embeds.weight)
-
-        self.level_embed = nn.Parameter(torch.Tensor(5, hidden_dim))
-        nn.init.normal_(self.level_embed)
 
     def _to_roi_align_format(self, rois, T, scale_factor=1):
         '''Convert RoIs to RoIAlign format.
@@ -162,7 +121,7 @@ class TadTR(nn.Module):
         rois_center = rois[:, :, 0:1]
         rois_size = rois[:, :, 1:2] * scale_factor
         rois_abs = torch.cat(
-            (rois_center - rois_size/2, rois_center + rois_size/2), dim=2) * T
+            (rois_center - rois_size / 2, rois_center + rois_size / 2), dim=2) * T
         # expand the RoIs
         rois_abs = torch.clamp(rois_abs, min=0, max=T)  # (N, T, 2)
         # add batch index
@@ -170,9 +129,9 @@ class TadTR(nn.Module):
         batch_ind = batch_ind.repeat(1, N, 1)
         rois_abs = torch.cat((batch_ind, rois_abs), dim=2)
         # NOTE: stop gradient here to stablize training
-        return rois_abs.view((B*N, 3)).detach()
+        return rois_abs.view((B * N, 3)).detach()
 
-    def forward(self, samples):
+    def forward(self, samples, queries=None):
         """ The forward expects a NestedTensor, which consists of:
                - samples.tensors: batched images, of shape [batch_size x 3 x H x W]
                - samples.mask: a binary mask of shape [batch_size x H x W], containing 1 on padded pixels
@@ -199,57 +158,13 @@ class TadTR(nn.Module):
         srcs = [self.input_proj[0](src)]
         masks = [mask]
 
-        # query_embeds = self.query_embed.weight
+        query_embeds = self.query_embed.weight
+        if queries is not None:
+            clip_embeds = self.clip_embed(queries)
+        else:
+            clip_embeds = None
 
-        input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
-
-        hs, init_reference, inter_references, memory, \
-        Q_weights, K_weights, C_weights, K_in, K_out, Q_in, Q_out, C_in, C_out = \
-            self.transformer(srcs, masks, pos, query_embeds)
-
-        # T = srcs[0].size(2)
-        # tgt_pos = []
-        # points = []
-        # scales = []
-        # tgt_lens = []
-        # for l in range(5):
-        #     t = T / (2 ** l)
-        #     pos_1d_l = F.interpolate(pos[0], size=t, mode="linear") + self.level_embed[l].view(1, 1, -1)
-        #     tgt_pos.append(pos_1d_l)
-        #     this_points = torch.linspace(0.5, t - 0.5, t, dtype=torch.float32, device=src.device) / t
-        #     points.append(this_points)
-        #     this_scales = torch.ones_like(this_points) * (1.0 / (2 ** (5 - l - 1)))
-        #     scales.append(this_scales)
-        #     tgt_lens.append(t)
-        #
-        # tgt_pos = torch.concat(tgt_pos, dim=1)
-        # tgt_lens = torch.as_tensor(tgt_lens, dtype=torch.long, device=src_flatten.device)
-        # tgt_level_start_index = torch.cat((tgt_lens.new_zeros((1,)), tgt_lens.cumsum(0)[:-1]))
-        # points = torch.cat(points, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        # scales = torch.cat(scales, dim=0)[None, :, None].repeat(features[0].size(0), 1, 1)
-        # refpoint_embed = torch.concat((anchors, points, scales), dim=-1)
-        # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(features[0].size(0), 1, 1)
-        # query_embeds = torch.cat((input_query_label, refpoint_embed), dim=2)
-
-        # hs, init_reference, inter_references, memory = self.transformer(
-        #     srcs, masks, pos, query_embeds, tgt_pos=[tgt_pos, tgt_lens, tgt_level_start_index])
-
-        # T = self.s_embeds.weight.size(0)
-        # s_embeds = self.s_embeds.weight.unsqueeze(1).repeat(1, T, 1)
-        # e_embeds = self.e_embeds.weight.unsqueeze(0).repeat(T, 1, 1)
-        # raw_pos_2d = torch.cat((s_embeds, e_embeds), dim=-1).permute(2, 0, 1).unsqueeze(0).to(src.device)
-        # n, c, t = src.shape
-        # pos_2d = [F.interpolate(raw_pos_2d, size=(t, t), mode="bilinear")]
-        #
-        # hs, init_reference, inter_references, memory = self.transformer(
-        #     srcs, masks, pos, query_embeds, reference_points=refpoint_embed)
-
-        # input_query_label = self.tgt_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        # input_query_bbox = self.refpoint_embed.weight.unsqueeze(0).repeat(srcs[0].size(0), 1, 1)
-        # query_embeds = torch.cat((input_query_label, input_query_bbox), dim=2)
-        # hs, init_reference, inter_references, memory = self.transformer(srcs, pos, pos_2d, query_embed=query_embeds)
+        hs, init_reference, inter_references, memory = self.transformer(srcs, masks, pos, query_embeds, clip_embeds)
 
         outputs_classes = []
         outputs_coords = []
@@ -261,7 +176,6 @@ class TadTR(nn.Module):
                 reference = inter_references[lvl - 1]
 
             reference = inverse_sigmoid(reference)
-
             outputs_class = self.class_embed[lvl](hs[lvl])
             tmp = self.segment_embed[lvl](hs[lvl])
             # the l-th layer (l >= 2)
@@ -271,56 +185,16 @@ class TadTR(nn.Module):
             else:
                 assert reference.shape[-1] == 1
                 tmp[..., 0] += reference[..., 0]
-
-            # S_hs = hs[lvl][..., :self.transformer.d_model]
-            # E_hs = hs[lvl][..., self.transformer.d_model:self.transformer.d_model * 2]
-            # C_hs = hs[lvl][..., self.transformer.d_model * 2:]
-            #
-            # outputs_class = self.class_embed[lvl](C_hs)
-            #
-            # # S_tmp = self.S_segment_embed[lvl](S_hs)
-            # # E_tmp = self.E_segment_embed[lvl](E_hs)
-            # E_tmp = self.S_segment_embed[lvl](S_hs)
-            # S_tmp = self.E_segment_embed[lvl](E_hs)
-            # tmp = reference
-            # # the l-th layer (l >= 2)
-            # if reference.shape[-1] == 2:
-            #     tmp[..., 0] = tmp[..., 0] + S_tmp.squeeze(-1)
-            #     tmp[..., 1] = tmp[..., 1] + E_tmp.squeeze(-1)
-            #
-            # outputs_coord = segment_ops.segment_t1t2_to_cw(tmp.sigmoid())
-
             outputs_coord = tmp.sigmoid()
             outputs_classes.append(outputs_class)
             outputs_coords.append(outputs_coord)
         outputs_class = torch.stack(outputs_classes)
         outputs_coord = torch.stack(outputs_coords)
 
-        if not self.with_act_reg:
-            out = {'pred_logits': outputs_class[-1],
-                   'pred_segments': outputs_coord[-1],
-                   'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights,
-                   'Q_in': Q_in, 'Q_out': Q_out, 'K_in': K_in, 'K_out': K_out, 'C_in': C_in, 'C_out': C_out}
-        else:
-            # perform RoIAlign
-            B, N = outputs_coord[-1].shape[:2]
-            origin_feat = memory
-
-            rois = self._to_roi_align_format(
-                outputs_coord[-1], origin_feat.shape[2], scale_factor=1.5)
-            roi_features = self.roi_extractor(origin_feat, rois)
-            roi_features = roi_features.view((B, N, -1))
-            pred_actionness = self.actionness_pred(roi_features)
-
-            last_layer_cls = outputs_class[-1]
-            last_layer_reg = outputs_coord[-1]
-
-            out = {'pred_logits': last_layer_cls,
-                   'pred_segments': last_layer_reg, 'pred_actionness': pred_actionness}
+        out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1]}
 
         if self.aux_loss:
-            out['aux_outputs'] = self._set_aux_loss(
-                outputs_class, outputs_coord)
+            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
 
         return out
 
