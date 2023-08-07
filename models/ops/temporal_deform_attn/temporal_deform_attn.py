@@ -134,22 +134,15 @@ class DeformAttn(nn.Module):
             sampling_locations = reference_points[:, :, None, :, None, :1] \
                 + sampling_offsets / self.n_points * \
                 reference_points[:, :, None, :, None, 1:] * 0.5
-        elif reference_points.shape[-1] == 3:
-            # cw_refpoints = torch.stack(((reference_points[..., 0] + reference_points[..., 1]) / 2,
-            #                              reference_points[..., 1] - reference_points[..., 0]), dim=-1)
-            # offsets are related with the size of the reference segment
-            sampling_locations = reference_points[:, :, None, :, None, :1] \
-                + sampling_offsets / self.n_points * \
-                reference_points[:, :, None, :, None, 1:-1] * 0.5
         else:
             raise ValueError(
                 'Last dim of reference_points must be 1 or 2, but get {} instead.'.format(reference_points.shape[-1]))
 
         sampling_locations = torch.cat((sampling_locations, torch.ones_like(sampling_locations)*0.5), dim=-1)
         input_spatial_shapes = torch.stack((torch.ones_like(input_temporal_lens), input_temporal_lens), dim=-1)
-        # output = deform_attn_core_pytorch(value, input_spatial_shapes, sampling_locations, attention_weights)
-        output = MSDeformAttnFunction.apply(value, input_spatial_shapes, input_level_start_index,
-                                            sampling_locations, attention_weights, self.seq2col_step)
+        output = deform_attn_core_pytorch(value, input_spatial_shapes, sampling_locations, attention_weights)
+        # output = MSDeformAttnFunction.apply(value, input_spatial_shapes, input_level_start_index,
+        #                                     sampling_locations, attention_weights, self.seq2col_step)
         output = self.output_proj(output)
         return output, (sampling_locations, attention_weights)
 
