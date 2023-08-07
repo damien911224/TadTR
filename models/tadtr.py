@@ -158,12 +158,8 @@ class TadTR(nn.Module):
         masks = [mask]
 
         query_embeds = self.query_embed.weight
-        if queries is not None:
-            clip_embeds = self.clip_embed(queries)
-        else:
-            clip_embeds = None
 
-        hs, init_reference, inter_references, memory = self.transformer(srcs, masks, pos, query_embeds, clip_embeds)
+        hs, init_reference, inter_references, memory = self.transformer(srcs, masks, pos, query_embeds)
 
         outputs_classes = []
         outputs_coords = []
