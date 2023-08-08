@@ -101,7 +101,8 @@ def main(args):
     checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_v1_scale_L384/pretrain/epoch_019.pth.tar")
     filtered_ckpt = dict()
     for k, v in checkpoint['state_dict'].items():
-        if "class_embed" not in k and "refpoint_embed" not in k and "query_embed" not in k:
+        if "class_embed" not in k and  "query_embed" not in k:
+        # if "class_embed" not in k and "refpoint_embed" not in k and "query_embed" not in k:
             filtered_ckpt[k] = v
     model.load_state_dict(filtered_ckpt, strict=False)
     del checkpoint
