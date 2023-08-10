@@ -31,8 +31,8 @@ from .custom_loss import sigmoid_focal_loss
 from .deformable_transformer import build_deformable_transformer
 from opts import cfg
 
-if not cfg.disable_cuda:
-    from models.ops.roi_align import ROIAlign
+# if not cfg.disable_cuda:
+#     from models.ops.roi_align import ROIAlign
 
 
 def _get_clones(module, N):
