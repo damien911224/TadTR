@@ -98,7 +98,7 @@ def main(args):
 
     model, criterion, postprocessors = build_model(cfg)
 
-    checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_v1_scale_L384/pretrain/epoch_019.pth.tar")
+    checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_v1_S8_all_deform/pretrain/epoch_005.pth.tar")
     filtered_ckpt = dict()
     for k, v in checkpoint['state_dict'].items():
         # if "class_embed" not in k and  "query_embed" not in k:
