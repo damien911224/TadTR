@@ -5,8 +5,8 @@
 
 '''build models'''
 
-# from .tadtr import build
-from .DABDETR import build
+from .tadtr import build
+# from .DABDETR import build
 # from .dino import build
 
 def build_model(args):

@@ -233,6 +233,13 @@ class SetCriterion(nn.Module):
         src_logits = outputs['pred_logits']
 
         idx = self._get_src_permutation_idx(indices)
+
+        src_segments = outputs['pred_segments'][idx]
+        target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        IoUs = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments),
+                                       segment_ops.segment_cw_to_t1t2(target_segments))
+        IoUs = torch.diag(IoUs).detach()
+
         target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
         target_classes = torch.full(src_logits.shape[:2], self.num_classes,
                                     dtype=torch.int64, device=src_logits.device)
@@ -242,8 +249,11 @@ class SetCriterion(nn.Module):
                                             dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
         target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
 
-        target_classes_onehot = target_classes_onehot[:,:,:-1]
-        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments, alpha=self.focal_alpha, gamma=2) * src_logits.shape[1]  # nq
+        target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
+
+        target_classes_onehot = target_classes_onehot[:, :, :-1]
+        loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments, alpha=self.focal_alpha, gamma=2) * \
+                  src_logits.shape[1]  # nq
         losses = {'loss_ce': loss_ce}
 
         if log:
