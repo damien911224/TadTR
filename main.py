@@ -94,15 +94,15 @@ def main(args):
         raise NotImplementedError
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    clip_model, preprocess = clip.load("ViT-B/32", device=device)
+    clip_model, preprocess = clip.load("ViT-B/16", device=device)
 
     model, criterion, postprocessors = build_model(cfg)
 
     checkpoint = torch.load("/mnt/hdd0/VAD/ckpt/kinetics_i3d_v1_S8_scale_deform/pretrain/epoch_010.pth.tar")
     filtered_ckpt = dict()
     for k, v in checkpoint['state_dict'].items():
-        # if "class_embed" not in k:
-        if "class_embed" not in k and "clip_embed" not in k:
+        if "class_embed" not in k:
+        # if "class_embed" not in k and "clip_embed" not in k:
         # if "class_embed" not in k and "query_embed" not in k:
         # if "class_embed" not in k and "refpoint_embed" not in k and "query_embed" not in k:
             filtered_ckpt[k] = v
