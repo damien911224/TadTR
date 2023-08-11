@@ -102,7 +102,7 @@ def main(args):
     filtered_ckpt = dict()
     for k, v in checkpoint['state_dict'].items():
         if "class_embed" not in k:
-        if "class_embed" not in k and "query_embed" not in k:
+        # if "class_embed" not in k and "query_embed" not in k:
         # if "class_embed" not in k and "refpoint_embed" not in k and "query_embed" not in k:
             filtered_ckpt[k] = v
     model.load_state_dict(filtered_ckpt, strict=False)
