@@ -119,8 +119,8 @@ class DeformableTransformer(nn.Module):
         tgt = tgt.unsqueeze(0).expand(bs, -1, -1)
         if clip_embed is not None:
             _, nq, _ = tgt.shape
-            # tgt = clip_embed.unsqueeze(1).expand(-1, nq, -1)
-            tgt = tgt + clip_embed.unsqueeze(1).expand(-1, nq, -1)
+            tgt = clip_embed.unsqueeze(1).expand(-1, nq, -1)
+            # tgt = tgt + clip_embed.unsqueeze(1).expand(-1, nq, -1)
         reference_points = self.reference_points(query_embed).sigmoid()
         init_reference_out = reference_points
 
