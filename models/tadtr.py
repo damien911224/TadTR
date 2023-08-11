@@ -71,6 +71,7 @@ class TadTR(nn.Module):
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
         self.query_embed = nn.Embedding(num_queries, hidden_dim * 2)
+        self.clip_embed = MLP(clip_dim, hidden_dim, 2, 3)
 
         self.input_proj = nn.ModuleList([
             nn.Sequential(
@@ -159,7 +160,7 @@ class TadTR(nn.Module):
 
         query_embeds = self.query_embed.weight
 
-        hs, init_reference, inter_references, memory = self.transformer(srcs, masks, pos, query_embeds)
+        hs, init_reference, inter_references, memory = self.transformer(srcs, masks, pos, query_embeds, clip_embed=queries)
 
         outputs_classes = []
         outputs_coords = []
