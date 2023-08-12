@@ -71,7 +71,7 @@ class TadTR(nn.Module):
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
         self.query_embed = nn.Embedding(num_queries, hidden_dim * 2)
-        self.clip_embed = MLP(clip_dim, hidden_dim, hidden_dim, 3)
+        # self.clip_embed = MLP(clip_dim, hidden_dim, hidden_dim, 3)
 
         self.input_proj = nn.ModuleList([
             nn.Sequential(
@@ -254,6 +254,7 @@ class SetCriterion(nn.Module):
                                             dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
         target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
 
+        target_classes_onehot[idx] = target_classes_onehot[idx]
         target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
 
         target_classes_onehot = target_classes_onehot[:, :, :-1]
