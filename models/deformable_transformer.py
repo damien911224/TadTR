@@ -342,7 +342,7 @@ def build_deformable_transformer(args):
         num_decoder_layers=args.dec_layers,
         dim_feedforward=args.dim_feedforward,
         dropout=args.dropout,
-        activation="prelu",
+        activation="relu",
         return_intermediate_dec=True,
         num_feature_levels=1,
         dec_n_points=args.dec_n_points,
