@@ -327,6 +327,8 @@ def _get_activation_fn(activation):
         return F.gelu
     if activation == "glu":
         return F.glu
+    if activation == "prelu":
+        return nn.PReLU()
     if activation == "leaky_relu":
         return F.leaky_relu
     raise RuntimeError(F"activation should be relu/gelu, not {activation}.")
@@ -340,7 +342,7 @@ def build_deformable_transformer(args):
         num_decoder_layers=args.dec_layers,
         dim_feedforward=args.dim_feedforward,
         dropout=args.dropout,
-        activation="relu",
+        activation="prelu",
         return_intermediate_dec=True,
         num_feature_levels=1,
         dec_n_points=args.dec_n_points,
