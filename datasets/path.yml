@@ -6,8 +6,8 @@ thumos14:
 #  ann_file: '/mnt/hdd1/THUMOS14/i3d_NF16_S8_FPS25/th14_i3d_annotations_with_fps_duration.json'
 #  ann_file: 'data/thumos14/slowfast_NF16_S16_FPS25/th14_slowfast_annotations_with_fps_duration.json'
   i3d2s:
-#    local_path: data/thumos14/I3D_2stream_Pth
-    local_path: '/mnt/hdd0/THUMOS14/i3d_features_S8'
+    local_path: data/thumos14/I3D_2stream_Pth
+#    local_path: '/mnt/hdd0/THUMOS14/i3d_features_S8'
     ft_info_file: 'data/thumos14/th14_i3d2s_ft_info.json'
 #    ft_info_file: '/mnt/hdd1/THUMOS14/i3d_NF16_S8_FPS25/th14_i3d_ft_info.json'
   slowfast:
