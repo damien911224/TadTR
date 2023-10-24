@@ -333,7 +333,7 @@ def main(args):
         logging.info('best det result\n{}'.format(best_metric_txt))
         logging.info(log_path)
 
-        if best_metric > 0.568:
+        if best_metric >= 0.568:
             break
 
 
