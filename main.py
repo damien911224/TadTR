@@ -79,7 +79,7 @@ def main(args):
 
     while True:
         # fix the seed
-        seed = random.randint(10000) + utils.get_rank()
+        seed = random.randint(0, 10000) + utils.get_rank()
         torch.manual_seed(seed)
         np.random.seed(seed)
         random.seed(seed)
