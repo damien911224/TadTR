@@ -49,7 +49,7 @@ class DeformableTransformer(nn.Module):
 
         self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
 
-        self.reference_points = nn.Linear(d_model, 2)
+        self.reference_points = nn.Linear(d_model, 1)
 
         self._reset_parameters()
 
