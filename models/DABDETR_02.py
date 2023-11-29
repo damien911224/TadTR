@@ -603,10 +603,10 @@ def build(args):
     losses = ['labels', 'segments', 'overlap']
 
     weight_dict = {
-        'loss_ce': args.weight_loss_ce,
-        'loss_segments': args.weight_loss_bbox,
-        'loss_iou': args.weight_loss_giou,
-        'loss_overlap': args.weight_loss_overlap,
+        'loss_ce': args.cls_loss_coef,
+        'loss_segments': args.seg_loss_coef,
+        'loss_iou': args.iou_loss_coef,
+        'loss_overlap': 2.0,
     }
 
     if args.use_KK:
