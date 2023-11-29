@@ -59,8 +59,8 @@ def train_one_epoch(model: torch.nn.Module,
 
         queries = None
 
-        # outputs = model((samples.tensors, samples.mask))
-        outputs = model((samples.tensors, samples.mask), queries=queries)
+        outputs = model((samples.tensors, samples.mask))
+        # outputs = model((samples.tensors, samples.mask), queries=queries)
         loss_dict = criterion(outputs, targets)
         weight_dict = criterion.weight_dict
         losses = sum(loss_dict[k] * weight_dict[k]
@@ -162,7 +162,8 @@ def test(model, clip_model, criterion, postprocessor, data_loader, base_ds, devi
 
         queries = None
 
-        outputs = model((samples.tensors, samples.mask), queries=queries)
+        outputs = model((samples.tensors, samples.mask))
+        # outputs = model((samples.tensors, samples.mask), queries=queries)
 
         # raw_res.append((outputs, targets))
         video_duration = torch.FloatTensor(
