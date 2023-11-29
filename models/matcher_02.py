@@ -96,4 +96,4 @@ class HungarianMatcher(nn.Module):
         return batch_idx, src_idx
 
 def build_matcher(args):
-    return HungarianMatcher(cost_class=args.set_cost_class, cost_seg=args.set_cost_seg, cost_iou=args.set_cost_iou, cost_overlap=argsargs.set_cost_class)
+    return HungarianMatcher(cost_class=args.set_cost_class, cost_seg=args.set_cost_seg, cost_iou=args.set_cost_iou, cost_overlap=args.set_cost_class)
