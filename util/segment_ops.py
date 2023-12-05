@@ -69,10 +69,8 @@ def segment_iou_and_union(segments1, segments2):
 
 def segment_iou(segments1, segments2):
     """
-    Temporal IoU between 
-
+    Temporal IoU between
     The boxes should be in [x0, y0, x1, y1] format
-
     Returns a [N, M] pairwise matrix, where N = len(segments1)
     and M = len(segments2)
     """
