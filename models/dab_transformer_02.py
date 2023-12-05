@@ -1579,7 +1579,7 @@ def build_transformer(args):
         num_decoder_layers=args.dec_layers,
         normalize_before=False,
         return_intermediate_dec=True,
-        query_dim=6,
+        query_dim=2,
         activation="prelu"
     )
 
