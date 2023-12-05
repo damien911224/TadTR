@@ -671,7 +671,6 @@ class PostProcess(nn.Module):
         # assert target_sizes.shape[1] == 1
 
         prob = out_logits.sigmoid()  # [bs, nq, C]
-        prob *= outputs['pred_overlap'].sigmoid()
         if fuse_score:
             prob *= outputs['pred_actionness']
 
