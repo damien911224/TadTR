@@ -761,7 +761,7 @@ def build(args):
         'loss_ce': args.cls_loss_coef,
         'loss_segments': args.seg_loss_coef,
         'loss_iou': args.iou_loss_coef,
-        'loss_mask': 10.0,
+        'loss_mask': 1.0,
     }
 
     if args.use_KK:
