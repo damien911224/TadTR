@@ -765,11 +765,11 @@ def build(args):
     }
 
     if args.use_KK:
-        weight_dict["loss_KK"] = args.weight_loss_KK
+        weight_dict["loss_KK"] = args.KK_loss_coef
         losses.append("KK")
 
     if args.use_QQ:
-        weight_dict["loss_QQ"] = args.weight_loss_QQ
+        weight_dict["loss_QQ"] = args.QQ_loss_coef
         losses.append("QQ")
 
     if args.aux_loss:
