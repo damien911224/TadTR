@@ -35,7 +35,7 @@ class DABDETR(nn.Module):
 
     def __init__(self, position_embedding, transformer, num_classes, num_queries,
                  aux_loss=True, with_segment_refine=True, with_act_reg=False,
-                 random_refpoints_xy=True, query_dim=2):
+                 random_refpoints_xy=False, query_dim=2):
         """ Initializes the model.
         Parameters:
             backbone: torch module of the backbone to be used. See backbone.py
@@ -50,10 +50,10 @@ class DABDETR(nn.Module):
         self.num_queries = num_queries
         self.transformer = transformer
         hidden_dim = transformer.d_model
-        self.class_embed = nn.Linear(hidden_dim // 2, num_classes)
-        # self.class_embed = MLP(hidden_dim // 2, hidden_dim // 2, num_classes, 3)
-        self.segment_embed = MLP(hidden_dim // 2, hidden_dim // 2, query_dim, 3)
-        self.overlap_embed = nn.Linear(hidden_dim // 2, 1)
+        self.class_embed = nn.Linear(hidden_dim, num_classes)
+        # self.class_embed = MLP(hidden_dim, hidden_dim, num_classes, 3)
+        self.segment_embed = MLP(hidden_dim, hidden_dim, query_dim, 3)
+        # self.overlap_embed = nn.Linear(hidden_dim // 2, 1)
         # self.overlap_embed = MLP(hidden_dim // 2, hidden_dim // 2, 1, 3)
         # self.S_segment_embed = MLP(hidden_dim, hidden_dim, 3, 3)
         # self.T_segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
@@ -92,6 +92,7 @@ class DABDETR(nn.Module):
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         self.class_embed.bias.data = torch.ones(num_classes) * bias_value
+        # self.class_embed.layers[-1].bias.data = torch.ones(num_classes) * bias_value
         nn.init.constant_(self.segment_embed.layers[-1].weight.data, 0)
         nn.init.constant_(self.segment_embed.layers[-1].bias.data, 0)
         # nn.init.constant_(self.S_segment_embed.layers[-1].weight.data, 0)
@@ -135,7 +136,7 @@ class DABDETR(nn.Module):
             else:
                 features = nested_tensor_from_tensor_list(features)  # (n, c, t)
 
-        pos = self.position_embedding(features)
+        pos = self.position_embedding(features, d_model=self.transformer.d_model)
         src, mask = features.decompose()
 
         src = self.input_proj[0](src)
@@ -145,52 +146,53 @@ class DABDETR(nn.Module):
             self.transformer(src, mask, embedweight, pos)
 
         reference_before_sigmoid = inverse_sigmoid(reference)
-        tmp = self.segment_embed(hs[..., self.transformer.d_model // 2:])
+        tmp = self.segment_embed(hs)
         tmp += reference_before_sigmoid
 
         outputs_coord = tmp.sigmoid()
-        outputs_class = self.class_embed(hs[..., :self.transformer.d_model // 2])
-        outputs_overlap = self.overlap_embed(hs[..., self.transformer.d_model // 2:])
+        outputs_class = self.class_embed(hs)
 
-        out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1], 'pred_overlap': outputs_overlap[-1],
+        out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
                'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
 
-        # outputs_coord_all = tmp.sigmoid()
-        # outputs_class_all = self.class_embed(hs[..., :self.transformer.d_model // 2])
-        # outputs_overlap_all = self.overlap_embed(hs[..., self.transformer.d_model // 2:])
+        # outputs_coord_all = outputs_coord
+        # outputs_class_all = outputs_class
+        #
+        # Q_weights_all = Q_weights
+        # K_weights_all = K_weights
+        # Q_weights_all = C_weights
         #
         # outputs_class = outputs_class_all[:, :, :self.num_queries // 6]
         # outputs_coord = outputs_coord_all[:, :, :self.num_queries // 6]
-        # outputs_overlap = outputs_overlap_all[:, :, :self.num_queries // 6]
         #
         # outputs_class_one2many = outputs_class_all[:, :, self.num_queries // 6:]
         # outputs_coord_one2many = outputs_coord_all[:, :, self.num_queries // 6:]
-        # outputs_overlap_one2many = outputs_overlap_all[:, :, self.num_queries // 6:]
         #
         # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-        #        'pred_overlap': outputs_overlap[-1], 'pred_logits_one2many': outputs_class_one2many[-1],
-        #        'pred_segments_one2many': outputs_coord_one2many[-1], 'pred_overlap_one2many': outputs_overlap_one2many[-1],
-        #        'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
+        #        'pred_logits_one2many': outputs_class_one2many[-1], 'pred_segments_one2many': outputs_coord_one2many[-1],
+        #        'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights,
+        #        ''}
 
         if self.aux_loss:
-            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord, outputs_overlap)
+            out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
+            # out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord, outputs_overlap)
             # out['aux_outputs_one2many'] = self._set_aux_loss(outputs_class_one2many, outputs_coord_one2many, outputs_overlap_one2many)
 
         return out
 
-    # @torch.jit.unused
-    # def _set_aux_loss(self, outputs_class, outputs_coord):
-    #     # this is a workaround to make torchscript happy, as torchscript
-    #     # doesn't support dictionary with non-homogeneous values, such
-    #     # as a dict having both a Tensor and a list.
-    #     return [{'pred_logits': a, 'pred_segments': b} for a, b in zip(outputs_class[:-1], outputs_coord[:-1])]
-
     @torch.jit.unused
-    def _set_aux_loss(self, outputs_class, outputs_coord, outputs_overlap):
+    def _set_aux_loss(self, outputs_class, outputs_coord):
         # this is a workaround to make torchscript happy, as torchscript
         # doesn't support dictionary with non-homogeneous values, such
         # as a dict having both a Tensor and a list.
-        return [{'pred_logits': a, 'pred_segments': b, 'pred_overlap': c} for a, b, c in zip(outputs_class[:-1], outputs_coord[:-1], outputs_overlap[:-1])]
+        return [{'pred_logits': a, 'pred_segments': b} for a, b in zip(outputs_class[:-1], outputs_coord[:-1])]
+
+    # @torch.jit.unused
+    # def _set_aux_loss(self, outputs_class, outputs_coord, outputs_overlap):
+    #     # this is a workaround to make torchscript happy, as torchscript
+    #     # doesn't support dictionary with non-homogeneous values, such
+    #     # as a dict having both a Tensor and a list.
+    #     return [{'pred_logits': a, 'pred_segments': b, 'pred_overlap': c} for a, b, c in zip(outputs_class[:-1], outputs_coord[:-1], outputs_overlap[:-1])]
 
 
 class SetCriterion(nn.Module):
@@ -741,8 +743,7 @@ def build(args):
             raise ValueError('unknown dataset {}'.format(args.dataset_name))
 
     pos_embed = build_position_encoding(args)
-    # transformer = build_transformer(args)
-    transformer = build_ST_transformer(args)
+    transformer = build_transformer(args)
 
     model = DABDETR(
         pos_embed,
