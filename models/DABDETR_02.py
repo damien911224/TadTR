@@ -431,8 +431,6 @@ class SetCriterion(nn.Module):
 
         src_segments = outputs['pred_segments']
         src_boundary = segment_ops.segment_cw_to_t1t2(src_segments)
-        print(src_boundary.shape)
-        exit()
         # src_segments = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
         #                           outputs['pred_segments'].unsqueeze(0)), dim=0)
         # nl, nb, nq = src_segments.shape[:3]
