@@ -1170,24 +1170,6 @@ class TransformerDecoderLayer(nn.Module):
                 query_pos: Optional[Tensor] = None,
                 query_sine_embed=None,
                 is_first=False):
-                     
-        # ========== Begin of Self-Attention =============
-        if not self.rm_self_attn_decoder and True:
-            q_content = self.sa_qcontent_proj(tgt)
-            q_pos = self.sa_qpos_proj(query_pos)
-            k_content = self.sa_kcontent_proj(tgt)
-            k_pos = self.sa_kpos_proj(query_pos)
-            v = self.sa_v_proj(tgt)
-
-            hw, _, _ = k_content.shape
-
-            q = q_content + q_pos
-            k = k_content + k_pos
-
-            tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
-
-            tgt = tgt + self.dropout1(tgt2)
-            tgt = self.norm1(tgt)
 
         if True:
             # ========== Begin of Cross-Attention =============
@@ -1228,6 +1210,24 @@ class TransformerDecoderLayer(nn.Module):
             # ========== End of Cross-Attention =============
             tgt = tgt + self.dropout2(tgt2)
             tgt = self.norm2(tgt)
+                     
+        # ========== Begin of Self-Attention =============
+        if not self.rm_self_attn_decoder and True:
+            q_content = self.sa_qcontent_proj(tgt)
+            q_pos = self.sa_qpos_proj(query_pos)
+            k_content = self.sa_kcontent_proj(tgt)
+            k_pos = self.sa_kpos_proj(query_pos)
+            v = self.sa_v_proj(tgt)
+
+            hw, _, _ = k_content.shape
+
+            q = q_content + q_pos
+            k = k_content + k_pos
+
+            tgt2, Q_weights = self.self_attn(q, k, value=v, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask)
+
+            tgt = tgt + self.dropout1(tgt2)
+            tgt = self.norm1(tgt)
 
         tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt))))
         tgt = tgt + self.dropout3(tgt2)

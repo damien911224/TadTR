@@ -216,12 +216,18 @@ class SetCriterion(nn.Module):
         self.losses = losses
         self.focal_alpha = focal_alpha
 
+        # self.eos_coef = 0.1
+        # empty_weight = torch.ones(self.num_classes + 1)
+        # empty_weight[-1] = self.eos_coef
+        # self.register_buffer('empty_weight', empty_weight)
+
     def loss_labels(self, outputs, targets, indices, num_segments, log=True):
         """Classification loss (NLL)
         targets dicts must contain the key "labels" containing a tensor of dim [nb_target_segments]
         """
         assert 'pred_logits' in outputs
         src_logits = outputs['pred_logits']
+
         target_classes = torch.full(src_logits.shape[:2], self.num_classes, dtype=torch.int64, device=src_logits.device)
         target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
                                             dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
@@ -246,6 +252,15 @@ class SetCriterion(nn.Module):
         #                              alpha=self.focal_alpha, gamma=2).sum() / num_segments
         # loss_ce = loss_ce.mean(1).sum() / num_segments * src_logits.shape[1]
         losses = {'loss_ce': loss_ce}
+
+        # idx = self._get_src_permutation_idx(indices)
+        # target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
+        # target_classes = torch.full(src_logits.shape[:2], self.num_classes,
+        #                             dtype=torch.int64, device=src_logits.device)
+        # target_classes[idx] = target_classes_o
+        #
+        # loss_ce = F.cross_entropy(src_logits.transpose(1, 2), target_classes, self.empty_weight)
+        # losses = {'loss_ce': loss_ce}
 
         if log:
             # TODO this should probably be a separate loss, not hacked in this one here
@@ -299,35 +314,174 @@ class SetCriterion(nn.Module):
 
         losses = {}
 
-        # src_overlap = outputs['pred_overlap'][idx].sigmoid()
+        src_overlap = outputs['pred_overlap'][idx].sigmoid()
+
+        tgt_overlap = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(target_segments),
+                                              segment_ops.segment_cw_to_t1t2(src_segments))
+        tgt_overlap = torch.diag(tgt_overlap).detach()
+
+        loss_overlap = torch.square(src_overlap - tgt_overlap).sum() / num_segments
+
+        # IoUs = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments),
+        #                                segment_ops.segment_cw_to_t1t2(target_segments))
+        # IoUs = torch.diag(IoUs).detach()
         #
-        # tgt_overlap = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(target_segments),
-        #                                       segment_ops.segment_cw_to_t1t2(src_segments))
-        # tgt_overlap = torch.diag(tgt_overlap).detach()
+        # src_logits = outputs['pred_overlap']
         #
-        # loss_overlap = torch.square(src_overlap - tgt_overlap).sum() / num_segments
-
-        IoUs = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments),
-                                       segment_ops.segment_cw_to_t1t2(target_segments))
-        IoUs = torch.diag(IoUs).detach()
-
-        src_logits = outputs['pred_overlap']
-
-        target_classes = torch.full(src_logits.shape[:2], 1, dtype=torch.int64, device=src_logits.device)
-        target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
-                                            dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
-
-        target_classes_o = torch.zeros_like(torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)]))
-        target_classes[idx] = target_classes_o
-        target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
-        target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
-
-        target_classes_onehot = target_classes_onehot[:, :, :-1]
-        loss_overlap = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments,
-                                          alpha=self.focal_alpha, gamma=2) * src_logits.shape[1]
-        # loss_overlap = loss_overlap.mean(1).sum() / num_segments * src_logits.shape[1]
+        # target_classes = torch.full(src_logits.shape[:2], 1, dtype=torch.int64, device=src_logits.device)
+        # target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
+        #                                     dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
+        #
+        # target_classes_o = torch.zeros_like(torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)]))
+        # target_classes[idx] = target_classes_o
+        # target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
+        # target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
+        #
+        # target_classes_onehot = target_classes_onehot[:, :, :-1]
+        # loss_overlap = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments,
+        #                                   alpha=self.focal_alpha, gamma=2) * src_logits.shape[1]
+        # # loss_overlap = loss_overlap.mean(1).sum() / num_segments * src_logits.shape[1]
 
         losses['loss_overlap'] = loss_overlap
+        return losses
+
+    def loss_mask(self, outputs, targets, indices, num_segments):
+        """Compute the losses related to the segmentes, the L1 regression loss and the IoU loss
+           targets dicts must contain the key "segments" containing a tensor of dim [nb_target_segments, 2]
+           The target segments are expected in format (center, width), normalized by the video length.
+        """
+
+        # idx = self._get_src_permutation_idx(indices)
+        # src_segments = outputs['pred_segments']
+        # target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        #
+        # losses = {}
+        #
+        # obj_center = target_segments
+        # obj_boundary = segment_ops.segment_cw_to_t1t2(target_segments)
+        #
+        # # nb = src_segments.size(0)
+        # # nk = outputs["K_weights"].size(2)
+        # # center_memory_mask = torch.zeros(dtype=torch.float, size=(nb, nk), device=src_segments.device)
+        # # boundary_memory_mask = torch.zeros(dtype=torch.float, size=(nb, nk), device=src_segments.device)
+        # # for n_i, (center, boundary) in enumerate(zip(obj_center, obj_boundary)):
+        # #     center = torch.clamp(torch.round(center * (nk - 1)).int(), 0, nk - 1)
+        # #     boundary = torch.clamp(torch.round(boundary * (nk - 1)).int(), 0, nk - 1)
+        # #     c, w = center[..., 0], center[..., 1]
+        # #     s, e = boundary[..., 0], boundary[..., 1]
+        # #     bw = torch.clamp(torch.round(w / 8).int(), min=1)
+        # #     center_memory_mask[n_i, s:e + 1] = 1.0
+        # #     boundary_memory_mask[n_i, torch.clamp(s - bw, min=0):torch.clamp(s + bw + 1, max=nk)] = 1.0
+        # #     boundary_memory_mask[n_i, torch.clamp(e - bw, min=0):torch.clamp(e + bw + 1, max=nk)] = 1.0
+        # # center_memory_mask = center_memory_mask.detach()
+        # # boundary_memory_mask = boundary_memory_mask.detach()
+        #
+        # # nb = src_segments.size(0)
+        # # nk = outputs["K_weights"].size(2)
+        # # memory_mask = torch.zeros(dtype=torch.float, size=(nb, nk), device=src_segments.device)
+        # # for n_i, (center, boundary) in enumerate(zip(obj_center, obj_boundary)):
+        # #     center = torch.clamp(torch.round(center * (nk - 1)).int(), 0, nk - 1)
+        # #     boundary = torch.clamp(torch.round(boundary * (nk - 1)).int(), 0, nk - 1)
+        # #     c, w = center[..., 0], center[..., 1]
+        # #     s, e = boundary[..., 0], boundary[..., 1]
+        # #     bw = torch.clamp(torch.round(w / 8).int(), min=1)
+        # #     memory_mask[n_i, s:e + 1] = 1.0
+        # #     memory_mask[n_i, torch.clamp(s - bw, min=0):torch.clamp(s + bw + 1, max=nk)] = 1.0
+        # #     memory_mask[n_i, torch.clamp(e - bw, min=0):torch.clamp(e + bw + 1, max=nk)] = 1.0
+        # # memory_mask = memory_mask.detach()
+        #
+        # nk = outputs["K_weights"].size(2)
+        # center = torch.clamp(torch.round(obj_center * (nk - 1)).int(), 0, nk - 1)
+        # boundary = torch.clamp(torch.round(obj_boundary * (nk - 1)).int(), 0, nk - 1)
+        # c, w = center[..., 0], center[..., 1]
+        # s, e = boundary[..., 0], boundary[..., 1]
+        # bw = torch.clamp(torch.round(w / 8).int(), min=1)
+        # memory_mask = torch.logical_and(
+        #     torch.arange(nk).unsqueeze(0).to(src_segments) >= torch.clamp(s - bw, min=0)[:, None],
+        #     torch.arange(nk).unsqueeze(0).to(src_segments) <= torch.clamp(e + bw, max=nk - 1)[:, None])
+        # memory_mask = memory_mask.float()
+        #
+        # # n, k
+        # # C_C_weights = outputs["C_weights"].mean(0)[..., 0][idx]
+        # # L_C_weights = outputs["C_weights"].mean(0)[..., 1][idx]
+        # #
+        # # C_C_weights = torch.sum(C_C_weights * center_memory_mask, dim=-1)
+        # # L_C_weights = torch.sum(L_C_weights * boundary_memory_mask, dim=-1)
+        # #
+        # # loss_mask = (-torch.log(C_C_weights + 1.0e-8) + -torch.log(L_C_weights + 1.0e-8)).sum() / num_segments
+        #
+        # C_weights = outputs["C_weights"].mean(0)[idx]
+        # C_weights = torch.sum(C_weights * memory_mask, dim=-1)
+        #
+        # loss_mask = (-torch.log(C_weights + 1.0e-8)).sum() / num_segments
+        #
+        # # loss_mask = 0.0
+        # # for l_i in range(len(outputs["C_weights"])):
+        # #     C_C_weights = outputs["C_weights"][l_i, ..., 0][idx]
+        # #     L_C_weights = outputs["C_weights"][l_i, ..., 1][idx]
+        # #
+        # #     C_C_weights = torch.sum(C_C_weights * center_memory_mask, dim=-1)
+        # #     L_C_weights = torch.sum(L_C_weights * boundary_memory_mask, dim=-1)
+        # #
+        # #     loss_mask += (-torch.log(C_C_weights + 1.0e-8) + -torch.log(L_C_weights + 1.0e-8)).sum() / num_segments
+        #
+        # loss_mask = loss_mask / len(outputs["C_weights"]) / 5
+
+        src_segments = outputs['pred_segments']
+        src_boundary = segment_ops.segment_cw_to_t1t2(src_segments)
+        # src_segments = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
+        #                           outputs['pred_segments'].unsqueeze(0)), dim=0)
+        # nl, nb, nq = src_segments.shape[:3]
+        # src_boundary = segment_ops.segment_cw_to_t1t2(src_segments.flatten(0, 1))
+
+        losses = {}
+
+        # tgt_KK = list()
+        # nk = outputs["K_weights"].size(2)
+        # for n_i in range(len(src_segments)):
+        #     target_segments = targets[n_i]['segments']
+        #     obj_boundary = segment_ops.segment_cw_to_t1t2(target_segments)
+        #     boundary = torch.clamp(torch.round(obj_boundary * (nk - 1)).int(), 0, nk - 1)
+        #     s, e = boundary[..., 0], boundary[..., 1]
+        #     ks = torch.arange(nk).to(src_segments).unsqueeze(0)
+        #     this_tgt_KK = torch.clamp(torch.logical_and(ks >= s[:, None], ks <= e[:, None]).sum(dim=0), max=1)[:, None]
+        #     this_tgt_KK = torch.logical_and(this_tgt_KK, this_tgt_KK.transpose(0, 1))
+        #     tgt_KK.append(this_tgt_KK)
+        # tgt_KK = torch.stack(tgt_KK, dim=0).float().softmax(dim=-1).detach()
+
+        # nk = outputs["K_weights"].size(2)
+        # boundary = torch.clamp(torch.round(src_boundary * (nk - 1)).int(), 0, nk - 1)
+        # s, e = boundary[..., 0], boundary[..., 1]
+        # ks = torch.arange(nk).to(src_segments)[None, None, :]
+        # tgt_KK = torch.logical_and(ks >= s[..., None], ks <= e[..., None]).float().softmax(dim=-1)
+        # tgt_KK = torch.bmm(tgt_KK.transpose(1, 2), tgt_KK)
+        # tgt_KK = torch.sqrt(tgt_KK + 1.0e-7)
+        # tgt_KK = tgt_KK / torch.sum(tgt_KK, dim=-1, keepdim=True).detach()
+
+        tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary).softmax(dim=-1).detach()
+        # tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary).view(nl, nb, nq, nq).softmax(dim=-1).mean(0).detach()
+
+        # C_weights = outputs["C_weights"].flatten(0, 1)
+        C_weights = torch.mean(outputs["C_weights"], dim=0)
+        # src_KK = torch.bmm(C_weights.transpose(1, 2), C_weights)
+        # src_KK = torch.sqrt(src_KK + 1.0e-7)
+        # src_KK = src_KK / torch.sum(src_KK, dim=-1, keepdim=True)
+        #
+        # src_KK = (src_KK.flatten(0, 1) + 1.0e-7).log()
+        # tgt_KK = (tgt_KK.flatten(0, 1) + 1.0e-7).log()
+        #
+        # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
+
+        src_QQ = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
+        src_QQ = src_QQ / torch.sum(src_QQ, dim=-1, keepdim=True)
+
+        src_QQ = (src_QQ.flatten(0, 1) + 1.0e-7).log()
+        tgt_QQ = (tgt_QQ.flatten(0, 1) + 1.0e-7).log()
+
+        loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
+
+        losses["loss_mask"] = loss_QQ
+
         return losses
 
     def loss_actionness(self, outputs, targets, indices, num_segments):
@@ -348,7 +502,7 @@ class SetCriterion(nn.Module):
 
         gt_iou = iou_mat.max(dim=1)[0]
         pred_actionness = outputs['pred_actionness']
-        loss_actionness = F.l1_loss(pred_actionness.view(-1), gt_iou.view(-1).detach())   
+        loss_actionness = F.l1_loss(pred_actionness.view(-1), gt_iou.view(-1).detach())
 
         losses['loss_iou'] = loss_actionness
         return losses
@@ -377,7 +531,7 @@ class SetCriterion(nn.Module):
         assert 'C_weights' in outputs
         assert 'pred_segments' in outputs
 
-        C_weights = outputs["C_weights"].mean(dim=-1).flatten(0, 1).detach()
+        C_weights = outputs["C_weights"].flatten(0, 1).detach()
         QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
         target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
 
@@ -404,7 +558,7 @@ class SetCriterion(nn.Module):
         assert 'K_weights' in outputs
         assert 'C_weights' in outputs
 
-        C_weights = torch.mean(outputs["C_weights"], dim=0).mean(dim=-1).detach()
+        C_weights = torch.mean(outputs["C_weights"], dim=0).detach()
         KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
         KK_weights = torch.sqrt(KK_weights + 1.0e-7)
         target_K_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
@@ -439,6 +593,7 @@ class SetCriterion(nn.Module):
             'labels': self.loss_labels,
             'segments': self.loss_segments,
             'overlap': self.loss_overlap,
+            'mask': self.loss_mask,
             "QQ": self.loss_QQ,
             "KK": self.loss_KK,
         }
@@ -476,7 +631,7 @@ class SetCriterion(nn.Module):
             for i, aux_outputs in enumerate(outputs['aux_outputs']):
                 indices = self.matcher(aux_outputs, targets)
                 for loss in self.losses:
-                    if 'QQ' in loss or 'KK' in loss:
+                    if 'QQ' in loss or 'KK' in loss or 'mask' in loss:
                         continue
 
                     kwargs = {}
@@ -600,13 +755,13 @@ def build(args):
 
     matcher = build_matcher(args)
     # losses = ['labels', 'segments']
-    losses = ['labels', 'segments', 'overlap']
+    losses = ['labels', 'segments', 'mask']
 
     weight_dict = {
         'loss_ce': args.cls_loss_coef,
         'loss_segments': args.seg_loss_coef,
         'loss_iou': args.iou_loss_coef,
-        'loss_overlap': 2.0,
+        'loss_mask': 5.0,
     }
 
     if args.use_KK:
