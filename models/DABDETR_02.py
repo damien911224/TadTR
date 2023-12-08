@@ -49,6 +49,9 @@ class DABDETR(nn.Module):
         super().__init__()
         self.num_queries_one2one = num_queries_one2one
         self.num_queries_one2many = num_queries_one2many
+        print(num_queries_one2one)
+        print(num_queries_one2many)
+        exit()
         self.num_queries = num_queries_one2one + num_queries_one2many
         self.transformer = transformer
         hidden_dim = transformer.d_model
