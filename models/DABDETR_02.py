@@ -56,8 +56,6 @@ class DABDETR(nn.Module):
         self.segment_embed = MLP(hidden_dim, hidden_dim, query_dim, 3)
 
         self.query_dim = query_dim
-        print(self.num_queries, query_dim)
-        exit()
         self.refpoint_embed = nn.Embedding(self.num_queries, query_dim)
         self.random_refpoints_xy = random_refpoints_xy
         if random_refpoints_xy:
