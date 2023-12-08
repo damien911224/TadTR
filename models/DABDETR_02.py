@@ -115,7 +115,7 @@ class DABDETR(nn.Module):
             else:
                 features = nested_tensor_from_tensor_list(features)  # (n, c, t)
 
-        pos = self.position_embedding(features, d_model=self.transformer.d_model)
+        pos = self.position_embedding(features)
         src, mask = features.decompose()
 
         src = self.input_proj[0](src)
