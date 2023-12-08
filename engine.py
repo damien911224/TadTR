@@ -28,6 +28,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sn
 import matplotlib.pyplot as plt
+import copy
 
 # from util.flop_count import flop_count
 from thop import profile, clever_format
