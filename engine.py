@@ -60,8 +60,10 @@ def train_one_epoch(model: torch.nn.Module,
         queries = None
 
         outputs = model((samples.tensors, samples.mask))
-        # outputs = model((samples.tensors, samples.mask), queries=queries)
-        loss_dict = criterion(outputs, targets)
+
+        # loss_dict = criterion(outputs, targets)
+        loss_dict = train_hybrid(outputs, targets, criterion)
+
         weight_dict = criterion.weight_dict
         losses = sum(loss_dict[k] * weight_dict[k]
                      for k in loss_dict.keys() if k in weight_dict)
@@ -107,6 +109,32 @@ def train_one_epoch(model: torch.nn.Module,
     logging.info(f"Averaged stats:{metric_logger}")
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
+
+def train_hybrid(outputs, targets, criterion, k_one2many=6, lambda_one2many=1.0):
+    # one-to-one-loss
+    loss_dict = criterion(outputs, targets)
+    multi_targets = copy.deepcopy(targets)
+    # repeat the targets
+    for target in multi_targets:
+        target["segments"] = target["segments"].repeat(k_one2many, 1)
+        target["labels"] = target["labels"].repeat(k_one2many)
+
+    outputs_one2many = dict()
+    outputs_one2many["pred_logits"] = outputs["pred_logits_one2many"]
+    outputs_one2many["pred_segments"] = outputs["pred_segments_one2many"]
+    outputs_one2many["Q_weights"] = outputs["Q_weights_one2many"]
+    outputs_one2many["K_weights"] = outputs["K_weights_one2many"]
+    outputs_one2many["C_weights"] = outputs["C_weights_one2many"]
+    outputs_one2many["aux_outputs"] = outputs["aux_outputs_one2many"]
+
+    # one-to-many loss
+    loss_dict_one2many = criterion(outputs_one2many, multi_targets)
+    for key, value in loss_dict_one2many.items():
+        if key + "_one2many" in loss_dict.keys():
+            loss_dict[key + "_one2many"] += value * lambda_one2many
+        else:
+            loss_dict[key + "_one2many"] = value * lambda_one2many
+    return loss_dict
 
 def to_device(t, device):
     if isinstance(t, (list, tuple)):

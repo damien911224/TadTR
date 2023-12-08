@@ -124,8 +124,8 @@ def gen_sineembed_for_position(pos_tensor, d_model=256):
 
 class Transformer(nn.Module):
 
-    def __init__(self, d_model=512, nhead=8, num_queries=300, num_encoder_layers=6,
-                 num_decoder_layers=6, dim_feedforward=2048, dropout=0.1,
+    def __init__(self, d_model=512, nhead=8, num_queries_one2one=40, num_queries_one2many=0,
+                 num_encoder_layers=2, num_decoder_layers=4, dim_feedforward=2048, dropout=0.1,
                  activation="relu", normalize_before=False,
                  return_intermediate_dec=False, query_dim=2,
                  keep_query_pos=False, query_scale_type='cond_elewise',
@@ -146,7 +146,8 @@ class Transformer(nn.Module):
         decoder_norm = nn.LayerNorm(d_model)
         self.decoder = TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm,
                                           return_intermediate=return_intermediate_dec,
-                                          d_model=d_model, query_dim=query_dim, keep_query_pos=keep_query_pos, query_scale_type=query_scale_type,
+                                          d_model=d_model, query_dim=query_dim,
+                                          keep_query_pos=keep_query_pos, query_scale_type=query_scale_type,
                                           modulate_hw_attn=modulate_hw_attn,
                                           bbox_embed_diff_each_layer=bbox_embed_diff_each_layer)
 
@@ -156,7 +157,9 @@ class Transformer(nn.Module):
         self.d_model = d_model
         self.nhead = nhead
         self.dec_layers = num_decoder_layers
-        self.num_queries = num_queries
+        self.num_queries_one2one = num_queries_one2one
+        self.num_queries_one2many = num_queries_one2many
+        self.num_queries = num_queries_one2one + num_queries_one2many
         self.num_patterns = num_patterns
         if not isinstance(num_patterns, int):
             Warning("num_patterns should be int but {}".format(type(num_patterns)))
@@ -186,10 +189,18 @@ class Transformer(nn.Module):
         else:
             tgt = self.patterns.weight[:, None, None, :].repeat(1, self.num_queries, bs, 1).flatten(0, 1) # n_q*n_pat, bs, d_model
             refpoint_embed = refpoint_embed.repeat(self.num_patterns, 1, 1) # n_q*n_pat, bs, d_model
-            # import ipdb; ipdb.set_trace()
+
+        if self.num_queries_one2many > 0:
+            tgt_mask = torch.ones(dtype=torch.bool, size=(self.num_queries, self.num_queries), device=tgt.device)
+            tgt_mask[:self.num_queries_one2one, :self.num_queries_one2one] = False
+            tgt_mask[self.num_queries_one2one:, self.num_queries_one2one:] = False
+            tgt_mask = tgt_mask.detach()
+        else:
+            tgt_mask = None
 
         hs, references, Q_weights, C_weights = \
-            self.decoder(tgt, memory, memory_key_padding_mask=mask, pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
+            self.decoder(tgt, memory, tgt_mask=tgt_mask, memory_key_padding_mask=mask,
+                         pos=pos_embed, refpoints_unsigmoid=refpoint_embed)
 
         return hs, references, memory, Q_weights, K_weights, C_weights
 
@@ -367,7 +378,9 @@ class TransformerEncoder(nn.Module):
             # rescale the content and pos sim
             pos_scales = self.query_scale(output)
             output, K_weights = layer(output, src_mask=mask,
-                                      src_key_padding_mask=src_key_padding_mask, pos=pos * pos_scales)
+                                      src_key_padding_mask=src_key_padding_mask,
+                                      pos=pos * pos_scales)
+
             inter_K_weights.append(K_weights)
 
         if self.norm is not None:
@@ -465,7 +478,7 @@ class TransformerDecoder(nn.Module):
 
         for layer_id, layer in enumerate(self.layers):
             obj_center = reference_points[..., :self.query_dim]  # [num_queries, batch_size, 2]
-            obj_boundary = segment_cw_to_t1t2(obj_center)
+            # obj_boundary = segment_cw_to_t1t2(obj_center)
             # get sine embedding for the query vector
             query_sine_embed = gen_sineembed_for_position(obj_center)
             query_pos = self.ref_point_head(query_sine_embed)
@@ -520,9 +533,17 @@ class TransformerDecoder(nn.Module):
                     tmp = self.segment_embed[layer_id](output)
                 else:
                     tmp = self.segment_embed(output)
-                # import ipdb; ipdb.set_trace()
+
                 tmp[..., :self.query_dim] += inverse_sigmoid(reference_points)
                 new_reference_points = tmp[..., :self.query_dim].sigmoid()
+
+                # new_reference_points = delta2bbox(inverse_sigmoid(reference_points), tmp).sigmoid()
+
+                # nq = reference_points.size(0)
+                # ref = inverse_sigmoid(reference_points)
+                # # ref[:nq // 2, ..., 1] += self.static_segment_embed(output)[:nq // 2].squeeze(-1)
+                # ref[nq // 2:] += tmp[nq // 2:]
+                # new_reference_points = ref.sigmoid()
                 if layer_id != self.num_layers - 1:
                     ref_points.append(new_reference_points)
                 reference_points = new_reference_points.detach()
@@ -1573,7 +1594,8 @@ def build_transformer(args):
         d_model=args.hidden_dim,
         dropout=args.dropout,
         nhead=args.nheads,
-        num_queries=args.num_queries,
+        num_queries_one2one=args.num_queries_one2one,
+        num_queries_one2many=args.num_queries_one2many,
         dim_feedforward=args.dim_feedforward,
         num_encoder_layers=args.enc_layers,
         num_decoder_layers=args.dec_layers,

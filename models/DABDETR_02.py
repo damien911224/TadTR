@@ -33,9 +33,9 @@ def get_norm(norm_type, dim, num_groups=None):
 class DABDETR(nn.Module):
     """ This is the TadTR module that performs temporal action detection """
 
-    def __init__(self, position_embedding, transformer, num_classes, num_queries,
-                 aux_loss=True, with_segment_refine=True, with_act_reg=False,
-                 random_refpoints_xy=True, query_dim=2):
+    def __init__(self, position_embedding, transformer, num_classes, num_queries_one2one,
+                 num_queries_one2many=0, aux_loss=True, with_segment_refine=True,
+                 random_refpoints_xy=False, query_dim=2):
         """ Initializes the model.
         Parameters:
             backbone: torch module of the backbone to be used. See backbone.py
@@ -47,31 +47,27 @@ class DABDETR(nn.Module):
             with_segment_refine: iterative segment refinement
         """
         super().__init__()
-        self.num_queries = num_queries
+        self.num_queries_one2one = num_queries_one2one
+        self.num_queries_one2many = num_queries_one2many
+        self.num_queries = num_queries_one2one + num_queries_one2many
         self.transformer = transformer
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes)
-        # self.class_embed = MLP(hidden_dim, hidden_dim, num_classes, 3)
         self.segment_embed = MLP(hidden_dim, hidden_dim, query_dim, 3)
-        # self.overlap_embed = nn.Linear(hidden_dim // 2, 1)
-        # self.overlap_embed = MLP(hidden_dim // 2, hidden_dim // 2, 1, 3)
-        # self.S_segment_embed = MLP(hidden_dim, hidden_dim, 3, 3)
-        # self.T_segment_embed = MLP(hidden_dim, hidden_dim, 2, 3)
-        self.query_dim = query_dim
 
-        self.refpoint_embed = nn.Embedding(num_queries, query_dim)
-        # self.S_refpoint_embed = nn.Embedding(num_queries, 3)
-        # self.T_refpoint_embed = nn.Embedding(num_queries, 2)
+        self.query_dim = query_dim
+        self.refpoint_embed = nn.Embedding(self.num_queries, query_dim)
         self.random_refpoints_xy = random_refpoints_xy
         if random_refpoints_xy:
-            # import ipdb; ipdb.set_trace()
-            self.refpoint_embed.weight.data[:, :1].uniform_(0, 1)
-            self.refpoint_embed.weight.data[:, :1] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :1])
-            self.refpoint_embed.weight.data[:, :1].requires_grad = False
+            self.refpoint_embed.weight.data[:self.num_queries_one2one, :1].uniform_(0, 1)
+            self.refpoint_embed.weight.data[:self.num_queries_one2one, :1] = \
+                inverse_sigmoid(self.refpoint_embed.weight.data[:self.num_queries_one2one, :1])
+            self.refpoint_embed.weight.data[:self.num_queries_one2one, :1].requires_grad = False
 
-            # self.refpoint_embed.weight.data[:, :2].uniform_(0, 1)
-            # self.refpoint_embed.weight.data[:, :2] = inverse_sigmoid(self.refpoint_embed.weight.data[:, :2])
-            # self.refpoint_embed.weight.data[:, :2].requires_grad = False
+        self.refpoint_embed.weight.data[self.num_queries_one2one:, :1].uniform_(0, 1)
+        self.refpoint_embed.weight.data[self.num_queries_one2one:, :1] = \
+            inverse_sigmoid(self.refpoint_embed.weight.data[self.num_queries_one2one:, :1])
+        self.refpoint_embed.weight.data[self.num_queries_one2one:, :1].requires_grad = False
 
         self.input_proj = nn.ModuleList([
             nn.Sequential(
@@ -79,26 +75,15 @@ class DABDETR(nn.Module):
                 # nn.Conv2d(2048, hidden_dim, kernel_size=1),
                 nn.GroupNorm(32, hidden_dim),
             )])
-        # self.O_input_proj = nn.ModuleList([
-        #     nn.Sequential(
-        #         nn.Conv2d(2048, hidden_dim // 2, kernel_size=1),
-        #         nn.GroupNorm(32, hidden_dim // 2),
-        #     )])
         self.position_embedding = position_embedding
         self.aux_loss = aux_loss
         self.with_segment_refine = with_segment_refine
-        self.with_act_reg = with_act_reg
 
         prior_prob = 0.01
         bias_value = -math.log((1 - prior_prob) / prior_prob)
         self.class_embed.bias.data = torch.ones(num_classes) * bias_value
-        # self.class_embed.layers[-1].bias.data = torch.ones(num_classes) * bias_value
         nn.init.constant_(self.segment_embed.layers[-1].weight.data, 0)
         nn.init.constant_(self.segment_embed.layers[-1].bias.data, 0)
-        # nn.init.constant_(self.S_segment_embed.layers[-1].weight.data, 0)
-        # nn.init.constant_(self.S_segment_embed.layers[-1].bias.data, 0)
-        # nn.init.constant_(self.T_segment_embed.layers[-1].weight.data, 0)
-        # nn.init.constant_(self.T_segment_embed.layers[-1].bias.data, 0)
         for proj in self.input_proj:
             nn.init.xavier_uniform_(proj[0].weight, gain=1)
             nn.init.constant_(proj[0].bias, 0)
@@ -107,12 +92,6 @@ class DABDETR(nn.Module):
         if with_segment_refine:
             # hack implementation for segment refinement
             self.transformer.decoder.segment_embed = self.segment_embed
-            # self.transformer.S_decoder.segment_embed = self.S_segment_embed
-            # self.transformer.T_decoder.segment_embed = self.T_segment_embed
-
-        # self.t_embeddings = nn.Embedding(512, hidden_dim)
-        # self.h_embeddings = nn.Embedding(64, hidden_dim)
-        # self.w_embeddings = nn.Embedding(64, hidden_dim)
 
     def forward(self, features):
         """ The forward expects a NestedTensor, which consists of:
@@ -136,47 +115,71 @@ class DABDETR(nn.Module):
             else:
                 features = nested_tensor_from_tensor_list(features)  # (n, c, t)
 
-        pos = self.position_embedding(features)
+        pos = self.position_embedding(features, d_model=self.transformer.d_model)
         src, mask = features.decompose()
 
         src = self.input_proj[0](src)
 
         embedweight = self.refpoint_embed.weight
-        hs, reference, memory, Q_weights, K_weights, C_weights = \
-            self.transformer(src, mask, embedweight, pos)
+        hs, reference, memory, Q_weights, K_weights, C_weights = self.transformer(src, mask, embedweight, pos)
 
         reference_before_sigmoid = inverse_sigmoid(reference)
         tmp = self.segment_embed(hs)
         tmp += reference_before_sigmoid
-
         outputs_coord = tmp.sigmoid()
+
         outputs_class = self.class_embed(hs)
+
+        # outputs_class = list()
+        # outputs_coord = list()
+        # for lvl in range(hs.shape[0]):
+        #     reference = inter_references[lvl]
+        #     reference = inverse_sigmoid(reference)
+        #     this_outputs_class = self.class_embed[lvl](hs[lvl])
+        #     tmp = self.segment_embed[lvl](hs[lvl])
+        #     tmp += reference
+        #     this_outputs_coord = tmp.sigmoid()
+        #
+        #     outputs_class.append(this_outputs_class)
+        #     outputs_coord.append(this_outputs_coord)
+        # outputs_class = torch.stack(outputs_class)
+        # outputs_coord = torch.stack(outputs_coord)
+
+        outputs_coord_all = outputs_coord
+        outputs_class_all = outputs_class
+
+        Q_weights_all = Q_weights
+        K_weights_all = K_weights
+        C_weights_all = C_weights
+
+        outputs_class = outputs_class_all[:, :, :self.num_queries_one2one]
+        outputs_coord = outputs_coord_all[:, :, :self.num_queries_one2one]
+
+        Q_weights = Q_weights_all[:, :, :self.num_queries_one2one, :self.num_queries_one2one]
+        K_weights = K_weights_all
+        C_weights = C_weights_all[:, :, :self.num_queries_one2one]
 
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
                'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
 
-        # outputs_coord_all = outputs_coord
-        # outputs_class_all = outputs_class
-        #
-        # Q_weights_all = Q_weights
-        # K_weights_all = K_weights
-        # Q_weights_all = C_weights
-        #
-        # outputs_class = outputs_class_all[:, :, :self.num_queries // 6]
-        # outputs_coord = outputs_coord_all[:, :, :self.num_queries // 6]
-        #
-        # outputs_class_one2many = outputs_class_all[:, :, self.num_queries // 6:]
-        # outputs_coord_one2many = outputs_coord_all[:, :, self.num_queries // 6:]
-        #
-        # out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-        #        'pred_logits_one2many': outputs_class_one2many[-1], 'pred_segments_one2many': outputs_coord_one2many[-1],
-        #        'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights,
-        #        ''}
+        if self.num_queries_one2many > 0:
+            outputs_class_one2many = outputs_class_all[:, :, self.num_queries_one2one:]
+            outputs_coord_one2many = outputs_coord_all[:, :, self.num_queries_one2one:]
+
+            Q_weights_one2many = Q_weights_all[:, :, self.num_queries_one2one:, self.num_queries_one2one:]
+            K_weights_one2many = K_weights_all
+            C_weights_one2many = C_weights_all[:, :, self.num_queries_one2one:]
+
+            out['pred_logits_one2many'] = outputs_class_one2many[-1]
+            out['pred_segments_one2many'] = outputs_coord_one2many[-1]
+            out['Q_weights_one2many'] = Q_weights_one2many
+            out['K_weights_one2many'] = K_weights_one2many
+            out['C_weights_one2many'] = C_weights_one2many
 
         if self.aux_loss:
             out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
-            # out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord, outputs_overlap)
-            # out['aux_outputs_one2many'] = self._set_aux_loss(outputs_class_one2many, outputs_coord_one2many, outputs_overlap_one2many)
+            if self.num_queries_one2many > 0:
+                out['aux_outputs_one2many'] = self._set_aux_loss(outputs_class_one2many, outputs_coord_one2many)
 
         return out
 
@@ -186,13 +189,6 @@ class DABDETR(nn.Module):
         # doesn't support dictionary with non-homogeneous values, such
         # as a dict having both a Tensor and a list.
         return [{'pred_logits': a, 'pred_segments': b} for a, b in zip(outputs_class[:-1], outputs_coord[:-1])]
-
-    # @torch.jit.unused
-    # def _set_aux_loss(self, outputs_class, outputs_coord, outputs_overlap):
-    #     # this is a workaround to make torchscript happy, as torchscript
-    #     # doesn't support dictionary with non-homogeneous values, such
-    #     # as a dict having both a Tensor and a list.
-    #     return [{'pred_logits': a, 'pred_segments': b, 'pred_overlap': c} for a, b, c in zip(outputs_class[:-1], outputs_coord[:-1], outputs_overlap[:-1])]
 
 
 class SetCriterion(nn.Module):
@@ -239,13 +235,17 @@ class SetCriterion(nn.Module):
         target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
         IoUs = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments),
                                        segment_ops.segment_cw_to_t1t2(target_segments))
-        IoUs = torch.diag(IoUs).detach()
+        IoUs = torch.diag(IoUs)
+        max_IoUs = torch.max(IoUs, dim=-1, keepdims=True)[0]
+        squared_IoUs = torch.square(IoUs)
+        max_squared_IoUs = torch.max(squared_IoUs, dim=-1, keepdims=True)[0]
+        IoUs = ((squared_IoUs / max_squared_IoUs) * max_IoUs).unsqueeze(-1).detach()
 
         target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
         target_classes[idx] = target_classes_o
         target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
         # target_classes_onehot[idx] = target_classes_onehot[idx]
-        target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
+        target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs
 
         target_classes_onehot = target_classes_onehot[:, :, :-1]
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments,
@@ -304,50 +304,66 @@ class SetCriterion(nn.Module):
         losses['loss_iou'] = loss_iou.sum() / num_segments
         return losses
 
-    def loss_overlap(self, outputs, targets, indices, num_segments):
+    def loss_global(self, outputs, targets, indices, num_segments):
+        """Classification loss (NLL)
+        targets dicts must contain the key "labels" containing a tensor of dim [nb_target_segments]
+        """
+        assert 'pred_global_logits' in outputs
+        src_logits = outputs['pred_global_logits']
+
+        target_classes = torch.stack([torch.mode(t["labels"])[0] for t in targets])
+
+        loss = F.cross_entropy(src_logits, target_classes)
+
+        losses = {"loss_global": loss}
+
+        return losses
+
+    def loss_actionness(self, outputs, targets, indices, num_segments):
         """Compute the losses related to the segmentes, the L1 regression loss and the IoU loss
            targets dicts must contain the key "segments" containing a tensor of dim [nb_target_segments, 2]
            The target segments are expected in format (center, width), normalized by the video length.
         """
-        assert 'pred_overlap' in outputs
-        idx = self._get_src_permutation_idx(indices)
-        src_segments = outputs['pred_segments'][idx]
-        target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        assert 'pred_actionness' in outputs
+        src_logits = outputs['pred_actionness']
 
-        losses = {}
+        # tgt_actionness = list()
+        # nb, nk = src_logits.shape[:2]
+        # ks = torch.arange(nk, device=src_logits.device).unsqueeze(0)
+        # for n_i in range(nb):
+        #     target_segments = targets[n_i]["segments"]
+        #     target_segments = segment_ops.segment_cw_to_t1t2(target_segments)
+        #     target_segments = torch.clamp(torch.round(target_segments * (nk - 1)).int(), 0, nk - 1)
+        #     s, e = target_segments[..., 0], target_segments[..., 1]
+        #     this_target = torch.logical_and(ks >= s.unsqueeze(-1), ks <= e.unsqueeze(-1)).float()
+        #     this_target = torch.sum(this_target, dim=0).clamp(0, 1)
+        #     tgt_actionness.append(this_target)
+        # tgt_actionness = torch.stack(tgt_actionness, dim=0).unsqueeze(-1).detach()
 
-        src_overlap = outputs['pred_overlap'][idx].sigmoid()
+        QK = outputs['C_weights']
+        K_masks = QK.mean(dim=(0, 2))
+        K_masks = K_masks / torch.sum(K_masks, dim=1, keepdims=True)
+        nk = K_masks.size(1)
+        top_k = round(nk / 2)
+        top_k_values = torch.topk(K_masks, top_k, dim=-1)[0][:, -1]
+        tgt_actionness = (K_masks > top_k_values.unsqueeze(-1)).float().unsqueeze(-1).detach()
 
-        tgt_overlap = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(target_segments),
-                                              segment_ops.segment_cw_to_t1t2(src_segments))
-        tgt_overlap = torch.diag(tgt_overlap).detach()
+        gamma = 2
+        alpha = self.focal_alpha
+        prob = src_logits.sigmoid()
+        ce_loss = F.binary_cross_entropy_with_logits(src_logits, tgt_actionness, reduction="none")
+        p_t = prob * tgt_actionness + (1 - prob) * (1 - tgt_actionness)
+        loss_actionness = ce_loss * ((1 - p_t) ** gamma)
 
-        loss_overlap = torch.square(src_overlap - tgt_overlap).sum() / num_segments
+        if alpha >= 0:
+            alpha_t = alpha * tgt_actionness + (1 - alpha) * (1 - tgt_actionness)
+            loss_actionness = alpha_t * loss_actionness
 
-        # IoUs = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments),
-        #                                segment_ops.segment_cw_to_t1t2(target_segments))
-        # IoUs = torch.diag(IoUs).detach()
-        #
-        # src_logits = outputs['pred_overlap']
-        #
-        # target_classes = torch.full(src_logits.shape[:2], 1, dtype=torch.int64, device=src_logits.device)
-        # target_classes_onehot = torch.zeros([src_logits.shape[0], src_logits.shape[1], src_logits.shape[2] + 1],
-        #                                     dtype=src_logits.dtype, layout=src_logits.layout, device=src_logits.device)
-        #
-        # target_classes_o = torch.zeros_like(torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)]))
-        # target_classes[idx] = target_classes_o
-        # target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
-        # target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1)
-        #
-        # target_classes_onehot = target_classes_onehot[:, :, :-1]
-        # loss_overlap = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments,
-        #                                   alpha=self.focal_alpha, gamma=2) * src_logits.shape[1]
-        # # loss_overlap = loss_overlap.mean(1).sum() / num_segments * src_logits.shape[1]
-
-        losses['loss_overlap'] = loss_overlap
+        loss_actionness = loss_actionness.mean()
+        losses = {'loss_actionness': loss_actionness}
         return losses
 
-    def loss_mask(self, outputs, targets, indices, num_segments):
+    def loss_QK(self, outputs, targets, indices, num_segments):
         """Compute the losses related to the segmentes, the L1 regression loss and the IoU loss
            targets dicts must contain the key "segments" containing a tensor of dim [nb_target_segments, 2]
            The target segments are expected in format (center, width), normalized by the video length.
@@ -430,6 +446,8 @@ class SetCriterion(nn.Module):
         # loss_mask = loss_mask / len(outputs["C_weights"]) / 5
 
         src_segments = outputs['pred_segments']
+        # idx = self._get_src_permutation_idx(indices)
+        # src_segments = outputs['pred_segments'][idx]
         src_boundary = segment_ops.segment_cw_to_t1t2(src_segments)
         # src_segments = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
         #                           outputs['pred_segments'].unsqueeze(0)), dim=0)
@@ -458,13 +476,33 @@ class SetCriterion(nn.Module):
         # tgt_KK = torch.logical_and(ks >= s[..., None], ks <= e[..., None]).float().softmax(dim=-1)
         # tgt_KK = torch.bmm(tgt_KK.transpose(1, 2), tgt_KK)
         # tgt_KK = torch.sqrt(tgt_KK + 1.0e-7)
-        # tgt_KK = tgt_KK / torch.sum(tgt_KK, dim=-1, keepdim=True).detach()
+        # tgt_KK = (tgt_KK / torch.sum(tgt_KK, dim=-1, keepdim=True)).detach()
 
         tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary).softmax(dim=-1).detach()
+        # tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary)
+        # tgt_QQ = (tgt_QQ / torch.sum(tgt_QQ, dim=-1, keepdim=True)).detach()
+
         # tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary).view(nl, nb, nq, nq).softmax(dim=-1).mean(0).detach()
 
         # C_weights = outputs["C_weights"].flatten(0, 1)
         C_weights = torch.mean(outputs["C_weights"], dim=0)
+        # C_weights = torch.exp(torch.mean(torch.log(outputs["C_weights"] + 1.0e-7), dim=0))
+
+
+        # C_weights = outputs["C_weights"]
+        # nl, nb, nq, nk = C_weights.shape
+        # C_weights = C_weights.flatten(0, 1)
+        # C_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
+        # C_weights = (C_weights / torch.sum(C_weights, dim=-1, keepdim=True))
+        # C_weights = C_weights.view(nl, nb, nq, nq)
+        # normalized_C_weights = C_weights[0]
+        # for i in range(len(C_weights) - 1):
+        #     normalized_C_weights = torch.sqrt(
+        #         torch.bmm(normalized_C_weights, C_weights[i + 1].transpose(1, 2)) + 1.0e-7)
+        #     normalized_C_weights = normalized_C_weights / torch.sum(normalized_C_weights, dim=-1, keepdim=True)
+        # src_QQ = normalized_C_weights
+
+        # C_weights = torch.mean(outputs["C_weights"], dim=0)
         # src_KK = torch.bmm(C_weights.transpose(1, 2), C_weights)
         # src_KK = torch.sqrt(src_KK + 1.0e-7)
         # src_KK = src_KK / torch.sum(src_KK, dim=-1, keepdim=True)
@@ -475,52 +513,16 @@ class SetCriterion(nn.Module):
         # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
 
         src_QQ = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
-        src_QQ = src_QQ / torch.sum(src_QQ, dim=-1, keepdim=True)
+        # src_QQ = torch.sqrt(torch.matmul(C_weights, C_weights.transpose(0, 1)) + 1.0e-7)
+        src_QQ = (src_QQ / torch.sum(src_QQ, dim=-1, keepdim=True))
 
         src_QQ = (src_QQ.flatten(0, 1) + 1.0e-7).log()
         tgt_QQ = (tgt_QQ.flatten(0, 1) + 1.0e-7).log()
 
         loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
+        # loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum() / num_segments
 
-        losses["loss_mask"] = loss_QQ
-
-        return losses
-
-    def loss_actionness(self, outputs, targets, indices, num_segments):
-        """Compute the actionness regression loss
-           targets dicts must contain the key "segments" containing a tensor of dim [nb_target_segments, 2]
-           The target segments are expected in format (center, width), normalized by the video length.
-        """
-        assert 'pred_segments' in outputs
-        assert 'pred_actionness' in outputs
-        src_segments = outputs['pred_segments'].view((-1, 2))
-        target_segments = torch.cat([t['segments'] for t in targets], dim=0)
-
-        losses = {}
-
-        iou_mat = segment_ops.segment_iou(
-            segment_ops.segment_cw_to_t1t2(src_segments),
-            segment_ops.segment_cw_to_t1t2(target_segments))
-
-        gt_iou = iou_mat.max(dim=1)[0]
-        pred_actionness = outputs['pred_actionness']
-        loss_actionness = F.l1_loss(pred_actionness.view(-1), gt_iou.view(-1).detach())
-
-        losses['loss_iou'] = loss_actionness
-        return losses
-
-    def loss_recon(self, outputs, targets, indices, num_segments):
-        """Classification loss (NLL)
-        targets dicts must contain the key "labels" containing a tensor of dim [nb_target_segments]
-        """
-        assert 'pred_recon' in outputs
-
-        src_embeds = outputs['pred_recon']
-        tgt_embeds = outputs['queries'].detach()
-
-        loss_embed = torch.mean(torch.sum(torch.square(src_embeds - tgt_embeds.unsqueeze(1)), dim=-1))
-
-        losses = {'loss_recon': loss_embed}
+        losses["loss_QK"] = loss_QQ
 
         return losses
 
@@ -533,14 +535,26 @@ class SetCriterion(nn.Module):
         assert 'C_weights' in outputs
         assert 'pred_segments' in outputs
 
-        C_weights = outputs["C_weights"].flatten(0, 1).detach()
-        QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
-        target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
+        # # C_weights = outputs["C_weights"].mean(0)
+        # C_weights = outputs["C_weights"].flatten(0, 1)
+        # QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
+        # tgt_QQ = (QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)).detach()
 
-        Q_weights = outputs["Q_weights"].flatten(0, 1)
+        src_segments = outputs['pred_segments']
+        src_boundary = segment_ops.segment_cw_to_t1t2(src_segments)
+        # src_segments = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
+        #                           outputs['pred_segments'].unsqueeze(0)), dim=0)
+        # src_boundary = segment_ops.segment_cw_to_t1t2(src_segments.flatten(0, 1))
+        tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary).softmax(dim=-1).detach()
+
+        # tgt_QQ = (tgt_QQ_CA + tgt_QQ_pred) / 2.0
+        # tgt_QQ = (tgt_QQ / torch.sum(tgt_QQ, dim=-1, keepdim=True)).detach()
+
+        Q_weights = outputs["Q_weights"].mean(0)
+        # Q_weights = outputs["Q_weights"].flatten(0, 1)
 
         src_QQ = (Q_weights.flatten(0, 1) + 1.0e-7).log()
-        tgt_QQ = (target_Q_weights.flatten(0, 1) + 1.0e-7).log()
+        tgt_QQ = (tgt_QQ.flatten(0, 1) + 1.0e-7).log()
 
         losses = {}
 
@@ -560,15 +574,26 @@ class SetCriterion(nn.Module):
         assert 'K_weights' in outputs
         assert 'C_weights' in outputs
 
-        C_weights = torch.mean(outputs["C_weights"], dim=0).detach()
+        C_weights = torch.mean(outputs["C_weights"], dim=0)
         KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
         KK_weights = torch.sqrt(KK_weights + 1.0e-7)
-        target_K_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
+        tgt_KK = (KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)).detach()
+
+        # nk = outputs["K_weights"].size(2)
+        # src_segments = outputs['pred_segments']
+        # src_boundary = segment_ops.segment_cw_to_t1t2(src_segments)
+        # boundary = torch.clamp(torch.round(src_boundary * (nk - 1)).int(), 0, nk - 1)
+        # s, e = boundary[..., 0], boundary[..., 1]
+        # ks = torch.arange(nk).to(src_segments)[None, None, :]
+        # tgt_KK = torch.logical_and(ks >= s[..., None], ks <= e[..., None]).float().softmax(dim=-1)
+        # tgt_KK = torch.bmm(tgt_KK.transpose(1, 2), tgt_KK)
+        # tgt_KK = torch.sqrt(tgt_KK + 1.0e-7)
+        # tgt_KK = (tgt_KK / torch.sum(tgt_KK, dim=-1, keepdim=True)).detach()
 
         K_weights = torch.mean(outputs["K_weights"], dim=0)
 
         src_KK = (K_weights.flatten(0, 1) + 1.0e-7).log()
-        tgt_KK = (target_K_weights.flatten(0, 1) + 1.0e-7).log()
+        tgt_KK = (tgt_KK.flatten(0, 1) + 1.0e-7).log()
 
         losses = {}
 
@@ -594,8 +619,8 @@ class SetCriterion(nn.Module):
         loss_map = {
             'labels': self.loss_labels,
             'segments': self.loss_segments,
-            'overlap': self.loss_overlap,
-            'mask': self.loss_mask,
+            'actionness': self.loss_actionness,
+            'QK': self.loss_QK,
             "QQ": self.loss_QQ,
             "KK": self.loss_KK,
         }
@@ -633,7 +658,7 @@ class SetCriterion(nn.Module):
             for i, aux_outputs in enumerate(outputs['aux_outputs']):
                 indices = self.matcher(aux_outputs, targets)
                 for loss in self.losses:
-                    if 'QQ' in loss or 'KK' in loss or 'mask' in loss:
+                    if 'QQ' in loss or 'KK' in loss or 'QK' in loss or 'actionness' in loss:
                         continue
 
                     kwargs = {}
@@ -748,14 +773,13 @@ def build(args):
         pos_embed,
         transformer,
         num_classes=num_classes,
-        num_queries=args.num_queries,
-        aux_loss=True,
-        with_segment_refine=True,
-        with_act_reg=False)
+        num_queries_one2one=args.num_queries_one2one,
+        num_queries_one2many=args.num_queries_one2many,
+        aux_loss=args.aux_loss,
+    )
 
     matcher = build_matcher(args)
-    # losses = ['labels', 'segments']
-    losses = ['labels', 'segments', 'mask']
+    losses = ['labels', 'segments']
 
     weight_dict = {
         'loss_ce': args.cls_loss_coef,
@@ -763,6 +787,10 @@ def build(args):
         'loss_iou': args.iou_loss_coef,
         'loss_mask': 5.0,
     }
+
+    if args.use_QK:
+        weight_dict["loss_QK"] = args.QK_loss_coef
+        losses.append("QK")
 
     if args.use_KK:
         weight_dict["loss_KK"] = args.KK_loss_coef
@@ -783,6 +811,13 @@ def build(args):
     #     new_dict[key] = value
     #     new_dict[key + "_one2many"] = value
     # weight_dict = new_dict
+
+    if args.num_queries_one2many > 0:
+        new_dict = dict()
+        for key, value in weight_dict.items():
+            new_dict[key] = value
+            new_dict[key + "_one2many"] = value
+        weight_dict = new_dict
 
     criterion = SetCriterion(num_classes, matcher, weight_dict, losses, focal_alpha=args.focal_alpha)
 

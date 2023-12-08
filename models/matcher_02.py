@@ -17,7 +17,7 @@ class HungarianMatcher(nn.Module):
     while the others are un-matched (and thus treated as non-objects).
     """
 
-    def __init__(self, cost_class: float = 1, cost_bbox: float = 1, cost_giou: float = 1, cost_overlap: float = 1):
+    def __init__(self, cost_class: float = 1, cost_bbox: float = 1, cost_giou: float = 1):
         """Creates the matcher
         Params:
             cost_class: This is the relative weight of the classification error in the matching cost
@@ -28,8 +28,7 @@ class HungarianMatcher(nn.Module):
         self.cost_class = cost_class
         self.cost_bbox = cost_bbox
         self.cost_giou = cost_giou
-        self.cost_overlap = cost_overlap
-        assert cost_class != 0 or cost_bbox != 0 or cost_giou != 0 or cost_overlap != 0, "all costs cant be 0"
+        assert cost_class != 0 or cost_bbox != 0 or cost_giou != 0, "all costs cant be 0"
 
     @torch.no_grad()
     def forward(self, outputs, targets):
@@ -53,37 +52,35 @@ class HungarianMatcher(nn.Module):
             bs, num_queries = outputs["pred_logits"].shape[:2]
 
             # We flatten to compute the cost matrices in a batch
-            # out_prob = outputs["pred_logits"].flatten(0, 1).softmax(-1)
             out_prob = outputs["pred_logits"].flatten(0, 1).sigmoid()  # [batch_size * num_queries, num_classes]
             out_bbox = outputs["pred_segments"].flatten(0, 1)  # [batch_size * num_queries, 4]
-            # out_overlap = outputs["pred_overlap"].flatten(0, 1).sigmoid()  # [batch_size * num_queries]
 
             # Also concat the target labels and boxes
             # tgt_ids = torch.cat([v["labels"] for v in targets])
             tgt_ids = torch.cat([v["labels"] for v in targets if len(v["labels"])])
             tgt_bbox = torch.cat([v["segments"] for v in targets if len(v["segments"])])
 
+            IoUs = segment_iou(segment_cw_to_t1t2(out_bbox), segment_cw_to_t1t2(tgt_bbox))
+
             # Compute the classification cost.
             alpha = 0.25
             gamma = 2.0
-            # out_prob = torch.sqrt(out_prob * out_overlap)
+            # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+            # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
+            # cost_class = pos_cost_class[:, tgt_ids] - neg_cost_class[:, tgt_ids]
+
+            out_prob = out_prob[:, tgt_ids] * torch.sqrt(IoUs)
             neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
             pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
-            # pos_cost_class = alpha * ((1 - out_prob * out_overlap) ** gamma) * \
-            #                  (-(out_prob * out_overlap + 1e-8).log())
-            cost_class = pos_cost_class[:, tgt_ids] - neg_cost_class[:, tgt_ids]
-
-            # cost_class = -out_prob[:, tgt_ids] * out_overlap
+            cost_class = pos_cost_class - neg_cost_class
 
             # Compute the L1 cost between boxes
             cost_bbox = torch.cdist(out_bbox, tgt_bbox, p=1)
-            cost_giou = -segment_iou(segment_cw_to_t1t2(out_bbox), segment_cw_to_t1t2(tgt_bbox))
-            # cost_overlap = torch.abs(out_overlap + cost_giou)
+            cost_giou = -IoUs
+            # cost_giou = -segment_iou(segment_cw_to_t1t2(out_bbox), segment_cw_to_t1t2(tgt_bbox))
 
             # Final cost matrix
             C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou
-            # C = self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou + \
-            #     self.cost_overlap * cost_overlap
             C = C.view(bs, num_queries, -1).cpu()
 
             sizes = [len(v["segments"]) for v in targets]
@@ -99,4 +96,4 @@ class HungarianMatcher(nn.Module):
         return batch_idx, src_idx
 
 def build_matcher(args):
-    return HungarianMatcher(cost_class=args.set_cost_class, cost_bbox=args.set_cost_seg, cost_giou=args.set_cost_iou, cost_overlap=2.0)
+    return HungarianMatcher(cost_class=args.set_cost_class, cost_bbox=args.set_cost_seg, cost_giou=args.set_cost_iou)
