@@ -120,7 +120,7 @@ cfg.aux_loss = True
 
 # Loss weight 
 cfg.act_loss_coef = 4
-cfg.cls_loss_coef = 2
+cfg.cls_loss_coef = 6 # 2
 cfg.seg_loss_coef = 5
 cfg.iou_loss_coef = 2
 # Relative classification weight of the no-action class
@@ -129,7 +129,7 @@ cfg.eos_coef = 0.1
 cfg.focal_alpha = 0.25
 
 # Set cost weight
-cfg.set_cost_class = 6  # Class coefficient
+cfg.set_cost_class = 6  # 6, Class coefficient
 cfg.set_cost_seg = 5  # Segment L1 coefficient
 cfg.set_cost_iou = 2  # Segment IoU coefficient
 
