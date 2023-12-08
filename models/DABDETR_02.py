@@ -819,7 +819,7 @@ def build(args):
             new_dict[key + "_one2many"] = value
         weight_dict = new_dict
 
-    criterion = SetCriterion(num_classes, matcher, weight_dict, losses, focal_alpha=args.focal_alpha)
+    criterion = SetCriterion(num_classes, matcher, weight_dict, losses, focal_alpha=args.focal_alpha).cuda()
 
     postprocessor = PostProcess()
 
