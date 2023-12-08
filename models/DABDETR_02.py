@@ -49,9 +49,6 @@ class DABDETR(nn.Module):
         super().__init__()
         self.num_queries_one2one = num_queries_one2one
         self.num_queries_one2many = num_queries_one2many
-        print(num_queries_one2one)
-        print(num_queries_one2many)
-        exit()
         self.num_queries = num_queries_one2one + num_queries_one2many
         self.transformer = transformer
         hidden_dim = transformer.d_model
@@ -59,6 +56,8 @@ class DABDETR(nn.Module):
         self.segment_embed = MLP(hidden_dim, hidden_dim, query_dim, 3)
 
         self.query_dim = query_dim
+        print(self.num_queries, query_dim)
+        exit()
         self.refpoint_embed = nn.Embedding(self.num_queries, query_dim)
         self.random_refpoints_xy = random_refpoints_xy
         if random_refpoints_xy:
