@@ -12,7 +12,7 @@ import sys
 import logging
 # import ipdb as pdb
 import pickle
-from ..util.nms import batched_nms
+from util.nms import batched_nms
 from opts import cfg
 
 from Evaluation.eval_detection import compute_average_precision_detection
