@@ -104,13 +104,13 @@ def batched_nms(
     segs,
     scores,
     cls_idxs,
-    iou_threshold,
-    min_score,
-    max_seg_num,
+    iou_threshold=0.1,
+    min_score=0.001,
+    max_seg_num=200,
     use_soft_nms=True,
     multiclass=True,
     sigma=0.5,
-    voting_thresh=0.75,
+    voting_thresh=0.70,
 ):
     # Based on Detectron2 implementation,
     num_segs = segs.shape[0]
