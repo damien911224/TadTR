@@ -148,10 +148,10 @@ class TADEvaluator(object):
             
             for nms_mode in self.nms_mode:
                 input_dets = np.copy(this_dets)
-                if nms_mode == 'nms':  # when cfg.TEST_SLICE_OVERLAP > 0, only do nms at summarization
-                    dets = apply_nms(input_dets, nms_thr=cfg.nms_thr, use_soft_nms=True)
-                else:
-                # if True:
+                # if nms_mode == 'nms':  # when cfg.TEST_SLICE_OVERLAP > 0, only do nms at summarization
+                #     dets = apply_nms(input_dets, nms_thr=cfg.nms_thr, use_soft_nms=True)
+                # else:
+                if True:
                     sort_idx = input_dets[:, 2].argsort()[::-1]
                     dets = input_dets[sort_idx, :]
 
