@@ -178,7 +178,7 @@ cfg.postproc_cls_topk = 1
 # for each video, pick topk detections
 cfg.postproc_ins_topk = 100
 # IoU threshold for NMS. Note that NMS is not necessary.
-cfg.nms_thr = 0.75
+cfg.nms_thr = 0.4
 
 
 def update_cfg_with_args(cfg, arg_list):
