@@ -36,6 +36,33 @@ if cfg.tensorboard:
 
 import clip
 
+class ModelEma(torch.nn.Module):
+    def __init__(self, model, decay=0.999, device=None, copy_model=True):
+        super().__init__()
+        # make a copy of the model for accumulating moving average of weights
+        if copy_model:
+            self.module = deepcopy(model)
+        else:
+            self.module = model
+        self.module.eval()
+        self.decay = decay
+        self.device = device  # perform ema on different device from model if set
+        if self.device is not None:
+            self.module.to(device=device)
+
+    def _update(self, model, update_fn):
+        with torch.no_grad():
+            for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
+                if self.device is not None:
+                    model_v = model_v.to(device=self.device)
+                ema_v.copy_(update_fn(ema_v, model_v))
+
+    def update(self, model):
+        self._update(model, update_fn=lambda e, m: self.decay * e + (1. - self.decay) * m)
+
+    def set(self, model):
+        self._update(model, update_fn=lambda e, m: m)
+
 def main(args):
     from util.logger import setup_logger
 
@@ -98,6 +125,9 @@ def main(args):
         clip_model, preprocess = clip.load("ViT-B/16", device=device)
 
         model, criterion, postprocessors = build_model(cfg)
+        model_, _, _ = build_model(cfg)
+
+        model_.load_state_dict(model.state_dict())
 
         # # checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_v1_scale/pretrain/epoch_015.pth.tar")
         # checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_LTP_Deform_S8_scale_E15/pretrain/epoch_014.pth.tar")
@@ -117,6 +147,8 @@ def main(args):
         # del checkpoint
 
         model.to(device)
+        model_.to(device)
+        model_ema = ModelEma(model_, copy_model=False)
         model_without_ddp = model
 
         if args.distributed:
@@ -185,9 +217,6 @@ def main(args):
             checkpoint = torch.load(args.resume, map_location='cpu')
             last_epoch = checkpoint['epoch']
 
-        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            optimizer, cfg.lr_step, last_epoch=last_epoch)
-
         dataset_val = build_dataset(subset=cfg.test_set, args=cfg, mode='val')
         if not args.eval:
             dataset_train = build_dataset(subset='train', args=cfg, mode='train')
@@ -209,6 +238,15 @@ def main(args):
             data_loader_train = DataLoader(dataset_train,
                                            batch_sampler=batch_sampler_train,
                                            collate_fn=utils.collate_fn, num_workers=args.num_workers, pin_memory=True)
+
+        max_steps = cfg.epochs * len(data_loader_train)
+        # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        #     optimizer, cfg.lr_step, last_epoch=last_epoch)
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            max_steps,
+            last_epoch=last_epoch
+        )
 
         data_loader_val = DataLoader(dataset_val, cfg.batch_size, sampler=sampler_val,
                                      drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers, pin_memory=True)
@@ -271,7 +309,7 @@ def main(args):
             for group in optimizer.param_groups:
                 logging.info('lr={}'.format(group['lr']))
             train_stats = train_one_epoch(
-                model, clip_model, criterion, data_loader_train, optimizer, device, epoch, cfg,
+                model, model_ema, criterion, data_loader_train, optimizer, device, epoch, cfg,
                 cfg.clip_max_norm)
 
             lr_scheduler.step()
@@ -294,7 +332,9 @@ def main(args):
 
             if (epoch + 1) % cfg.test_interval == 0:
                 test_stats = test(
-                    model, clip_model, criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg, epoch=epoch
+                    model_ema.module,
+                    clip_model,
+                    criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg, epoch=epoch
                 )
                 prime_metric = 'mAP_raw'
                 if test_stats[prime_metric] > best_metric:

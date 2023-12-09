@@ -34,7 +34,7 @@ import copy
 from thop import profile, clever_format
 
 def train_one_epoch(model: torch.nn.Module,
-                    clip_model,
+                    model_ema,
                     criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
                     device: torch.device, epoch: int, cfg, max_norm: float = 0):
@@ -101,6 +101,9 @@ def train_one_epoch(model: torch.nn.Module,
         metric_logger.update(
             loss=loss_value, **loss_dict_reduced_scaled, **loss_dict_reduced_unscaled)
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])
+
+        if model_ema is not None:
+            model_ema.update(model)
 
         cnt += 1
 
