@@ -173,16 +173,7 @@ class TADEvaluator(object):
             b = torch.from_numpy(this_dets[..., 0:2]).float()
             s = torch.from_numpy(this_dets[..., 2]).float()
             l = torch.from_numpy(this_dets[..., 3])
-            b, s, l = batched_nms(
-                b.contiguous(), s.contiguous(), l.contiguous(),
-                0.1,
-                0.001,
-                200,
-                use_soft_nms=True,
-                multiclass=True,
-                sigma=0.75,
-                voting_thresh=0.75
-            )
+            b, s, l = batched_nms(b.contiguous(), s.contiguous(), l.contiguous())
             # this_dets = apply_nms(this_dets)[:200, ...]
             this_dets = torch.concat((b, s[..., None], l[..., None]), axis=-1).numpy()
             this_dets = [[vid] + x.tolist() for x in this_dets]
