@@ -14,6 +14,7 @@ import logging
 import pickle
 from util.nms import batched_nms
 from opts import cfg
+import torch
 
 from Evaluation.eval_detection import compute_average_precision_detection
 # from Evaluation.eval_proposal import average_recall_vs_avg_nr_proposals
