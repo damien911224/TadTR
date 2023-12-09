@@ -290,14 +290,16 @@ def main(args):
         for epoch in range(start_epoch, cfg.epochs):
             if (epoch + 1) % cfg.test_interval == 0:
                 test_stats = test(
-                    model, criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg, epoch=epoch
+                    model_ema.module,
+                    clip_model,
+                    criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg, epoch=epoch
                 )
                 prime_metric = 'mAP_raw'
                 if test_stats[prime_metric] > best_metric:
                     best_metric = test_stats[prime_metric]
                     best_metric_txt = test_stats['stats_summary']
                     logging.info(
-                        'new best metric {:.4f}@epoch{}'.format(best_metric, epoch))
+                        'new_best_metric {:.4f}@epoch{}|seed{}'.format(best_metric, epoch, seed))
                     if cfg.output_dir:
                         ckpt['best_metric'] = best_metric
                         best_ckpt_path = output_dir / 'model_best.pth'
