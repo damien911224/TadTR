@@ -50,7 +50,7 @@ def apply_nms(dets_arr, nms_thr=0.4, use_soft_nms=False):
 
 
 class TADEvaluator(object):
-    def __init__(self, dataset_name, subset, video_dict=None, nms_mode=['raw'], iou_range=[0.5], epoch=None, num_workers=None):
+    def __init__(self, dataset_name, subset, video_dict=None, nms_mode=['nms'], iou_range=[0.5], epoch=None, num_workers=None):
         '''dataset_name:  thumos14, activitynet or hacs
         subset: val or test
         video_dict: the dataset dict created in video_dataset.py
