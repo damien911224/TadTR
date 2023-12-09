@@ -35,7 +35,7 @@ class DABDETR(nn.Module):
 
     def __init__(self, position_embedding, transformer, num_classes, num_queries_one2one,
                  num_queries_one2many=0, aux_loss=True, with_segment_refine=True,
-                 random_refpoints_xy=True, query_dim=2):
+                 random_refpoints_xy=False, query_dim=2):
         """ Initializes the model.
         Parameters:
             backbone: torch module of the backbone to be used. See backbone.py
