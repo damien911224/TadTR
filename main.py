@@ -288,22 +288,22 @@ def main(args):
         logging.info("Start training")
         start_time = time.time()
         for epoch in range(start_epoch, cfg.epochs):
-            if (epoch + 1) % cfg.test_interval == 0:
-                test_stats = test(
-                    model_ema.module,
-                    clip_model,
-                    criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg, epoch=epoch
-                )
-                prime_metric = 'mAP_raw'
-                if test_stats[prime_metric] > best_metric:
-                    best_metric = test_stats[prime_metric]
-                    best_metric_txt = test_stats['stats_summary']
-                    logging.info(
-                        'new_best_metric {:.4f}@epoch{}|seed{}'.format(best_metric, epoch, seed))
-                    if cfg.output_dir:
-                        ckpt['best_metric'] = best_metric
-                        best_ckpt_path = output_dir / 'model_best.pth'
-                        utils.save_on_master(ckpt, best_ckpt_path)
+            # if (epoch + 1) % cfg.test_interval == 0:
+            #     test_stats = test(
+            #         model_ema.module,
+            #         clip_model,
+            #         criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg, epoch=epoch
+            #     )
+            #     prime_metric = 'mAP_raw'
+            #     if test_stats[prime_metric] > best_metric:
+            #         best_metric = test_stats[prime_metric]
+            #         best_metric_txt = test_stats['stats_summary']
+            #         logging.info(
+            #             'new_best_metric {:.4f}@epoch{}|seed{}'.format(best_metric, epoch, seed))
+            #         if cfg.output_dir:
+            #             ckpt['best_metric'] = best_metric
+            #             best_ckpt_path = output_dir / 'model_best.pth'
+            #             utils.save_on_master(ckpt, best_ckpt_path)
 
             if args.distributed:
                 sampler_train.set_epoch(epoch)
@@ -338,7 +338,8 @@ def main(args):
                     clip_model,
                     criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg, epoch=epoch
                 )
-                prime_metric = 'mAP_raw'
+                # prime_metric = 'mAP_raw'
+                prime_metric = 'mAP_nms'
                 if test_stats[prime_metric] > best_metric:
                     best_metric = test_stats[prime_metric]
                     best_metric_txt = test_stats['stats_summary']
