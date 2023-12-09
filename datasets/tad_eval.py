@@ -172,7 +172,7 @@ class TADEvaluator(object):
             this_dets = self.all_pred['nms'][self.all_pred['nms']['video-id'] == vid][['t-start', 't-end', 'score', 'cls']].values
             b = torch.from_numpy(this_dets[..., 0:2]).float()
             s = torch.from_numpy(this_dets[..., 2]).float()
-            l = torch.from_numpy(this_dets[..., 3]).float()
+            l = torch.from_numpy(this_dets[..., 3])
             b, s, l = batched_nms(
                 b.contiguous(), s.contiguous(), l.contiguous(),
                 0.1,
