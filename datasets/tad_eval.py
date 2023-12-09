@@ -12,7 +12,7 @@ import sys
 import logging
 # import ipdb as pdb
 import pickle
-
+from ..util.nms import batched_nms
 from opts import cfg
 
 from Evaluation.eval_detection import compute_average_precision_detection
@@ -169,8 +169,21 @@ class TADEvaluator(object):
         all_pred = []
         for vid in video_ids:
             this_dets = self.all_pred['nms'][self.all_pred['nms']['video-id'] == vid][['t-start', 't-end', 'score', 'cls']].values
-            
-            this_dets = apply_nms(this_dets)[:200, ...]
+            b = this_dets[..., 0:2]
+            s = this_dets[..., 2]
+            l = this_dets[..., 3]
+            b, s, l = batched_nms(
+                b.contiguous(), s.contiguous(), l.contiguous(),
+                0.1,
+                0.001,
+                200,
+                use_soft_nms=True,
+                multiclass=True,
+                sigma=0.75,
+                voting_thresh=0.75
+            )
+            # this_dets = apply_nms(this_dets)[:200, ...]
+            this_dets = np.concatenate((b, s[..., None], l[..., None]), axis=-1)
             this_dets = [[vid] + x.tolist() for x in this_dets]
             all_pred += this_dets
         self.all_pred['nms'] = pd.DataFrame(all_pred, columns=["video-id", "t-start", "t-end", "score", "cls"])
