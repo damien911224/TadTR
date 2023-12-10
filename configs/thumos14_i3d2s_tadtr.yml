@@ -13,7 +13,7 @@ feature_dim: 2048
 online_slice: True
 slice_len: 128 # 128
 slice_overlap: 0.75 # 0.75
-test_slice_overlap: 0.25 # 0.50
+test_slice_overlap: 0.25 # 0.25
 
 batch_size: 16 # 16
 epochs: 300 # 120, 16
