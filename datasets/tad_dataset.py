@@ -205,7 +205,7 @@ class TADDataset(torch.utils.data.Dataset):
         video_data = self._get_video_data(index)
         video_name = self.video_list[index]
 
-        target =  self._get_train_label(video_name)
+        target = self._get_train_label(video_name)
         
         return video_data, target
        
