@@ -53,10 +53,6 @@ def train_one_epoch(model: torch.nn.Module,
         targets = [{k: v.to(device) if k in ['segments', 'labels']
                     else v for k, v in t.items()} for t in targets]
 
-        for t in targets:
-            print(t["segments"].detach().cpu().numpy())
-        exit()
-
         # with torch.no_grad():
         #     queries = ["all actions"]
         #     queries = clip.tokenize(queries).cuda()
