@@ -28,7 +28,7 @@ def get_args_parser():
     parser.add_argument('--resume', default='', help='resume from checkpoint')
 
     parser.add_argument('--eval', action='store_true', help='perform testing')
-    parser.add_argument('--num_workers', default=2, type=int, help='number of dataloader workers')
+    parser.add_argument('--num_workers', default=24, type=int, help='number of dataloader workers')
 
     # Multi-GPU training
     # We support both DataParallel and Distributed DataParallel (DDP)
