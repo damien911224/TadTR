@@ -555,8 +555,8 @@ class SetCriterion(nn.Module):
         # tgt_QQ = (tgt_QQ_CA + tgt_QQ_pred) / 2.0
         # tgt_QQ = (tgt_QQ / torch.sum(tgt_QQ, dim=-1, keepdim=True)).detach()
 
-        Q_weights = outputs["Q_weights"].mean(0)
-        # Q_weights = outputs["Q_weights"].flatten(0, 1)
+        # Q_weights = outputs["Q_weights"].mean(0)
+        Q_weights = outputs["Q_weights"].flatten(0, 1)
 
         src_QQ = (Q_weights.flatten(0, 1) + EPS).log()
         tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
