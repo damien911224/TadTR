@@ -135,7 +135,7 @@ cfg.set_cost_iou = 2  # Segment IoU coefficient
 
 # ----- Training option -------
 # base learning rate. If you set lr in yaml file, don't use this format, use 0.0002 instead
-cfg.lr = 2e-4
+cfg.lr = 1e-4
 
 # Valid only when the input is video frames
 # specify the name pattern of the backbone layers.
