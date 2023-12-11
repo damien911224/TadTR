@@ -224,6 +224,7 @@ class SetCriterion(nn.Module):
         targets dicts must contain the key "labels" containing a tensor of dim [nb_target_segments]
         """
         assert 'pred_logits' in outputs
+
         src_logits = outputs['pred_logits']
 
         target_classes = torch.full(src_logits.shape[:2], self.num_classes, dtype=torch.int64, device=src_logits.device)
@@ -369,6 +370,8 @@ class SetCriterion(nn.Module):
            The target segments are expected in format (center, width), normalized by the video length.
         """
 
+        EPS = 0.0
+
         # idx = self._get_src_permutation_idx(indices)
         # src_segments = outputs['pred_segments']
         # target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
@@ -512,12 +515,12 @@ class SetCriterion(nn.Module):
         #
         # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
 
-        src_QQ = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
+        src_QQ = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)))
         # src_QQ = torch.sqrt(torch.matmul(C_weights, C_weights.transpose(0, 1)) + 1.0e-7)
         src_QQ = (src_QQ / torch.sum(src_QQ, dim=-1, keepdim=True))
 
-        src_QQ = (src_QQ.flatten(0, 1) + 1.0e-7).log()
-        tgt_QQ = (tgt_QQ.flatten(0, 1) + 1.0e-7).log()
+        src_QQ = (src_QQ.flatten(0, 1) + EPS).log()
+        tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
 
         loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
         # loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum() / num_segments
@@ -535,16 +538,18 @@ class SetCriterion(nn.Module):
         assert 'C_weights' in outputs
         assert 'pred_segments' in outputs
 
+        EPS = 1.0e-12
+
         # # C_weights = outputs["C_weights"].mean(0)
         # C_weights = outputs["C_weights"].flatten(0, 1)
         # QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
         # tgt_QQ = (QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)).detach()
 
-        src_segments = outputs['pred_segments']
-        src_boundary = segment_ops.segment_cw_to_t1t2(src_segments)
-        # src_segments = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
-        #                           outputs['pred_segments'].unsqueeze(0)), dim=0)
-        # src_boundary = segment_ops.segment_cw_to_t1t2(src_segments.flatten(0, 1))
+        # src_segments = outputs['pred_segments']
+        # src_boundary = segment_ops.segment_cw_to_t1t2(src_segments)
+        src_segments = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
+                                  outputs['pred_segments'].unsqueeze(0)), dim=0)
+        src_boundary = segment_ops.segment_cw_to_t1t2(src_segments.flatten(0, 1))
         tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary).softmax(dim=-1).detach()
 
         # tgt_QQ = (tgt_QQ_CA + tgt_QQ_pred) / 2.0
@@ -553,8 +558,8 @@ class SetCriterion(nn.Module):
         Q_weights = outputs["Q_weights"].mean(0)
         # Q_weights = outputs["Q_weights"].flatten(0, 1)
 
-        src_QQ = (Q_weights.flatten(0, 1) + 1.0e-7).log()
-        tgt_QQ = (tgt_QQ.flatten(0, 1) + 1.0e-7).log()
+        src_QQ = (Q_weights.flatten(0, 1) + EPS).log()
+        tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
 
         losses = {}
 
@@ -574,9 +579,11 @@ class SetCriterion(nn.Module):
         assert 'K_weights' in outputs
         assert 'C_weights' in outputs
 
+        EPS = 0.0
+
         C_weights = torch.mean(outputs["C_weights"], dim=0)
         KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
-        KK_weights = torch.sqrt(KK_weights + 1.0e-7)
+        KK_weights = torch.sqrt(KK_weights)
         tgt_KK = (KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)).detach()
 
         # nk = outputs["K_weights"].size(2)
@@ -592,8 +599,8 @@ class SetCriterion(nn.Module):
 
         K_weights = torch.mean(outputs["K_weights"], dim=0)
 
-        src_KK = (K_weights.flatten(0, 1) + 1.0e-7).log()
-        tgt_KK = (tgt_KK.flatten(0, 1) + 1.0e-7).log()
+        src_KK = (K_weights.flatten(0, 1) + EPS).log()
+        tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
 
         losses = {}
 
