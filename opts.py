@@ -151,7 +151,7 @@ cfg.lr_linear_proj_mult = 0.1
 # which optimizer to use, choose from ['AdamW', 'Adam', 'SGD']
 cfg.optimizer = 'AdamW'
 cfg.batch_size = 16
-cfg.weight_decay = 1e-4
+cfg.weight_decay = 2e-4
 # gradient clipping max norm
 cfg.clip_max_norm = 0.1
 
