@@ -35,7 +35,8 @@ class DABDETR(nn.Module):
 
     def __init__(self, position_embedding, transformer, num_classes, num_queries_one2one,
                  num_queries_one2many=0, aux_loss=True, with_segment_refine=True,
-                 random_refpoints_xy=True, query_dim=2):
+                 random_refpoints_xy=False, query_dim=2,
+                 two_stage=False, num_queries_enc=40):
         """ Initializes the model.
         Parameters:
             backbone: torch module of the backbone to be used. See backbone.py
@@ -47,6 +48,7 @@ class DABDETR(nn.Module):
             with_segment_refine: iterative segment refinement
         """
         super().__init__()
+        self.num_queries_enc = num_queries_enc
         self.num_queries_one2one = num_queries_one2one
         self.num_queries_one2many = num_queries_one2many
         self.num_queries = num_queries_one2one + num_queries_one2many
@@ -55,6 +57,7 @@ class DABDETR(nn.Module):
         self.class_embed = nn.Linear(hidden_dim, num_classes)
         self.segment_embed = MLP(hidden_dim, hidden_dim, query_dim, 3)
 
+        self.two_stage = two_stage
         self.query_dim = query_dim
         self.refpoint_embed = nn.Embedding(self.num_queries, query_dim)
         self.random_refpoints_xy = random_refpoints_xy
@@ -64,15 +67,23 @@ class DABDETR(nn.Module):
                 inverse_sigmoid(self.refpoint_embed.weight.data[:self.num_queries_one2one, :1])
             self.refpoint_embed.weight.data[:self.num_queries_one2one, :1].requires_grad = False
 
-        self.refpoint_embed.weight.data[self.num_queries_one2one:, :1].uniform_(0, 1)
-        self.refpoint_embed.weight.data[self.num_queries_one2one:, :1] = \
-            inverse_sigmoid(self.refpoint_embed.weight.data[self.num_queries_one2one:, :1])
-        self.refpoint_embed.weight.data[self.num_queries_one2one:, :1].requires_grad = False
+        if self.num_queries_one2many > 0:
+            # uniform_points = torch.linspace(0.0, 1.0, self.num_queries_one2many, dtype=torch.float32)
+            # self.refpoint_embed.weight.data[self.num_queries_one2one:, :1] = uniform_points.unsqueeze(-1)
+
+            self.refpoint_embed.weight.data[self.num_queries_one2one:, :1].uniform_(0, 1)
+            self.refpoint_embed.weight.data[self.num_queries_one2one:, :1] = \
+                inverse_sigmoid(self.refpoint_embed.weight.data[self.num_queries_one2one:, :1])
+            self.refpoint_embed.weight.data[self.num_queries_one2one:, :1].requires_grad = False
+
+            # self.refpoint_embed.weight.data[self.num_queries_one2one:, :].uniform_(0, 1)
+            # self.refpoint_embed.weight.data[self.num_queries_one2one:, :] = \
+            #     inverse_sigmoid(self.refpoint_embed.weight.data[self.num_queries_one2one:, :])
+            # self.refpoint_embed.weight.data[self.num_queries_one2one:, :].requires_grad = False
 
         self.input_proj = nn.ModuleList([
             nn.Sequential(
                 nn.Conv1d(2048, hidden_dim, kernel_size=1),
-                # nn.Conv2d(2048, hidden_dim, kernel_size=1),
                 nn.GroupNorm(32, hidden_dim),
             )])
         self.position_embedding = position_embedding
@@ -92,6 +103,11 @@ class DABDETR(nn.Module):
         if with_segment_refine:
             # hack implementation for segment refinement
             self.transformer.decoder.segment_embed = self.segment_embed
+
+        if two_stage:
+            # hack implementation for two-stage
+            self.transformer.encoder_class_embed = copy.deepcopy(self.class_embed)
+            self.transformer.encoder_segment_embed = copy.deepcopy(self.segment_embed)
 
     def forward(self, features):
         """ The forward expects a NestedTensor, which consists of:
@@ -115,56 +131,69 @@ class DABDETR(nn.Module):
             else:
                 features = nested_tensor_from_tensor_list(features)  # (n, c, t)
 
-        pos = self.position_embedding(features)
+        pos = self.position_embedding(features, d_model=self.transformer.d_model)
         src, mask = features.decompose()
-
         src = self.input_proj[0](src)
 
         embedweight = self.refpoint_embed.weight
-        hs, reference, memory, Q_weights, K_weights, C_weights = self.transformer(src, mask, embedweight, pos)
+        hs, reference, enc_outputs_class, enc_outputs_coord, Q_weights, K_weights, C_weights = \
+            self.transformer(src, mask, embedweight, pos)
 
         reference_before_sigmoid = inverse_sigmoid(reference)
         tmp = self.segment_embed(hs)
         tmp += reference_before_sigmoid
-        outputs_coord = tmp.sigmoid()
+        outputs_coord_all = tmp.sigmoid()
+        before = segment_ops.segment_cw_to_t1t2(reference)
+        after = segment_ops.segment_cw_to_t1t2(outputs_coord_all)
+        outputs_delta_all = \
+            torch.stack((torch.minimum(before[..., 0], after[..., 0]), torch.maximum(before[..., 0], after[..., 0]),
+                         torch.minimum(before[..., 1], after[..., 1]), torch.maximum(before[..., 1], after[..., 1])),
+                        dim=-1)
 
-        outputs_class = self.class_embed(hs)
-
-        # outputs_class = list()
-        # outputs_coord = list()
-        # for lvl in range(hs.shape[0]):
-        #     reference = inter_references[lvl]
-        #     reference = inverse_sigmoid(reference)
-        #     this_outputs_class = self.class_embed[lvl](hs[lvl])
-        #     tmp = self.segment_embed[lvl](hs[lvl])
-        #     tmp += reference
-        #     this_outputs_coord = tmp.sigmoid()
-        #
-        #     outputs_class.append(this_outputs_class)
-        #     outputs_coord.append(this_outputs_coord)
-        # outputs_class = torch.stack(outputs_class)
-        # outputs_coord = torch.stack(outputs_coord)
-
-        outputs_coord_all = outputs_coord
-        outputs_class_all = outputs_class
+        outputs_class_all = self.class_embed(hs)
 
         Q_weights_all = Q_weights
         K_weights_all = K_weights
         C_weights_all = C_weights
 
+        # if self.two_stage:
+        #     outputs_class = outputs_class_all[:, :, :self.num_queries_enc + self.num_queries_one2one]
+        #     outputs_coord = outputs_coord_all[:, :, :self.num_queries_enc + self.num_queries_one2one]
+        #
+        #     Q_weights = Q_weights_all[:, :, :self.num_queries_enc + self.num_queries_one2one,
+        #                 :self.num_queries_enc + self.num_queries_one2one]
+        #     K_weights = K_weights_all
+        #     C_weights = C_weights_all[:, :, :self.num_queries_enc + self.num_queries_one2one]
+        # else:
         outputs_class = outputs_class_all[:, :, :self.num_queries_one2one]
         outputs_coord = outputs_coord_all[:, :, :self.num_queries_one2one]
+        outputs_delta = outputs_delta_all[:, :, :self.num_queries_one2one]
 
         Q_weights = Q_weights_all[:, :, :self.num_queries_one2one, :self.num_queries_one2one]
         K_weights = K_weights_all
         C_weights = C_weights_all[:, :, :self.num_queries_one2one]
 
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
+               'pred_deltas': outputs_delta,
                'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
 
+        if self.two_stage:
+            enc_outputs_coord = enc_outputs_coord.sigmoid()
+            out["enc_outputs"] = {"pred_logits": enc_outputs_class, "pred_segments": enc_outputs_coord}
+
         if self.num_queries_one2many > 0:
+            # if self.two_stage:
+            #     outputs_class_one2many = outputs_class_all[:, :, self.num_queries_enc + self.num_queries_one2one:]
+            #     outputs_coord_one2many = outputs_coord_all[:, :, self.num_queries_enc + self.num_queries_one2one:]
+            #
+            #     Q_weights_one2many = Q_weights_all[:, :, self.num_queries_enc + self.num_queries_one2one:,
+            #                          self.num_queries_enc + self.num_queries_one2one:]
+            #     K_weights_one2many = K_weights_all
+            #     C_weights_one2many = C_weights_all[:, :, self.num_queries_enc + self.num_queries_one2one:]
+            # else:
             outputs_class_one2many = outputs_class_all[:, :, self.num_queries_one2one:]
             outputs_coord_one2many = outputs_coord_all[:, :, self.num_queries_one2one:]
+            outputs_delta_one2many = outputs_delta_all[:, :, self.num_queries_one2one:]
 
             Q_weights_one2many = Q_weights_all[:, :, self.num_queries_one2one:, self.num_queries_one2one:]
             K_weights_one2many = K_weights_all
@@ -172,9 +201,15 @@ class DABDETR(nn.Module):
 
             out['pred_logits_one2many'] = outputs_class_one2many[-1]
             out['pred_segments_one2many'] = outputs_coord_one2many[-1]
+            out['pred_deltas_one2many'] = outputs_delta_one2many
             out['Q_weights_one2many'] = Q_weights_one2many
             out['K_weights_one2many'] = K_weights_one2many
             out['C_weights_one2many'] = C_weights_one2many
+
+            if self.two_stage:
+                out["enc_outputs_one2many"] = {"pred_logits": enc_outputs_class, "pred_segments": enc_outputs_coord}
+                # out['pred_logits_one2many'] = enc_outputs_class
+                # out['pred_segments_one2many'] = enc_outputs_coord
 
         if self.aux_loss:
             out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord)
@@ -214,17 +249,15 @@ class SetCriterion(nn.Module):
         self.losses = losses
         self.focal_alpha = focal_alpha
 
-        # self.eos_coef = 0.1
-        # empty_weight = torch.ones(self.num_classes + 1)
-        # empty_weight[-1] = self.eos_coef
-        # self.register_buffer('empty_weight', empty_weight)
+        self.cost_giou = 1.0
+        self.cost_bbox = 0.0
+        self.cost_class = 0.0
 
     def loss_labels(self, outputs, targets, indices, num_segments, log=True):
         """Classification loss (NLL)
         targets dicts must contain the key "labels" containing a tensor of dim [nb_target_segments]
         """
         assert 'pred_logits' in outputs
-
         src_logits = outputs['pred_logits']
 
         target_classes = torch.full(src_logits.shape[:2], self.num_classes, dtype=torch.int64, device=src_logits.device)
@@ -302,6 +335,9 @@ class SetCriterion(nn.Module):
         loss_iou = 1 - torch.diag(segment_ops.segment_iou(
             segment_ops.segment_cw_to_t1t2(src_segments),
             segment_ops.segment_cw_to_t1t2(target_segments)))
+        # loss_iou = 1 - torch.diag(segment_ops.generalized_segment_iou(
+        #     segment_ops.segment_cw_to_t1t2(src_segments),
+        #     segment_ops.segment_cw_to_t1t2(target_segments)))
         losses['loss_iou'] = loss_iou.sum() / num_segments
         return losses
 
@@ -369,163 +405,340 @@ class SetCriterion(nn.Module):
            targets dicts must contain the key "segments" containing a tensor of dim [nb_target_segments, 2]
            The target segments are expected in format (center, width), normalized by the video length.
         """
+        assert 'C_weights' in outputs
+        assert 'pred_segments' in outputs
 
-        EPS = 0.0
+        EPS = 1.0e-12
 
-        # idx = self._get_src_permutation_idx(indices)
+        split = 0
         # src_segments = outputs['pred_segments']
-        # target_segments = torch.cat([t['segments'][i] for t, (_, i) in zip(targets, indices)], dim=0)
+        # src_boundary = segment_ops.segment_cw_to_t1t2(src_segments)
+        # tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary).softmax(dim=-1).detach()
         #
-        # losses = {}
-        #
-        # obj_center = target_segments
-        # obj_boundary = segment_ops.segment_cw_to_t1t2(target_segments)
-        #
-        # # nb = src_segments.size(0)
-        # # nk = outputs["K_weights"].size(2)
-        # # center_memory_mask = torch.zeros(dtype=torch.float, size=(nb, nk), device=src_segments.device)
-        # # boundary_memory_mask = torch.zeros(dtype=torch.float, size=(nb, nk), device=src_segments.device)
-        # # for n_i, (center, boundary) in enumerate(zip(obj_center, obj_boundary)):
-        # #     center = torch.clamp(torch.round(center * (nk - 1)).int(), 0, nk - 1)
-        # #     boundary = torch.clamp(torch.round(boundary * (nk - 1)).int(), 0, nk - 1)
-        # #     c, w = center[..., 0], center[..., 1]
-        # #     s, e = boundary[..., 0], boundary[..., 1]
-        # #     bw = torch.clamp(torch.round(w / 8).int(), min=1)
-        # #     center_memory_mask[n_i, s:e + 1] = 1.0
-        # #     boundary_memory_mask[n_i, torch.clamp(s - bw, min=0):torch.clamp(s + bw + 1, max=nk)] = 1.0
-        # #     boundary_memory_mask[n_i, torch.clamp(e - bw, min=0):torch.clamp(e + bw + 1, max=nk)] = 1.0
-        # # center_memory_mask = center_memory_mask.detach()
-        # # boundary_memory_mask = boundary_memory_mask.detach()
-        #
-        # # nb = src_segments.size(0)
-        # # nk = outputs["K_weights"].size(2)
-        # # memory_mask = torch.zeros(dtype=torch.float, size=(nb, nk), device=src_segments.device)
-        # # for n_i, (center, boundary) in enumerate(zip(obj_center, obj_boundary)):
-        # #     center = torch.clamp(torch.round(center * (nk - 1)).int(), 0, nk - 1)
-        # #     boundary = torch.clamp(torch.round(boundary * (nk - 1)).int(), 0, nk - 1)
-        # #     c, w = center[..., 0], center[..., 1]
-        # #     s, e = boundary[..., 0], boundary[..., 1]
-        # #     bw = torch.clamp(torch.round(w / 8).int(), min=1)
-        # #     memory_mask[n_i, s:e + 1] = 1.0
-        # #     memory_mask[n_i, torch.clamp(s - bw, min=0):torch.clamp(s + bw + 1, max=nk)] = 1.0
-        # #     memory_mask[n_i, torch.clamp(e - bw, min=0):torch.clamp(e + bw + 1, max=nk)] = 1.0
-        # # memory_mask = memory_mask.detach()
-        #
-        # nk = outputs["K_weights"].size(2)
-        # center = torch.clamp(torch.round(obj_center * (nk - 1)).int(), 0, nk - 1)
-        # boundary = torch.clamp(torch.round(obj_boundary * (nk - 1)).int(), 0, nk - 1)
-        # c, w = center[..., 0], center[..., 1]
-        # s, e = boundary[..., 0], boundary[..., 1]
-        # bw = torch.clamp(torch.round(w / 8).int(), min=1)
-        # memory_mask = torch.logical_and(
-        #     torch.arange(nk).unsqueeze(0).to(src_segments) >= torch.clamp(s - bw, min=0)[:, None],
-        #     torch.arange(nk).unsqueeze(0).to(src_segments) <= torch.clamp(e + bw, max=nk - 1)[:, None])
-        # memory_mask = memory_mask.float()
-        #
-        # # n, k
-        # # C_C_weights = outputs["C_weights"].mean(0)[..., 0][idx]
-        # # L_C_weights = outputs["C_weights"].mean(0)[..., 1][idx]
-        # #
-        # # C_C_weights = torch.sum(C_C_weights * center_memory_mask, dim=-1)
-        # # L_C_weights = torch.sum(L_C_weights * boundary_memory_mask, dim=-1)
-        # #
-        # # loss_mask = (-torch.log(C_C_weights + 1.0e-8) + -torch.log(L_C_weights + 1.0e-8)).sum() / num_segments
-        #
-        # C_weights = outputs["C_weights"].mean(0)[idx]
-        # C_weights = torch.sum(C_weights * memory_mask, dim=-1)
-        #
-        # loss_mask = (-torch.log(C_weights + 1.0e-8)).sum() / num_segments
-        #
-        # # loss_mask = 0.0
-        # # for l_i in range(len(outputs["C_weights"])):
-        # #     C_C_weights = outputs["C_weights"][l_i, ..., 0][idx]
-        # #     L_C_weights = outputs["C_weights"][l_i, ..., 1][idx]
-        # #
-        # #     C_C_weights = torch.sum(C_C_weights * center_memory_mask, dim=-1)
-        # #     L_C_weights = torch.sum(L_C_weights * boundary_memory_mask, dim=-1)
-        # #
-        # #     loss_mask += (-torch.log(C_C_weights + 1.0e-8) + -torch.log(L_C_weights + 1.0e-8)).sum() / num_segments
-        #
-        # loss_mask = loss_mask / len(outputs["C_weights"]) / 5
-
-        src_segments = outputs['pred_segments']
-        # idx = self._get_src_permutation_idx(indices)
-        # src_segments = outputs['pred_segments'][idx]
-        src_boundary = segment_ops.segment_cw_to_t1t2(src_segments)
-        # src_segments = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
-        #                           outputs['pred_segments'].unsqueeze(0)), dim=0)
-        # nl, nb, nq = src_segments.shape[:3]
-        # src_boundary = segment_ops.segment_cw_to_t1t2(src_segments.flatten(0, 1))
-
-        losses = {}
-
-        # tgt_KK = list()
-        # nk = outputs["K_weights"].size(2)
-        # for n_i in range(len(src_segments)):
-        #     target_segments = targets[n_i]['segments']
-        #     obj_boundary = segment_ops.segment_cw_to_t1t2(target_segments)
-        #     boundary = torch.clamp(torch.round(obj_boundary * (nk - 1)).int(), 0, nk - 1)
-        #     s, e = boundary[..., 0], boundary[..., 1]
-        #     ks = torch.arange(nk).to(src_segments).unsqueeze(0)
-        #     this_tgt_KK = torch.clamp(torch.logical_and(ks >= s[:, None], ks <= e[:, None]).sum(dim=0), max=1)[:, None]
-        #     this_tgt_KK = torch.logical_and(this_tgt_KK, this_tgt_KK.transpose(0, 1))
-        #     tgt_KK.append(this_tgt_KK)
-        # tgt_KK = torch.stack(tgt_KK, dim=0).float().softmax(dim=-1).detach()
-
-        # nk = outputs["K_weights"].size(2)
-        # boundary = torch.clamp(torch.round(src_boundary * (nk - 1)).int(), 0, nk - 1)
-        # s, e = boundary[..., 0], boundary[..., 1]
-        # ks = torch.arange(nk).to(src_segments)[None, None, :]
-        # tgt_KK = torch.logical_and(ks >= s[..., None], ks <= e[..., None]).float().softmax(dim=-1)
-        # tgt_KK = torch.bmm(tgt_KK.transpose(1, 2), tgt_KK)
-        # tgt_KK = torch.sqrt(tgt_KK + 1.0e-7)
-        # tgt_KK = (tgt_KK / torch.sum(tgt_KK, dim=-1, keepdim=True)).detach()
-
-        tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary).softmax(dim=-1).detach()
-        # tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary)
-        # tgt_QQ = (tgt_QQ / torch.sum(tgt_QQ, dim=-1, keepdim=True)).detach()
-
-        # tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary).view(nl, nb, nq, nq).softmax(dim=-1).mean(0).detach()
-
-        # C_weights = outputs["C_weights"].flatten(0, 1)
-        C_weights = torch.mean(outputs["C_weights"], dim=0)
-        # C_weights = torch.exp(torch.mean(torch.log(outputs["C_weights"] + 1.0e-7), dim=0))
-
-
-        # C_weights = outputs["C_weights"]
-        # nl, nb, nq, nk = C_weights.shape
-        # C_weights = C_weights.flatten(0, 1)
-        # C_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
-        # C_weights = (C_weights / torch.sum(C_weights, dim=-1, keepdim=True))
-        # C_weights = C_weights.view(nl, nb, nq, nq)
-        # normalized_C_weights = C_weights[0]
-        # for i in range(len(C_weights) - 1):
-        #     normalized_C_weights = torch.sqrt(
-        #         torch.bmm(normalized_C_weights, C_weights[i + 1].transpose(1, 2)) + 1.0e-7)
-        #     normalized_C_weights = normalized_C_weights / torch.sum(normalized_C_weights, dim=-1, keepdim=True)
-        # src_QQ = normalized_C_weights
-
         # C_weights = torch.mean(outputs["C_weights"], dim=0)
-        # src_KK = torch.bmm(C_weights.transpose(1, 2), C_weights)
-        # src_KK = torch.sqrt(src_KK + 1.0e-7)
-        # src_KK = src_KK / torch.sum(src_KK, dim=-1, keepdim=True)
         #
-        # src_KK = (src_KK.flatten(0, 1) + 1.0e-7).log()
-        # tgt_KK = (tgt_KK.flatten(0, 1) + 1.0e-7).log()
+        # src_QQ = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + EPS)
+        # src_QQ = (src_QQ / torch.sum(src_QQ, dim=-1, keepdim=True))
         #
-        # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
+        # src_QQ = (src_QQ.flatten(0, 1) + EPS).log()
+        # tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
+        #
+        # loss_QK = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
+        split = 0
+        # PREV MAIN
+        src_prob = outputs["pred_logits"].sigmoid()
+        src_bbox = outputs["pred_segments"]
+        # src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
+        #                       outputs['pred_logits'].unsqueeze(0)), dim=0).flatten(0, 1)
+        # src_bbox = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
+        #                       outputs['pred_segments'].unsqueeze(0)), dim=0).flatten(0, 1)
+        # src_bbox = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
+        #                       outputs['pred_segments'].unsqueeze(0)), dim=0)
+        # src_bbox = segment_ops.segment_cw_to_t1t2(src_bbox)
+        # src_bbox = torch.stack((torch.min(src_bbox[..., 0], dim=0)[0], torch.max(src_bbox[..., 1], dim=0)[0]), dim=-1)
+        # src_bbox = segment_ops.segment_t1t2_to_cw(src_bbox)
+        tgt_prob = src_prob
+        tgt_bbox = src_bbox
 
-        src_QQ = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)))
-        # src_QQ = torch.sqrt(torch.matmul(C_weights, C_weights.transpose(0, 1)) + 1.0e-7)
-        src_QQ = (src_QQ / torch.sum(src_QQ, dim=-1, keepdim=True))
+        IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+                                               segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        # IoUs = segment_ops.generalized_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+        #                                            segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        # IoUs = (IoUs + 1.0) / 2.0
+
+        # Compute the classification cost.
+        # alpha, gamma = 0.25, 2.0
+        # out_prob = torch.bmm(src_prob, tgt_prob.transpose(1, 2)) * torch.sqrt(IoUs)
+        # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+        # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
+        # cost_class = pos_cost_class - neg_cost_class
+        cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
+
+        # Compute the L1 cost between boxes
+        cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
+        cost_giou = -IoUs
+        # Final cost matrix
+        C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
+            (self.cost_bbox + self.cost_class + self.cost_giou)
+
+        # tgt_QQ = C.softmax(dim=-1)
+        tgt_QQ = C.softmax(dim=-1).detach()
+        # tgt_QQ = inverse_sigmoid(C).softmax(dim=-1).detach()
+
+        # src_QQ = outputs["C_weights"].flatten(0, 1)
+        src_QQ = torch.mean(outputs["C_weights"], dim=0)
+        src_QQ = F.normalize(src_QQ, p=2.0, dim=-1)
+        src_QQ = torch.bmm(src_QQ, src_QQ.transpose(1, 2)).softmax(dim=-1)
+        # src_QQ = inverse_sigmoid(torch.bmm(src_QQ, src_QQ.transpose(1, 2))).softmax(dim=-1)
+        # src_QQ = torch.sqrt(torch.bmm(src_QQ, src_QQ.transpose(1, 2)) + EPS)
+        # src_QQ = (src_QQ / torch.sum(src_QQ, dim=-1, keepdim=True))
 
         src_QQ = (src_QQ.flatten(0, 1) + EPS).log()
         tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
 
-        loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
-        # loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum() / num_segments
+        loss_QK = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
+        split = 0
+        # bs, num_queries = outputs["pred_logits"].shape[:2]
+        #
+        # # We flatten to compute the cost matrices in a batch
+        # out_prob = outputs["pred_logits"].flatten(0, 1).sigmoid()  # [batch_size * num_queries, num_classes]
+        # out_bbox = outputs["pred_segments"].flatten(0, 1)  # [batch_size * num_queries, 4]
+        #
+        # # Also concat the target labels and boxes
+        # tgt_ids = torch.cat([v["labels"] for v in targets if len(v["labels"])])
+        # tgt_bbox = torch.cat([v["segments"] for v in targets if len(v["segments"])])
+        #
+        # IoUs = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(out_bbox),
+        #                                segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        #
+        # # Compute the classification cost.
+        # alpha = 0.25
+        # gamma = 2.0
+        # out_prob = out_prob[:, tgt_ids] * torch.sqrt(IoUs)
+        # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+        # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
+        # cost_class = pos_cost_class - neg_cost_class
+        #
+        # # Compute the L1 cost between boxes
+        # cost_bbox = torch.cdist(out_bbox, tgt_bbox, p=1)
+        # cost_giou = -IoUs
+        #
+        # # Final cost matrix
+        # C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
+        #     (self.cost_bbox + self.cost_class + self.cost_giou)
+        # C = C.view(bs, num_queries, -1)
+        #
+        # tgt_QQ = list()
+        # sizes = [len(v["segments"]) for v in targets]
+        # for i, c in enumerate(C.split(sizes, -1)):
+        #     c = F.normalize(c[i], p=2.0, dim=-1)
+        #     this_tgt_QQ = torch.matmul(c, c.transpose(0, 1))
+        #     tgt_QQ.append(this_tgt_QQ)
+        # tgt_QQ = torch.stack(tgt_QQ).softmax(dim=-1).detach()
+        #
+        # src_QQ = torch.mean(outputs["C_weights"], dim=0)
+        # src_QQ = F.normalize(src_QQ, p=2.0, dim=-1)
+        # src_QQ = torch.bmm(src_QQ, src_QQ.transpose(1, 2)).softmax(dim=-1)
+        #
+        # src_QQ = (src_QQ.flatten(0, 1) + EPS).log()
+        # tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
+        #
+        # loss_QK = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
+        split = 0
+        # Q_segments = outputs['pred_segments']
+        # # K_segments = outputs['enc_outputs']['pred_segments']
+        # nk = outputs['enc_outputs']['pred_segments'].size(1) // 2
+        # K_segments = outputs['enc_outputs']['pred_segments'][:, nk:]
+        #
+        # IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(Q_segments),
+        #                                        segment_ops.segment_cw_to_t1t2(K_segments))
+        #
+        # tgt_QK = IoUs.softmax(dim=-1).detach()
+        #
+        # src_QK = torch.mean(outputs["C_weights"], dim=0)
+        #
+        # src_QK = (src_QK.flatten(0, 1) + EPS).log()
+        # tgt_QK = (tgt_QK.flatten(0, 1) + EPS).log()
+        #
+        # loss_QK = F.kl_div(src_QK, tgt_QK, log_target=True, reduction="none").sum(-1).mean()
+        split = 0
+        # src_prob = outputs["pred_logits"]
+        # src_bbox = outputs["pred_segments"]
+        # tgt_prob = outputs['enc_outputs']['pred_logits']
+        # tgt_bbox = outputs['enc_outputs']['pred_segments']
+        #
+        # src_prob = src_prob.sigmoid()
+        # tgt_prob = tgt_prob.sigmoid()
+        #
+        # IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+        #                                        segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        #
+        # # Compute the classification cost.
+        # alpha, gamma = 0.25, 2.0
+        # out_prob = torch.bmm(src_prob, tgt_prob.transpose(1, 2)) * torch.sqrt(IoUs)
+        # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+        # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
+        # cost_class = pos_cost_class - neg_cost_class
+        #
+        # # Compute the L1 cost between boxes
+        # cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
+        # cost_giou = -IoUs
+        # # Final cost matrix
+        # C = -(5.0 * cost_bbox + 2.0 * cost_class + 2.0 * cost_giou) / 9.0
+        #
+        # tgt_QK = C.softmax(dim=-1).detach()
+        #
+        # src_QK = torch.mean(outputs["C_weights"], dim=0)
+        #
+        # src_QK = (src_QK.flatten(0, 1) + EPS).log()
+        # tgt_QK = (tgt_QK.flatten(0, 1) + EPS).log()
+        #
+        # loss_QK = F.kl_div(src_QK, tgt_QK, log_target=True, reduction="none").sum(-1).mean()
+        split = 0
+        # nk = outputs['enc_outputs']['pred_segments'].size(1) // 2
+        # src_segments = outputs['enc_outputs']['pred_segments'][:, nk:]
+        # # src_segments = torch.stack(outputs['enc_outputs']['pred_segments'].split(nk, dim=1))
+        # src_boundary = segment_ops.segment_cw_to_t1t2(src_segments)
+        #
+        # tgt_KK = segment_ops.batched_segment_iou(src_boundary, src_boundary).softmax(dim=-1).detach()
+        # # tgt_KK = segment_ops.batched_segment_iou(src_boundary, src_boundary).mean(0).softmax(dim=-1).detach()
+        #
+        # C_weights = torch.mean(outputs["C_weights"], dim=0)
+        #
+        # src_KK = torch.sqrt(torch.bmm(C_weights.transpose(1, 2), C_weights) + EPS)
+        # src_KK = (src_KK / torch.sum(src_KK, dim=-1, keepdim=True))
+        #
+        # src_KK = (src_KK.flatten(0, 1) + EPS).log()
+        # tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
+        #
+        # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
+        # loss_QK = loss_QK + loss_KK
+        split = 0
+        # PREV MAIN
+        # nk = outputs['enc_outputs']['pred_segments'].size(1) // 2
+        nk = outputs["K_weights"].size(2)
+        # nb = outputs["C_weights"].size(1)
+        # src_prob = outputs['enc_outputs']["pred_logits"].sigmoid()
+        # src_bbox = outputs['enc_outputs']['pred_segments']
+        src_prob = outputs['enc_outputs']["pred_logits"][:, -nk:].sigmoid()
+        src_bbox = outputs['enc_outputs']['pred_segments'][:, -nk:]
+        # src_prob = torch.stack(outputs['enc_outputs']['pred_logits'].split(nk, dim=1)).flatten(0, 1).sigmoid()
+        # src_bbox = torch.stack(outputs['enc_outputs']['pred_segments'].split(nk, dim=1)).flatten(0, 1)
+        # src_prob = outputs["pred_logits_one2many"].sigmoid()
+        # src_bbox = outputs["pred_segments_one2many"]
+        # src_prob = outputs["pred_logits_one2many"][:, -nk:].sigmoid()
+        # src_bbox = outputs["pred_segments_one2many"][:, -nk:]
+        tgt_prob = src_prob
+        tgt_bbox = src_bbox
 
-        losses["loss_QK"] = loss_QQ
+        IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+                                               segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        # IoUs = segment_ops.generalized_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+        #                                            segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        # IoUs = (IoUs + 1.0) / 2.0
+
+        # Compute the classification cost.
+        # alpha, gamma = 0.25, 2.0
+        # out_prob = torch.bmm(src_prob, tgt_prob.transpose(1, 2)) * torch.sqrt(IoUs)
+        # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+        # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
+        # cost_class = pos_cost_class - neg_cost_class
+        cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
+
+        # Compute the L1 cost between boxes
+        cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
+        cost_giou = -IoUs
+        # Final cost matrix
+        C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
+            (self.cost_bbox + self.cost_class + self.cost_giou)
+
+        # tgt_KK = C.softmax(dim=-1)
+        tgt_KK = C.softmax(dim=-1).detach()
+        # tgt_KK = torch.stack(C.split(nb, dim=0)).softmax(dim=-1).mean(0).detach()
+        # tgt_KK = inverse_sigmoid(C).softmax(dim=-1).detach()
+
+        # src_KK = torch.stack(outputs["C_weights"].mean(0).split(nk, dim=-1), dim=0).flatten(0, 1)
+        src_KK = torch.mean(outputs["C_weights"], dim=0)
+        src_KK = F.normalize(src_KK, p=2.0, dim=-1)
+        src_KK = torch.bmm(src_KK.transpose(1, 2), src_KK).softmax(dim=-1)
+        # src_KK = inverse_sigmoid(torch.bmm(src_KK.transpose(1, 2), src_KK)).softmax(dim=-1)
+        # src_KK = torch.sqrt(torch.bmm(src_KK.transpose(1, 2), src_KK) + EPS)
+        # src_KK = (src_KK / torch.sum(src_KK, dim=-1, keepdim=True))
+
+        src_KK = (src_KK.flatten(0, 1) + EPS).log()
+        tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
+
+        loss_QK = loss_QK + F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
+        split = 0
+        # nk = outputs['enc_outputs']['pred_segments'].size(1) // 2
+        # src_prob = outputs['enc_outputs']["pred_logits"][:, nk:].sigmoid()
+        # src_bbox = outputs['enc_outputs']['pred_segments'][:, nk:]
+        # bs, num_queries = src_prob.shape[:2]
+        #
+        # # We flatten to compute the cost matrices in a batch
+        # out_prob = src_prob.flatten(0, 1)  # [batch_size * num_queries, num_classes]
+        # out_bbox = src_bbox.flatten(0, 1)  # [batch_size * num_queries, 4]
+        #
+        # # Also concat the target labels and boxes
+        # tgt_ids = torch.cat([v["labels"] for v in targets if len(v["labels"])])
+        # tgt_bbox = torch.cat([v["segments"] for v in targets if len(v["segments"])])
+        #
+        # IoUs = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(out_bbox),
+        #                                segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        #
+        # # Compute the classification cost.
+        # alpha = 0.25
+        # gamma = 2.0
+        # out_prob = out_prob[:, tgt_ids] * torch.sqrt(IoUs)
+        # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+        # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
+        # cost_class = pos_cost_class - neg_cost_class
+        #
+        # # Compute the L1 cost between boxes
+        # cost_bbox = torch.cdist(out_bbox, tgt_bbox, p=1)
+        # cost_giou = -IoUs
+        #
+        # # Final cost matrix
+        # C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
+        #     (self.cost_bbox + self.cost_class + self.cost_giou)
+        # C = C.view(bs, num_queries, -1)
+        #
+        # tgt_KK = list()
+        # sizes = [len(v["segments"]) for v in targets]
+        # for i, c in enumerate(C.split(sizes, -1)):
+        #     c = F.normalize(c[i], p=2.0, dim=-1)
+        #     this_tgt_KK = torch.matmul(c, c.transpose(0, 1))
+        #     tgt_KK.append(this_tgt_KK)
+        # tgt_KK = torch.stack(tgt_KK).softmax(dim=-1).detach()
+        #
+        # src_KK = torch.mean(outputs["C_weights"], dim=0)
+        # src_KK = F.normalize(src_KK, p=2.0, dim=-1)
+        # src_KK = torch.bmm(src_KK.transpose(1, 2), src_KK).softmax(dim=-1)
+        #
+        # src_KK = (src_KK.flatten(0, 1) + EPS).log()
+        # tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
+        #
+        # loss_QK = loss_QK + F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
+        split = 0
+        # src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
+        #                       outputs['pred_logits'].unsqueeze(0)), dim=0).flatten(0, 1)
+        # src_bbox = outputs["pred_deltas"].flatten(0, 1)
+        # tgt_prob = src_prob
+        # tgt_bbox = src_bbox
+        #
+        # S_IoUs = segment_ops.batched_segment_iou(src_bbox[..., :2], tgt_bbox[..., :2])
+        # E_IoUs = segment_ops.batched_segment_iou(src_bbox[..., 2:], tgt_bbox[..., 2:])
+        # IoUs = (S_IoUs + E_IoUs) / 2.0
+        #
+        # cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
+        #
+        # # Compute the L1 cost between boxes
+        # cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
+        # cost_giou = -IoUs
+        # # Final cost matrix
+        # C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
+        #     (self.cost_bbox + self.cost_class + self.cost_giou)
+        #
+        # # tgt_QQ = C.softmax(dim=-1)
+        # tgt_QQ = C.softmax(dim=-1).detach()
+        # # tgt_QQ = inverse_sigmoid(C).softmax(dim=-1).detach()
+        #
+        # src_QQ = outputs["C_weights"].flatten(0, 1)
+        # # src_QQ = torch.mean(outputs["C_weights"], dim=0)
+        # src_QQ = F.normalize(src_QQ, p=2.0, dim=-1)
+        # src_QQ = torch.bmm(src_QQ, src_QQ.transpose(1, 2)).softmax(dim=-1)
+        # # src_QQ = inverse_sigmoid(torch.bmm(src_QQ, src_QQ.transpose(1, 2))).softmax(dim=-1)
+        # # src_QQ = torch.sqrt(torch.bmm(src_QQ, src_QQ.transpose(1, 2)) + EPS)
+        # # src_QQ = (src_QQ / torch.sum(src_QQ, dim=-1, keepdim=True))
+        #
+        # src_QQ = (src_QQ.flatten(0, 1) + EPS).log()
+        # tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
+        #
+        # loss_QK = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
+        split = 0
+
+        losses = {}
+        losses["loss_QK"] = loss_QK
 
         return losses
 
@@ -539,36 +752,101 @@ class SetCriterion(nn.Module):
         assert 'pred_segments' in outputs
 
         EPS = 1.0e-12
+        split = 0
+        # src_segments = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
+        #                           outputs['pred_segments'].unsqueeze(0)), dim=0)
+        # src_boundary = segment_ops.segment_cw_to_t1t2(src_segments.flatten(0, 1))
+        #
+        # tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary).softmax(dim=-1).detach()
+        split = 0
+        src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
+                              outputs['pred_logits'].unsqueeze(0)), dim=0).flatten(0, 1)
+        src_bbox = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
+                              outputs['pred_segments'].unsqueeze(0)), dim=0).flatten(0, 1)
+        tgt_prob = src_prob
+        tgt_bbox = src_bbox
 
-        # # C_weights = outputs["C_weights"].mean(0)
-        # C_weights = outputs["C_weights"].flatten(0, 1)
-        # QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
-        # tgt_QQ = (QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)).detach()
+        src_prob = src_prob.sigmoid()
+        tgt_prob = tgt_prob.sigmoid()
 
-        # src_segments = outputs['pred_segments']
-        # src_boundary = segment_ops.segment_cw_to_t1t2(src_segments)
-        src_segments = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
-                                  outputs['pred_segments'].unsqueeze(0)), dim=0)
-        src_boundary = segment_ops.segment_cw_to_t1t2(src_segments.flatten(0, 1))
-        tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary).softmax(dim=-1).detach()
+        IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+                                               segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        # IoUs = segment_ops.generalized_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+        #                                            segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        # IoUs = (IoUs + 1.0) / 2.0
 
-        # tgt_QQ = (tgt_QQ_CA + tgt_QQ_pred) / 2.0
-        # tgt_QQ = (tgt_QQ / torch.sum(tgt_QQ, dim=-1, keepdim=True)).detach()
+        # Compute the classification cost.
+        # alpha, gamma = 0.25, 2.0
+        # out_prob = torch.bmm(src_prob, tgt_prob.transpose(1, 2)) * torch.sqrt(IoUs)
+        # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+        # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
+        # cost_class = pos_cost_class - neg_cost_class
+        cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
 
-        # Q_weights = outputs["Q_weights"].mean(0)
+        # Compute the L1 cost between boxes
+        cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
+        cost_giou = -IoUs
+        # Final cost matrix
+        C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
+            (self.cost_bbox + self.cost_class + self.cost_giou)
+
+        # tgt_QQ = C.softmax(dim=-1)
+        tgt_QQ = C.softmax(dim=-1).detach()
+        # tgt_QQ = inverse_sigmoid(C).softmax(dim=-1).detach()
+        split = 0
+        # src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
+        #                       outputs['pred_logits'].unsqueeze(0)), dim=0).flatten(0, 1)
+        # src_bbox = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
+        #                       outputs['pred_segments'].unsqueeze(0)), dim=0).flatten(0, 1)
+        # bs, num_queries = src_prob.shape[:2]
+        #
+        # # We flatten to compute the cost matrices in a batch
+        # out_prob = src_prob.flatten(0, 1).sigmoid()  # [batch_size * num_queries, num_classes]
+        # out_bbox = src_bbox.flatten(0, 1)  # [batch_size * num_queries, 4]
+        #
+        # # Also concat the target labels and boxes
+        # tgt_ids = torch.cat([v["labels"] for v in targets if len(v["labels"])])
+        # tgt_bbox = torch.cat([v["segments"] for v in targets if len(v["segments"])])
+        #
+        # IoUs = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(out_bbox),
+        #                                segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        #
+        # # Compute the classification cost.
+        # alpha = 0.25
+        # gamma = 2.0
+        # out_prob = out_prob[:, tgt_ids] * torch.sqrt(IoUs)
+        # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+        # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
+        # cost_class = pos_cost_class - neg_cost_class
+        #
+        # # Compute the L1 cost between boxes
+        # cost_bbox = torch.cdist(out_bbox, tgt_bbox, p=1)
+        # cost_giou = -IoUs
+        #
+        # # Final cost matrix
+        # C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
+        #     (self.cost_bbox + self.cost_class + self.cost_giou)
+        # C = C.view(len(outputs["Q_weights"]), bs // len(outputs["Q_weights"]), num_queries, -1).transpose(0, 1)
+        #
+        # tgt_QQ = list()
+        # sizes = [len(v["segments"]) for v in targets]
+        # for i, c in enumerate(C.split(sizes, -1)):
+        #     c = F.normalize(c[i], p=2.0, dim=-1)
+        #     this_tgt_QQ = torch.bmm(c, c.transpose(1, 2))
+        #     tgt_QQ.append(this_tgt_QQ)
+        # tgt_QQ = torch.stack(tgt_QQ, dim=1).flatten(0, 1).softmax(dim=-1).detach()
+        split = 0
+
         Q_weights = outputs["Q_weights"].flatten(0, 1)
 
         src_QQ = (Q_weights.flatten(0, 1) + EPS).log()
         tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
 
+        loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
+
         losses = {}
-
-        loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1)
-        # loss_QQ = loss_QQ * IoU_weight.unsqueeze(-1)
-        # loss_QQ = loss_QQ.sum() / loss_QQ
-        loss_QQ = loss_QQ.mean()
-
         losses['loss_QQ'] = loss_QQ
+
         return losses
 
     def loss_KK(self, outputs, targets, indices, num_segments):
@@ -579,35 +857,139 @@ class SetCriterion(nn.Module):
         assert 'K_weights' in outputs
         assert 'C_weights' in outputs
 
-        EPS = 0.0
-
-        C_weights = torch.mean(outputs["C_weights"], dim=0)
-        KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
-        KK_weights = torch.sqrt(KK_weights)
-        tgt_KK = (KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)).detach()
-
-        # nk = outputs["K_weights"].size(2)
-        # src_segments = outputs['pred_segments']
+        EPS = 1.0e-12
+        split = 0
+        # C_weights = torch.mean(outputs["C_weights"], dim=0)
+        # C_weights = F.normalize(C_weights, p=2.0, dim=-1)
+        # tgt_KK = torch.bmm(C_weights.transpose(1, 2), C_weights).softmax(dim=-1).detach()
+        # # KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
+        # # KK_weights = torch.sqrt(KK_weights)
+        # # tgt_KK = (KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)).detach()
+        #
+        # K_weights = torch.mean(outputs["K_weights"], dim=0)
+        #
+        # src_KK = (K_weights.flatten(0, 1) + EPS).log()
+        # tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
+        #
+        # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1)
+        # loss_KK = loss_KK.mean()
+        split = 0
+        # # src_segments = outputs['enc_outputs']['pred_segments']
+        # nk = outputs['enc_outputs']['pred_segments'].size(1) // 2
+        # src_segments = torch.stack(outputs['enc_outputs']['pred_segments'].split(nk, dim=1)).flatten(0, 1)
         # src_boundary = segment_ops.segment_cw_to_t1t2(src_segments)
-        # boundary = torch.clamp(torch.round(src_boundary * (nk - 1)).int(), 0, nk - 1)
-        # s, e = boundary[..., 0], boundary[..., 1]
-        # ks = torch.arange(nk).to(src_segments)[None, None, :]
-        # tgt_KK = torch.logical_and(ks >= s[..., None], ks <= e[..., None]).float().softmax(dim=-1)
-        # tgt_KK = torch.bmm(tgt_KK.transpose(1, 2), tgt_KK)
-        # tgt_KK = torch.sqrt(tgt_KK + 1.0e-7)
-        # tgt_KK = (tgt_KK / torch.sum(tgt_KK, dim=-1, keepdim=True)).detach()
+        #
+        # tgt_KK = segment_ops.batched_segment_iou(src_boundary, src_boundary).softmax(dim=-1).detach()
+        #
+        # # K_weights = outputs["K_weights"].mean(0)
+        # K_weights = outputs["K_weights"].flatten(0, 1)
+        #
+        # src_KK = (K_weights.flatten(0, 1) + EPS).log()
+        # tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
+        #
+        # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
+        split = 0
+        # nk = outputs['enc_outputs']['pred_segments'].size(1) // 2
+        nk = outputs["K_weights"].size(2)
+        # src_prob = outputs['enc_outputs']['pred_logits'].sigmoid()
+        # src_bbox = outputs['enc_outputs']['pred_segments']
+        src_prob = torch.stack(outputs['enc_outputs']['pred_logits'].split(nk, dim=1)).flatten(0, 1).sigmoid()
+        src_bbox = torch.stack(outputs['enc_outputs']['pred_segments'].split(nk, dim=1)).flatten(0, 1)
+        # src_prob = outputs["pred_logits_one2many"].sigmoid()
+        # src_bbox = outputs["pred_segments_one2many"]
+        # src_prob = torch.stack(outputs["pred_logits_one2many"].split(nk, dim=1)).flatten(0, 1).sigmoid()
+        # src_bbox = torch.stack(outputs["pred_segments_one2many"].split(nk, dim=1)).flatten(0, 1)
+        tgt_prob = src_prob
+        tgt_bbox = src_bbox
 
-        K_weights = torch.mean(outputs["K_weights"], dim=0)
+        src_prob = src_prob.sigmoid()
+        tgt_prob = tgt_prob.sigmoid()
 
+        IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+                                               segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        # IoUs = segment_ops.generalized_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+        #                                            segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        # IoUs = (IoUs + 1.0) / 2.0
+
+        # Compute the classification cost.
+        # alpha, gamma = 0.25, 2.0
+        # out_prob = torch.bmm(src_prob, tgt_prob.transpose(1, 2)) * torch.sqrt(IoUs)
+        # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+        # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
+        # cost_class = pos_cost_class - neg_cost_class
+        cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
+
+        # Compute the L1 cost between boxes
+        cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
+        cost_giou = -IoUs
+        # Final cost matrix
+        C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
+            (self.cost_bbox + self.cost_class + self.cost_giou)
+
+        tgt_KK = C.softmax(dim=-1).detach()
+        # tgt_KK = inverse_sigmoid(C).softmax(dim=-1).detach()
+
+        # K_weights = outputs["K_weights"].mean(0)
+        K_weights = outputs["K_weights"].flatten(0, 1)
         src_KK = (K_weights.flatten(0, 1) + EPS).log()
         tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
 
+        loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
+        # loss_KK = loss_KK + F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
+        split = 0
+        # nk = outputs['enc_outputs']['pred_segments'].size(1) // 2
+        # src_prob = torch.stack(outputs['enc_outputs']['pred_logits'].split(nk, dim=1)).flatten(0, 1).sigmoid()
+        # src_bbox = torch.stack(outputs['enc_outputs']['pred_segments'].split(nk, dim=1)).flatten(0, 1)
+        # bs, num_queries = src_prob.shape[:2]
+        #
+        # # We flatten to compute the cost matrices in a batch
+        # out_prob = src_prob.flatten(0, 1)  # [batch_size * num_queries, num_classes]
+        # out_bbox = src_bbox.flatten(0, 1)  # [batch_size * num_queries, 4]
+        #
+        # # Also concat the target labels and boxes
+        # tgt_ids = torch.cat([v["labels"] for v in targets if len(v["labels"])])
+        # tgt_bbox = torch.cat([v["segments"] for v in targets if len(v["segments"])])
+        #
+        # IoUs = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(out_bbox),
+        #                                segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        #
+        # # Compute the classification cost.
+        # alpha = 0.25
+        # gamma = 2.0
+        # out_prob = out_prob[:, tgt_ids] * torch.sqrt(IoUs)
+        # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+        # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
+        # cost_class = pos_cost_class - neg_cost_class
+        #
+        # # Compute the L1 cost between boxes
+        # cost_bbox = torch.cdist(out_bbox, tgt_bbox, p=1)
+        # cost_giou = -IoUs
+        #
+        # # Final cost matrix
+        # C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
+        #     (self.cost_bbox + self.cost_class + self.cost_giou)
+        # C = C.view(len(outputs["K_weights"]), bs // len(outputs["K_weights"]), num_queries, -1).transpose(0, 1)
+        #
+        # tgt_KK = list()
+        # sizes = [len(v["segments"]) for v in targets]
+        # for i, c in enumerate(C.split(sizes, -1)):
+        #     c = F.normalize(c[i], p=2.0, dim=-1)
+        #     this_tgt_KK = torch.bmm(c, c.transpose(1, 2))
+        #     tgt_KK.append(this_tgt_KK)
+        # tgt_KK = torch.stack(tgt_KK, dim=1).flatten(0, 1).softmax(dim=-1).detach()
+        #
+        # K_weights = outputs["K_weights"].flatten(0, 1)
+        #
+        # src_KK = (K_weights.flatten(0, 1) + EPS).log()
+        # tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
+        #
+        # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
+        split = 0
+
+
         losses = {}
-
-        loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1)
-        loss_KK = loss_KK.mean()
-
         losses['loss_KK'] = loss_KK
+
         return losses
 
     def _get_src_permutation_idx(self, indices):
@@ -657,6 +1039,12 @@ class SetCriterion(nn.Module):
         # Compute all the requested losses
         losses = {}
         for loss in self.losses:
+            if 'QQ' in loss and 'Q_weights' not in outputs:
+                continue
+            if 'KK' in loss and 'K_weights' not in outputs:
+                continue
+            if 'QK' in loss and 'C_weights' not in outputs:
+                continue
             kwargs = {}
             losses.update(self.get_loss(loss, outputs, targets, indices, num_segments, **kwargs))
 
@@ -665,7 +1053,7 @@ class SetCriterion(nn.Module):
             for i, aux_outputs in enumerate(outputs['aux_outputs']):
                 indices = self.matcher(aux_outputs, targets)
                 for loss in self.losses:
-                    if 'QQ' in loss or 'KK' in loss or 'QK' in loss or 'actionness' in loss:
+                    if 'QQ' in loss or 'KK' in loss or 'QK' in loss:
                         continue
 
                     kwargs = {}
@@ -673,15 +1061,73 @@ class SetCriterion(nn.Module):
                         # Logging is enabled only for the last layer
                         kwargs['log'] = False
 
-                    num_segments = sum(len(t["labels"]) for t in targets)
-                    num_segments = torch.as_tensor([num_segments], dtype=torch.float,
-                                                   device=next(iter(outputs.values())).device)
-                    if is_dist_avail_and_initialized():
-                        torch.distributed.all_reduce(num_segments)
-                    num_segments = torch.clamp(num_segments / get_world_size(), min=1).item()
                     l_dict = self.get_loss(loss, aux_outputs, targets, indices, num_segments, **kwargs)
                     l_dict = {k + f'_{i}': v for k, v in l_dict.items()}
                     losses.update(l_dict)
+
+        if "enc_outputs" in outputs:
+            enc_outputs = outputs["enc_outputs"]
+            bin_targets = copy.deepcopy(targets)
+            for bt in bin_targets:
+                bt["labels"] = torch.zeros_like(bt["labels"])
+            # for target in bin_targets:
+            #     target["segments"] = target["segments"].repeat(6, 1)
+            #     target["labels"] = target["labels"].repeat(6)
+            # num_segments = sum(len(t["labels"]) for t in bin_targets)
+            # num_segments = torch.as_tensor([num_segments], dtype=torch.float,
+            #                                device=next(iter(outputs.values())).device)
+            # if is_dist_avail_and_initialized():
+            #     torch.distributed.all_reduce(num_segments)
+            # num_segments = torch.clamp(num_segments / get_world_size(), min=1).item()
+
+            # indices = list()
+            # num_segments = list()
+            # nk = outputs["K_weights"][0].size(1)
+            # ks = torch.arange(nk, device=enc_outputs.device)[:, None]
+            # for n_i in range(len(targets)):
+            #     tgt_segs = torch.round(segment_ops.segment_cw_to_t1t2(targets[n_i]["segments"]).unsqueeze(0) * (nk - 1)).int()
+            #     this_indices = torch.nonzero(torch.logical_and(ks >= tgt_segs[..., 0], ks <= tgt_segs[..., 1]))
+            #     num_segments.append(len(this_indices))
+            #     this_indices = (this_indices[..., 0], this_indices[..., 1])
+            #     indices.append(this_indices)
+            # num_segments = sum(num_segments)
+
+            # prev_idx = 0
+            # nk = outputs["C_weights"].size(3)
+            # for l_i in range(len(outputs["K_weights"])):
+            #     this_enc_outputs = {k:v[:, prev_idx:prev_idx + nk] for k, v in enc_outputs.items()}
+            #     indices = self.matcher(this_enc_outputs, bin_targets)
+            #
+            #     for loss in self.losses:
+            #         if 'QQ' in loss or 'KK' in loss or 'QK' in loss:
+            #             continue
+            #
+            #         kwargs = {}
+            #         if loss == 'labels':
+            #             # Logging is enabled only for the last layer
+            #             kwargs['log'] = False
+            #
+            #         l_dict = self.get_loss(loss, this_enc_outputs, targets, indices, num_segments, **kwargs)
+            #         if l_i < len(outputs["K_weights"]) - 1:
+            #             l_dict = {k + f'_enc_{l_i}': v for k, v in l_dict.items()}
+            #         else:
+            #             l_dict = {k + f'_enc': v for k, v in l_dict.items()}
+            #         losses.update(l_dict)
+            #
+            #     prev_idx += nk
+
+            indices = self.matcher(enc_outputs, bin_targets)
+
+            for loss in self.losses:
+                if 'QQ' in loss or 'KK' in loss or 'QK' in loss:
+                    continue
+                kwargs = {}
+                if loss == "labels":
+                    # Logging is enabled only for the last layer
+                    kwargs["log"] = False
+                l_dict = self.get_loss(loss, enc_outputs, bin_targets, indices, num_segments, **kwargs)
+                l_dict = {k + "_enc": v for k, v in l_dict.items()}
+                losses.update(l_dict)
 
         self.indices = indices
         return losses
@@ -783,6 +1229,9 @@ def build(args):
         num_queries_one2one=args.num_queries_one2one,
         num_queries_one2many=args.num_queries_one2many,
         aux_loss=args.aux_loss,
+        random_refpoints_xy=args.random_refpoints_xy,
+        two_stage=args.two_stage,
+        num_queries_enc=args.num_queries_enc
     )
 
     matcher = build_matcher(args)
@@ -811,6 +1260,12 @@ def build(args):
         aux_weight_dict = {}
         for i in range(args.dec_layers - 1):
             aux_weight_dict.update({k + f'_{i}': v for k, v in weight_dict.items()})
+        # for i in range(args.enc_layers):
+        #     if i < 1 - args.enc_layers:
+        #         aux_weight_dict.update({k + f'_enc_{i}': v for k, v in weight_dict.items()})
+        #     else:
+        #         aux_weight_dict.update({k + f'_enc': v for k, v in weight_dict.items()})
+        aux_weight_dict.update({k + "_enc": v for k, v in weight_dict.items()})
         weight_dict.update(aux_weight_dict)
 
     # new_dict = dict()
