@@ -150,7 +150,7 @@ def to_device(t, device):
 
 @torch.no_grad()
 def test(model, criterion, postprocessor, data_loader, base_ds, device, output_dir, cfg,
-         subset='val', epoch=None, test_mode=False, nms_mode="raw"):
+         subset='val', epoch=None, test_mode=False, nms_mode="nms"):
     '''
     Run inference and evaluation. Do not compute loss
     test_mode: indicates that we are evaluating specific epoch during testing
