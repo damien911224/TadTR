@@ -3,7 +3,7 @@ enc_layers: 2
 dec_layers: 4
 dim_feedforward: 1024
 #num_queries: 40 # 40
-num_queries_enc: 100 # -1
+num_queries_enc: -1 # -1
 num_queries_one2one: 100 # 40
 num_queries_one2many: 200 # 167
 
@@ -42,7 +42,7 @@ QQ_loss_coef: 2.0
 k_one2many: 6 # 6
 lambda_one2many: 1.0 # 1.0
 random_refpoints_xy: False
-two_stage: True
+two_stage: False
 
 # output
 output_dir: outputs/thumos14_i3d2s_tadtr
