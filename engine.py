@@ -149,7 +149,8 @@ def to_device(t, device):
 
 
 @torch.no_grad()
-def test(model, criterion, postprocessor, data_loader, base_ds, device, output_dir, cfg, subset='val', epoch=None, test_mode=False):
+def test(model, criterion, postprocessor, data_loader, base_ds, device, output_dir, cfg,
+         subset='val', epoch=None, test_mode=False, nms_mode="raw"):
     '''
     Run inference and evaluation. Do not compute loss
     test_mode: indicates that we are evaluating specific epoch during testing
@@ -166,8 +167,7 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
     # logging.info('iou range {}'.format(iou_range))
 
     # action_evaluator = None
-    # action_evaluator = TADEvaluator(cfg.dataset_name, subset, base_ds, nms_mode=['nms'], iou_range=iou_range, epoch=epoch)
-    action_evaluator = TADEvaluator(cfg.dataset_name, subset, base_ds, nms_mode=['raw'], iou_range=iou_range, epoch=epoch)
+    action_evaluator = TADEvaluator(cfg.dataset_name, subset, base_ds, nms_mode=[nms_mode], iou_range=iou_range, epoch=epoch)
 
     # raw_res = []
     cnt = 0
