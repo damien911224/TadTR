@@ -106,7 +106,8 @@ def main(args):
 
     while True:
         # fix the seed
-        seed = random.randint(0, 10000) + utils.get_rank()
+        # seed = random.randint(0, 10000) + utils.get_rank()
+        seed = 42
         torch.manual_seed(seed)
         np.random.seed(seed)
         random.seed(seed)
@@ -381,8 +382,10 @@ def main(args):
         logging.info('best det result\n{}'.format(best_metric_txt))
         logging.info(log_path)
 
-        if best_metric > 0.567:
-            break
+        break
+
+        # if best_metric > 0.567:
+        #     break
 
 
 if __name__ == '__main__':
