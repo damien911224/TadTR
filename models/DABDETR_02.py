@@ -145,10 +145,6 @@ class DABDETR(nn.Module):
         outputs_coord_all = tmp.sigmoid()
         before = segment_ops.segment_cw_to_t1t2(reference)
         after = segment_ops.segment_cw_to_t1t2(outputs_coord_all)
-        outputs_delta_all = \
-            torch.stack((torch.minimum(before[..., 0], after[..., 0]), torch.maximum(before[..., 0], after[..., 0]),
-                         torch.minimum(before[..., 1], after[..., 1]), torch.maximum(before[..., 1], after[..., 1])),
-                        dim=-1)
 
         outputs_class_all = self.class_embed(hs)
 
@@ -167,14 +163,12 @@ class DABDETR(nn.Module):
         # else:
         outputs_class = outputs_class_all[:, :, :self.num_queries_one2one]
         outputs_coord = outputs_coord_all[:, :, :self.num_queries_one2one]
-        outputs_delta = outputs_delta_all[:, :, :self.num_queries_one2one]
 
         Q_weights = Q_weights_all[:, :, :self.num_queries_one2one, :self.num_queries_one2one]
         K_weights = K_weights_all
         C_weights = C_weights_all[:, :, :self.num_queries_one2one]
 
         out = {'pred_logits': outputs_class[-1], 'pred_segments': outputs_coord[-1],
-               'pred_deltas': outputs_delta,
                'Q_weights': Q_weights, 'K_weights': K_weights, 'C_weights': C_weights}
 
         if self.two_stage:
@@ -193,7 +187,6 @@ class DABDETR(nn.Module):
             # else:
             outputs_class_one2many = outputs_class_all[:, :, self.num_queries_one2one:]
             outputs_coord_one2many = outputs_coord_all[:, :, self.num_queries_one2one:]
-            outputs_delta_one2many = outputs_delta_all[:, :, self.num_queries_one2one:]
 
             Q_weights_one2many = Q_weights_all[:, :, self.num_queries_one2one:, self.num_queries_one2one:]
             K_weights_one2many = K_weights_all
@@ -201,7 +194,6 @@ class DABDETR(nn.Module):
 
             out['pred_logits_one2many'] = outputs_class_one2many[-1]
             out['pred_segments_one2many'] = outputs_coord_one2many[-1]
-            out['pred_deltas_one2many'] = outputs_delta_one2many
             out['Q_weights_one2many'] = Q_weights_one2many
             out['K_weights_one2many'] = K_weights_one2many
             out['C_weights_one2many'] = C_weights_one2many
