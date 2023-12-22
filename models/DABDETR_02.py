@@ -241,9 +241,9 @@ class SetCriterion(nn.Module):
         self.losses = losses
         self.focal_alpha = focal_alpha
 
-        self.cost_giou = 1.0
+        self.cost_giou = 5.0
         self.cost_bbox = 0.0
-        self.cost_class = 0.0
+        self.cost_class = 2.0
 
     def loss_labels(self, outputs, targets, indices, num_segments, log=True):
         """Classification loss (NLL)
