@@ -265,7 +265,7 @@ class Transformer(nn.Module):
             scale = valid_T.view(N_, 1)
             grid = (grid.unsqueeze(0).expand(N_, -1) + 0.5) / scale
             # w = torch.ones_like(grid) * 0.05
-            w = torch.ones_like(grid) * 0.40 * (2.0 ** lvl)
+            w = torch.ones_like(grid) * 0.05 * (2.0 ** lvl)
             proposal = torch.stack((grid, w), -1)
             proposals.append(proposal)
             _cur += T_
