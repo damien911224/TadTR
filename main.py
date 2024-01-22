@@ -339,7 +339,8 @@ def main(args):
                     # model_ema.module,
                     criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg, epoch=epoch,
                 )
-                prime_metric = 'mAP_nms'
+                prime_metric = 'mAP_raw'
+                # prime_metric = 'mAP_nms'
                 # prime_metric = 'mAP_nms' if "nms" in test_stats.keys() else 'mAP_raw'
                 if test_stats[prime_metric] > best_metric:
                     best_metric = test_stats[prime_metric]
