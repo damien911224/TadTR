@@ -417,26 +417,17 @@ class SetCriterion(nn.Module):
         #
         # loss_QK = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
         split = 0
-        # PREV MAIN
         src_prob = outputs["pred_logits"].sigmoid()
         src_bbox = outputs["pred_segments"]
         # src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
         #                       outputs['pred_logits'].unsqueeze(0)), dim=0).flatten(0, 1)
         # src_bbox = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
         #                       outputs['pred_segments'].unsqueeze(0)), dim=0).flatten(0, 1)
-        # src_bbox = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
-        #                       outputs['pred_segments'].unsqueeze(0)), dim=0)
-        # src_bbox = segment_ops.segment_cw_to_t1t2(src_bbox)
-        # src_bbox = torch.stack((torch.min(src_bbox[..., 0], dim=0)[0], torch.max(src_bbox[..., 1], dim=0)[0]), dim=-1)
-        # src_bbox = segment_ops.segment_t1t2_to_cw(src_bbox)
         tgt_prob = src_prob
         tgt_bbox = src_bbox
 
         IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
                                                segment_ops.segment_cw_to_t1t2(tgt_bbox))
-        # IoUs = segment_ops.generalized_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
-        #                                            segment_ops.segment_cw_to_t1t2(tgt_bbox))
-        # IoUs = (IoUs + 1.0) / 2.0
 
         # Compute the classification cost.
         # alpha, gamma = 0.25, 2.0
@@ -444,7 +435,9 @@ class SetCriterion(nn.Module):
         # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
         # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
         # cost_class = pos_cost_class - neg_cost_class
-        cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
+        # cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
+        cost_class = torch.clamp(torch.max(tgt_prob, dim=-1)[0].unsqueeze(-2) -
+                                 torch.max(src_prob, dim=-1)[0].unsqueeze(-1), min=0.0)
 
         # Compute the L1 cost between boxes
         cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
@@ -453,11 +446,10 @@ class SetCriterion(nn.Module):
         C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
             (self.cost_bbox + self.cost_class + self.cost_giou)
 
-        # tgt_QQ = C.softmax(dim=-1)
         tgt_QQ = C.softmax(dim=-1).detach()
-        # tgt_QQ = inverse_sigmoid(C).softmax(dim=-1).detach()
+        # L, N, Q = outputs["Q_weights"].shape[:3]
+        # tgt_QQ = C.view(L, N, Q, Q).mean(0).softmax(-1).detach()
 
-        # src_QQ = outputs["C_weights"].flatten(0, 1)
         src_QQ = torch.mean(outputs["C_weights"], dim=0)
         src_QQ = F.normalize(src_QQ, p=2.0, dim=-1)
         src_QQ = torch.bmm(src_QQ, src_QQ.transpose(1, 2)).softmax(dim=-1)
@@ -586,61 +578,47 @@ class SetCriterion(nn.Module):
         # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
         # loss_QK = loss_QK + loss_KK
         split = 0
-        # PREV MAIN
-        # nk = outputs['enc_outputs']['pred_segments'].size(1) // 2
-        nk = outputs["K_weights"].size(2)
-        # nb = outputs["C_weights"].size(1)
-        # src_prob = outputs['enc_outputs']["pred_logits"].sigmoid()
-        # src_bbox = outputs['enc_outputs']['pred_segments']
-        src_prob = outputs['enc_outputs']["pred_logits"][:, -nk:].sigmoid()
-        src_bbox = outputs['enc_outputs']['pred_segments'][:, -nk:]
-        # src_prob = torch.stack(outputs['enc_outputs']['pred_logits'].split(nk, dim=1)).flatten(0, 1).sigmoid()
-        # src_bbox = torch.stack(outputs['enc_outputs']['pred_segments'].split(nk, dim=1)).flatten(0, 1)
-        # src_prob = outputs["pred_logits_one2many"].sigmoid()
-        # src_bbox = outputs["pred_segments_one2many"]
-        # src_prob = outputs["pred_logits_one2many"][:, -nk:].sigmoid()
-        # src_bbox = outputs["pred_segments_one2many"][:, -nk:]
-        tgt_prob = src_prob
-        tgt_bbox = src_bbox
-
-        IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
-                                               segment_ops.segment_cw_to_t1t2(tgt_bbox))
-        # IoUs = segment_ops.generalized_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
-        #                                            segment_ops.segment_cw_to_t1t2(tgt_bbox))
-        # IoUs = (IoUs + 1.0) / 2.0
-
-        # Compute the classification cost.
-        # alpha, gamma = 0.25, 2.0
-        # out_prob = torch.bmm(src_prob, tgt_prob.transpose(1, 2)) * torch.sqrt(IoUs)
-        # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
-        # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
-        # cost_class = pos_cost_class - neg_cost_class
-        cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
-
-        # Compute the L1 cost between boxes
-        cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
-        cost_giou = -IoUs
-        # Final cost matrix
-        C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
-            (self.cost_bbox + self.cost_class + self.cost_giou)
-
-        # tgt_KK = C.softmax(dim=-1)
-        tgt_KK = C.softmax(dim=-1).detach()
-        # tgt_KK = torch.stack(C.split(nb, dim=0)).softmax(dim=-1).mean(0).detach()
-        # tgt_KK = inverse_sigmoid(C).softmax(dim=-1).detach()
-
-        # src_KK = torch.stack(outputs["C_weights"].mean(0).split(nk, dim=-1), dim=0).flatten(0, 1)
-        src_KK = torch.mean(outputs["C_weights"], dim=0)
-        src_KK = F.normalize(src_KK, p=2.0, dim=-1)
-        src_KK = torch.bmm(src_KK.transpose(1, 2), src_KK).softmax(dim=-1)
-        # src_KK = inverse_sigmoid(torch.bmm(src_KK.transpose(1, 2), src_KK)).softmax(dim=-1)
-        # src_KK = torch.sqrt(torch.bmm(src_KK.transpose(1, 2), src_KK) + EPS)
-        # src_KK = (src_KK / torch.sum(src_KK, dim=-1, keepdim=True))
-
-        src_KK = (src_KK.flatten(0, 1) + EPS).log()
-        tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
-
-        loss_QK = loss_QK + F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
+        # nk = outputs["C_weights"].size(3)
+        # # src_prob = outputs['enc_outputs']["pred_logits"].sigmoid()
+        # # src_bbox = outputs['enc_outputs']['pred_segments']
+        # src_prob = outputs['enc_outputs']["pred_logits"][:, -nk:].sigmoid()
+        # src_bbox = outputs['enc_outputs']['pred_segments'][:, -nk:]
+        # tgt_prob = src_prob
+        # tgt_bbox = src_bbox
+        #
+        # IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+        #                                        segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        #
+        # # Compute the classification cost.
+        # # alpha, gamma = 0.25, 2.0
+        # # out_prob = torch.bmm(src_prob, tgt_prob.transpose(1, 2)) * torch.sqrt(IoUs)
+        # # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+        # # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
+        # # cost_class = pos_cost_class - neg_cost_class
+        # cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
+        #
+        # # Compute the L1 cost between boxes
+        # cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
+        # cost_giou = -IoUs
+        # # Final cost matrix
+        # C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
+        #     (self.cost_bbox + self.cost_class + self.cost_giou)
+        #
+        # # tgt_KK = C.softmax(dim=-1)
+        # tgt_KK = C.softmax(dim=-1).detach()
+        # # tgt_KK = inverse_sigmoid(C).softmax(dim=-1).detach()
+        #
+        # src_KK = torch.mean(outputs["C_weights"], dim=0)
+        # src_KK = F.normalize(src_KK, p=2.0, dim=-1)
+        # src_KK = torch.bmm(src_KK.transpose(1, 2), src_KK).softmax(dim=-1)
+        # # src_KK = inverse_sigmoid(torch.bmm(src_KK.transpose(1, 2), src_KK)).softmax(dim=-1)
+        # # src_KK = torch.sqrt(torch.bmm(src_KK.transpose(1, 2), src_KK) + EPS)
+        # # src_KK = (src_KK / torch.sum(src_KK, dim=-1, keepdim=True))
+        #
+        # src_KK = (src_KK.flatten(0, 1) + EPS).log()
+        # tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
+        #
+        # loss_QK = loss_QK + F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
         split = 0
         # nk = outputs['enc_outputs']['pred_segments'].size(1) // 2
         # src_prob = outputs['enc_outputs']["pred_logits"][:, nk:].sigmoid()
@@ -692,41 +670,67 @@ class SetCriterion(nn.Module):
         #
         # loss_QK = loss_QK + F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
         split = 0
-        # src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
-        #                       outputs['pred_logits'].unsqueeze(0)), dim=0).flatten(0, 1)
-        # src_bbox = outputs["pred_deltas"].flatten(0, 1)
-        # tgt_prob = src_prob
-        # tgt_bbox = src_bbox
+        # nk = outputs['enc_outputs']["pred_logits"].size(1) // outputs["K_weights"].size(0)
+        # # src_prob = outputs['enc_outputs']["pred_logits"].sigmoid()
+        # # src_bbox = outputs['enc_outputs']["pred_segments"]
+        # # src_prob = torch.stack(outputs['enc_outputs']["pred_logits"].split(nk, dim=1))[-1].sigmoid()
+        # # src_bbox = torch.stack(outputs['enc_outputs']["pred_segments"].split(nk, dim=1))[-1]
+        # src_prob = torch.stack(outputs['enc_outputs']["pred_logits"].split(nk, dim=1)).flatten(0, 1).sigmoid()
+        # src_bbox = torch.stack(outputs['enc_outputs']["pred_segments"].split(nk, dim=1)).flatten(0, 1)
         #
-        # S_IoUs = segment_ops.batched_segment_iou(src_bbox[..., :2], tgt_bbox[..., :2])
-        # E_IoUs = segment_ops.batched_segment_iou(src_bbox[..., 2:], tgt_bbox[..., 2:])
-        # IoUs = (S_IoUs + E_IoUs) / 2.0
+        # prev_idx = 0
+        # tgt_KK = list()
+        # tgt_conf = list()
+        # K = outputs["C_weights"].size(3)
+        # for r in self.enc_ratios:
+        #     this_nk = K // r
+        #     this_src_prob = src_prob[:, prev_idx:prev_idx + this_nk]
+        #     this_src_conf = torch.max(this_src_prob, dim=-1)[0]
+        #     this_src_bbox = src_bbox[:, prev_idx:prev_idx + this_nk]
         #
-        # cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
+        #     IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(this_src_bbox),
+        #                                            segment_ops.segment_cw_to_t1t2(this_src_bbox))
         #
-        # # Compute the L1 cost between boxes
-        # cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
-        # cost_giou = -IoUs
-        # # Final cost matrix
-        # C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
-        #     (self.cost_bbox + self.cost_class + self.cost_giou)
+        #     # Compute the classification cost.
+        #     cost_class = torch.bmm(this_src_prob, this_src_prob.transpose(1, 2))
         #
-        # # tgt_QQ = C.softmax(dim=-1)
-        # tgt_QQ = C.softmax(dim=-1).detach()
-        # # tgt_QQ = inverse_sigmoid(C).softmax(dim=-1).detach()
+        #     # Compute the L1 cost between boxes
+        #     cost_bbox = torch.cdist(this_src_bbox, this_src_bbox, p=1)
+        #     cost_giou = -IoUs
+        #     # Final cost matrix
+        #     C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
+        #         (self.cost_bbox + self.cost_class + self.cost_giou)
         #
-        # src_QQ = outputs["C_weights"].flatten(0, 1)
-        # # src_QQ = torch.mean(outputs["C_weights"], dim=0)
-        # src_QQ = F.normalize(src_QQ, p=2.0, dim=-1)
-        # src_QQ = torch.bmm(src_QQ, src_QQ.transpose(1, 2)).softmax(dim=-1)
-        # # src_QQ = inverse_sigmoid(torch.bmm(src_QQ, src_QQ.transpose(1, 2))).softmax(dim=-1)
-        # # src_QQ = torch.sqrt(torch.bmm(src_QQ, src_QQ.transpose(1, 2)) + EPS)
-        # # src_QQ = (src_QQ / torch.sum(src_QQ, dim=-1, keepdim=True))
+        #     this_src_conf = this_src_conf.unsqueeze(-1) * this_src_conf.unsqueeze(-2)
+        #     # this_src_conf = torch.sqrt(this_src_conf.unsqueeze(-1) * this_src_conf.unsqueeze(-2))
+        #     # this_src_conf = (this_src_conf.unsqueeze(-1) + this_src_conf.unsqueeze(-2)) / 2.0
         #
-        # src_QQ = (src_QQ.flatten(0, 1) + EPS).log()
-        # tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
+        #     if this_nk < K:
+        #         C = F.interpolate(C.unsqueeze(1), size=(K, K), mode="bilinear").squeeze(1)
+        #         # this_src_conf = F.interpolate(this_src_conf.unsqueeze(1), size=K, mode="linear").squeeze(1)
+        #         this_src_conf = F.interpolate(this_src_conf.unsqueeze(1), size=(K, K), mode="bilinear").squeeze(1)
         #
-        # loss_QK = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
+        #     prev_idx += this_nk
+        #     this_tgt_KK = C
+        #     tgt_KK.append(this_tgt_KK)
+        #     tgt_conf.append(this_src_conf)
+        # # tgt_KK = torch.stack(tgt_KK).mean(0).softmax(-1).detach()
+        # L, N = outputs["K_weights"].shape[:2]
+        # # tgt_KK = torch.stack(tgt_KK, dim=1).view(L, N, len(self.enc_ratios), K, K).mean(dim=(0, 2)).softmax(-1).detach()
+        # tgt_conf = torch.stack(tgt_conf, dim=1).view(L, N, len(self.enc_ratios), K, K).softmax(dim=2)
+        # # tgt_conf = torch.stack(tgt_conf, dim=1).view(L, N, len(self.enc_ratios), K, 1).softmax(dim=2)
+        # tgt_KK = (torch.stack(tgt_KK, dim=1).view(L, N, len(self.enc_ratios), K, K) * tgt_conf).mean(0).sum(1).softmax(-1).detach()
+        # # tgt_conf = torch.stack(tgt_conf).softmax(dim=0)
+        # # tgt_KK = (torch.stack(tgt_KK) * tgt_conf).sum(0).softmax(-1).detach()
+        #
+        # src_KK = torch.mean(outputs["C_weights"], dim=0)
+        # src_KK = F.normalize(src_KK, p=2.0, dim=-1)
+        # src_KK = torch.bmm(src_KK.transpose(1, 2), src_KK).softmax(dim=-1)
+        #
+        # src_KK = (src_KK.flatten(0, 1) + EPS).log()
+        # tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
+        #
+        # loss_QK = loss_QK + F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
         split = 0
 
         losses = {}
@@ -751,40 +755,38 @@ class SetCriterion(nn.Module):
         #
         # tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary).softmax(dim=-1).detach()
         split = 0
-        src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
-                              outputs['pred_logits'].unsqueeze(0)), dim=0).flatten(0, 1)
-        src_bbox = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
-                              outputs['pred_segments'].unsqueeze(0)), dim=0).flatten(0, 1)
-        tgt_prob = src_prob
-        tgt_bbox = src_bbox
-
-        src_prob = src_prob.sigmoid()
-        tgt_prob = tgt_prob.sigmoid()
-
-        IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
-                                               segment_ops.segment_cw_to_t1t2(tgt_bbox))
-        # IoUs = segment_ops.generalized_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
-        #                                            segment_ops.segment_cw_to_t1t2(tgt_bbox))
-        # IoUs = (IoUs + 1.0) / 2.0
-
-        # Compute the classification cost.
-        # alpha, gamma = 0.25, 2.0
-        # out_prob = torch.bmm(src_prob, tgt_prob.transpose(1, 2)) * torch.sqrt(IoUs)
-        # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
-        # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
-        # cost_class = pos_cost_class - neg_cost_class
-        cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
-
-        # Compute the L1 cost between boxes
-        cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
-        cost_giou = -IoUs
-        # Final cost matrix
-        C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
-            (self.cost_bbox + self.cost_class + self.cost_giou)
-
-        # tgt_QQ = C.softmax(dim=-1)
-        tgt_QQ = C.softmax(dim=-1).detach()
-        # tgt_QQ = inverse_sigmoid(C).softmax(dim=-1).detach()
+        # # Prev Main
+        # src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
+        #                       outputs['pred_logits'].unsqueeze(0)), dim=0).flatten(0, 1)
+        # src_bbox = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
+        #                       outputs['pred_segments'].unsqueeze(0)), dim=0).flatten(0, 1)
+        # tgt_prob = src_prob
+        # tgt_bbox = src_bbox
+        #
+        # src_prob = src_prob.sigmoid()
+        # tgt_prob = tgt_prob.sigmoid()
+        #
+        # IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+        #                                        segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        #
+        # # Compute the classification cost.
+        # # alpha, gamma = 0.25, 2.0
+        # # out_prob = torch.bmm(src_prob, tgt_prob.transpose(1, 2)) * torch.sqrt(IoUs)
+        # # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+        # # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
+        # # cost_class = pos_cost_class - neg_cost_class
+        # cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
+        #
+        # # Compute the L1 cost between boxes
+        # cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
+        # cost_giou = -IoUs
+        # # Final cost matrix
+        # C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
+        #     (self.cost_bbox + self.cost_class + self.cost_giou)
+        #
+        # # tgt_QQ = C.softmax(dim=-1)
+        # tgt_QQ = C.softmax(dim=-1).detach()
+        # # tgt_QQ = inverse_sigmoid(C).softmax(dim=-1).detach()
         split = 0
         # src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
         #                       outputs['pred_logits'].unsqueeze(0)), dim=0).flatten(0, 1)
@@ -828,6 +830,10 @@ class SetCriterion(nn.Module):
         #     tgt_QQ.append(this_tgt_QQ)
         # tgt_QQ = torch.stack(tgt_QQ, dim=1).flatten(0, 1).softmax(dim=-1).detach()
         split = 0
+        tgt_QQ = outputs["C_weights"].flatten(0, 1)
+        tgt_QQ = F.normalize(tgt_QQ, p=2.0, dim=-1)
+        tgt_QQ = torch.bmm(tgt_QQ, tgt_QQ.transpose(1, 2)).softmax(-1).detach()
+        split = 0
 
         Q_weights = outputs["Q_weights"].flatten(0, 1)
 
@@ -852,11 +858,9 @@ class SetCriterion(nn.Module):
         EPS = 1.0e-12
         split = 0
         # C_weights = torch.mean(outputs["C_weights"], dim=0)
-        # C_weights = F.normalize(C_weights, p=2.0, dim=-1)
-        # tgt_KK = torch.bmm(C_weights.transpose(1, 2), C_weights).softmax(dim=-1).detach()
-        # # KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
-        # # KK_weights = torch.sqrt(KK_weights)
-        # # tgt_KK = (KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)).detach()
+        # KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
+        # KK_weights = torch.sqrt(KK_weights)
+        # tgt_KK = (KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)).detach()
         #
         # K_weights = torch.mean(outputs["K_weights"], dim=0)
         #
@@ -881,53 +885,46 @@ class SetCriterion(nn.Module):
         #
         # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
         split = 0
-        # nk = outputs['enc_outputs']['pred_segments'].size(1) // 2
-        nk = outputs["K_weights"].size(2)
-        # src_prob = outputs['enc_outputs']['pred_logits'].sigmoid()
-        # src_bbox = outputs['enc_outputs']['pred_segments']
-        src_prob = torch.stack(outputs['enc_outputs']['pred_logits'].split(nk, dim=1)).flatten(0, 1).sigmoid()
-        src_bbox = torch.stack(outputs['enc_outputs']['pred_segments'].split(nk, dim=1)).flatten(0, 1)
-        # src_prob = outputs["pred_logits_one2many"].sigmoid()
-        # src_bbox = outputs["pred_segments_one2many"]
-        # src_prob = torch.stack(outputs["pred_logits_one2many"].split(nk, dim=1)).flatten(0, 1).sigmoid()
-        # src_bbox = torch.stack(outputs["pred_segments_one2many"].split(nk, dim=1)).flatten(0, 1)
-        tgt_prob = src_prob
-        tgt_bbox = src_bbox
-
-        src_prob = src_prob.sigmoid()
-        tgt_prob = tgt_prob.sigmoid()
-
-        IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
-                                               segment_ops.segment_cw_to_t1t2(tgt_bbox))
-        # IoUs = segment_ops.generalized_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
-        #                                            segment_ops.segment_cw_to_t1t2(tgt_bbox))
-        # IoUs = (IoUs + 1.0) / 2.0
-
-        # Compute the classification cost.
-        # alpha, gamma = 0.25, 2.0
-        # out_prob = torch.bmm(src_prob, tgt_prob.transpose(1, 2)) * torch.sqrt(IoUs)
-        # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
-        # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
-        # cost_class = pos_cost_class - neg_cost_class
-        cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
-
-        # Compute the L1 cost between boxes
-        cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
-        cost_giou = -IoUs
-        # Final cost matrix
-        C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
-            (self.cost_bbox + self.cost_class + self.cost_giou)
-
-        tgt_KK = C.softmax(dim=-1).detach()
-        # tgt_KK = inverse_sigmoid(C).softmax(dim=-1).detach()
-
-        # K_weights = outputs["K_weights"].mean(0)
-        K_weights = outputs["K_weights"].flatten(0, 1)
-        src_KK = (K_weights.flatten(0, 1) + EPS).log()
-        tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
-
-        loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
-        # loss_KK = loss_KK + F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
+        # # nk = outputs['enc_outputs']['pred_segments'].size(1) // 2
+        # nk = outputs["C_weights"].size(3)
+        # # src_prob = outputs['enc_outputs']['pred_logits'].sigmoid()
+        # # src_bbox = outputs['enc_outputs']['pred_segments']
+        # src_prob = torch.stack(outputs['enc_outputs']['pred_logits'].split(nk, dim=1)).flatten(0, 1).sigmoid()
+        # src_bbox = torch.stack(outputs['enc_outputs']['pred_segments'].split(nk, dim=1)).flatten(0, 1)
+        # tgt_prob = src_prob
+        # tgt_bbox = src_bbox
+        #
+        # src_prob = src_prob.sigmoid()
+        # tgt_prob = tgt_prob.sigmoid()
+        #
+        # IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+        #                                        segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        #
+        # # Compute the classification cost.
+        # # alpha, gamma = 0.25, 2.0
+        # # out_prob = torch.bmm(src_prob, tgt_prob.transpose(1, 2)) * torch.sqrt(IoUs)
+        # # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
+        # # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
+        # # cost_class = pos_cost_class - neg_cost_class
+        # cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
+        #
+        # # Compute the L1 cost between boxes
+        # cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
+        # cost_giou = -IoUs
+        # # Final cost matrix
+        # C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
+        #     (self.cost_bbox + self.cost_class + self.cost_giou)
+        #
+        # # tgt_KK = C.softmax(dim=-1)
+        # tgt_KK = C.softmax(dim=-1).detach()
+        # # tgt_KK = inverse_sigmoid(C).softmax(dim=-1).detach()
+        #
+        # # K_weights = outputs["K_weights"].mean(0)
+        # K_weights = outputs["K_weights"].flatten(0, 1)
+        # src_KK = (K_weights.flatten(0, 1) + EPS).log()
+        # tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
+        #
+        # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
         split = 0
         # nk = outputs['enc_outputs']['pred_segments'].size(1) // 2
         # src_prob = torch.stack(outputs['enc_outputs']['pred_logits'].split(nk, dim=1)).flatten(0, 1).sigmoid()
@@ -977,7 +974,74 @@ class SetCriterion(nn.Module):
         #
         # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
         split = 0
+        # # Prev Main
+        # nk = outputs['enc_outputs']["pred_logits"].size(1) // outputs["K_weights"].size(0)
+        # # src_prob = outputs['enc_outputs']["pred_logits"].sigmoid()
+        # # src_bbox = outputs['enc_outputs']["pred_segments"]
+        # # src_prob = torch.stack(outputs['enc_outputs']["pred_logits"].split(nk, dim=1))[-1].sigmoid()
+        # # src_bbox = torch.stack(outputs['enc_outputs']["pred_segments"].split(nk, dim=1))[-1]
+        # src_prob = torch.stack(outputs['enc_outputs']["pred_logits"].split(nk, dim=1)).flatten(0, 1).sigmoid()
+        # src_bbox = torch.stack(outputs['enc_outputs']["pred_segments"].split(nk, dim=1)).flatten(0, 1)
+        #
+        # prev_idx = 0
+        # tgt_KK = list()
+        # tgt_conf = list()
+        # K = outputs["C_weights"].size(3)
+        # for r in self.enc_ratios:
+        #     this_nk = K // r
+        #     this_src_prob = src_prob[:, prev_idx:prev_idx + this_nk]
+        #     this_src_conf = torch.max(this_src_prob, dim=-1)[0]
+        #     this_src_bbox = src_bbox[:, prev_idx:prev_idx + this_nk]
+        #
+        #     IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(this_src_bbox),
+        #                                            segment_ops.segment_cw_to_t1t2(this_src_bbox))
+        #
+        #     # Compute the classification cost.
+        #     cost_class = torch.bmm(this_src_prob, this_src_prob.transpose(1, 2))
+        #
+        #     # Compute the L1 cost between boxes
+        #     cost_bbox = torch.cdist(this_src_bbox, this_src_bbox, p=1)
+        #     cost_giou = -IoUs
+        #     # Final cost matrix
+        #     C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
+        #         (self.cost_bbox + self.cost_class + self.cost_giou)
+        #
+        #     this_src_conf = this_src_conf.unsqueeze(-1) * this_src_conf.unsqueeze(-2)
+        #     # this_src_conf = torch.sqrt(this_src_conf.unsqueeze(-1) * this_src_conf.unsqueeze(-2))
+        #     # this_src_conf = (this_src_conf.unsqueeze(-1) + this_src_conf.unsqueeze(-2)) / 2.0
+        #
+        #     if this_nk < K:
+        #         C = F.interpolate(C.unsqueeze(1), size=(K, K), mode="bilinear").squeeze(1)
+        #         # this_src_conf = F.interpolate(this_src_conf.unsqueeze(1), size=K, mode="linear").squeeze(1)
+        #         this_src_conf = F.interpolate(this_src_conf.unsqueeze(1), size=(K, K), mode="bilinear").squeeze(1)
+        #
+        #     prev_idx += this_nk
+        #     this_tgt_KK = C
+        #     tgt_KK.append(this_tgt_KK)
+        #     tgt_conf.append(this_src_conf)
+        # # tgt_KK = torch.stack(tgt_KK).mean(0).softmax(-1).detach()
+        # tgt_conf = torch.stack(tgt_conf).softmax(dim=0)
+        # # tgt_conf = torch.stack(tgt_conf).unsqueeze(-1).softmax(dim=0)
+        # tgt_KK = (torch.stack(tgt_KK) * tgt_conf).sum(0).softmax(-1).detach()
+        #
+        # # K_weights = outputs["K_weights"].mean(0)
+        # K_weights = outputs["K_weights"].flatten(0, 1)
+        # src_KK = (K_weights.flatten(0, 1) + EPS).log()
+        # tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
+        #
+        # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
+        split = 0
+        tgt_KK = outputs["C_weights"].mean(0)
+        tgt_KK = F.normalize(tgt_KK, p=2.0, dim=-1)
+        tgt_KK = torch.bmm(tgt_KK.transpose(1, 2), tgt_KK).softmax(-1).detach()
 
+        K_weights = outputs["K_weights"].mean(0)
+
+        src_KK = (K_weights.flatten(0, 1) + EPS).log()
+        tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
+
+        loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
+        split = 0
 
         losses = {}
         losses['loss_KK'] = loss_KK

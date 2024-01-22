@@ -42,7 +42,7 @@ QQ_loss_coef: 2.0
 k_one2many: 6 # 6
 lambda_one2many: 1.0 # 1.0
 random_refpoints_xy: True
-two_stage: True
+two_stage: False
 
 # output
 output_dir: outputs/thumos14_i3d2s_tadtr
