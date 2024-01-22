@@ -130,7 +130,8 @@ def train_hybrid(outputs, targets, criterion, k_one2many=6, lambda_one2many=1.0)
     outputs_one2many["K_weights"] = outputs["K_weights_one2many"]
     outputs_one2many["C_weights"] = outputs["C_weights_one2many"]
     outputs_one2many["aux_outputs"] = outputs["aux_outputs_one2many"]
-    outputs_one2many["enc_outputs"] = outputs["enc_outputs_one2many"]
+    if "enc_outputs" in outputs:
+        outputs_one2many["enc_outputs"] = outputs["enc_outputs_one2many"]
     loss_dict_one2many = criterion(outputs_one2many, multi_targets)
     for key, value in loss_dict_one2many.items():
         if "enc" in key:
