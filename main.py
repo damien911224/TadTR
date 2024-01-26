@@ -385,7 +385,7 @@ def main(args):
 
         # break
 
-        if best_metric > 0.567:
+        if best_metric > 0.573:
             break
 
 
