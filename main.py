@@ -101,10 +101,13 @@ def main(args):
 
     device = torch.device(args.device)
 
-    best_metric = -1
-    best_metric_txt = ''
+    # best_metric = -1
+    # best_metric_txt = ''
 
     while True:
+        best_metric = -1
+        best_metric_txt = ''
+
         # fix the seed
         seed = random.randint(0, 10000) + utils.get_rank()
         # seed = 42
