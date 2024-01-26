@@ -595,9 +595,13 @@ class SetCriterion(nn.Module):
         #     normalized_QQ_weights = normalized_QQ_weights / torch.sum(normalized_QQ_weights, dim=-1, keepdim=True)
         # target_Q_weights = normalized_QQ_weights
 
-        C_weights = outputs["C_weights"].flatten(0, 1).detach()
-        QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
-        target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
+        # C_weights = outputs["C_weights"].flatten(0, 1).detach()
+        # QQ_weights = torch.sqrt(torch.bmm(C_weights, C_weights.transpose(1, 2)) + 1.0e-7)
+        # target_Q_weights = QQ_weights / torch.sum(QQ_weights, dim=-1, keepdim=True)
+
+        tgt_QQ = outputs["C_weights"].flatten(0, 1)
+        tgt_QQ = F.normalize(tgt_QQ, p=2.0, dim=-1)
+        tgt_QQ = torch.bmm(tgt_QQ, tgt_QQ.transpose(1, 2)).softmax(-1).detach()
 
         # target_Q_weights = torch.eye(Q).unsqueeze(0).repeat(L * N, 1, 1).to(Q_weights.device)
 
@@ -621,11 +625,11 @@ class SetCriterion(nn.Module):
 
         # NQ, Q
         # src_QQ = F.normalize(Q_weights, dim=-1).flatten(0, 1)
-        src_QQ = (Q_weights.flatten(0, 1) + 1.0e-7).log()
+        src_QQ = (Q_weights.flatten(0, 1) + 1.0e-12).log()
         # src_QQ = F.log_softmax(Q_weights.flatten(0, 1), -1)
         # NQ, Q
         # tgt_QQ = F.normalize(target_Q_weights, dim=-1).flatten(0, 1)
-        tgt_QQ = (target_Q_weights.flatten(0, 1) + 1.0e-7).log()
+        tgt_QQ = (tgt_QQ.flatten(0, 1) + 1.0e-12).log()
 
         losses = {}
 
@@ -664,15 +668,15 @@ class SetCriterion(nn.Module):
 
         # L, N, K, K = outputs["K_weights"].shape
 
-        # K_weights = torch.mean(outputs["K_weights"], dim=0)
+        K_weights = torch.mean(outputs["K_weights"], dim=0)
 
-        K_weights = outputs["K_weights"]
-        normalized_K_weights = K_weights[0]
-        for i in range(len(K_weights) - 1):
-            normalized_K_weights = torch.sqrt(
-                torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)) + 1.0e-7)
-            normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
-        K_weights = normalized_K_weights
+        # K_weights = outputs["K_weights"]
+        # normalized_K_weights = K_weights[0]
+        # for i in range(len(K_weights) - 1):
+        #     normalized_K_weights = torch.sqrt(
+        #         torch.bmm(normalized_K_weights, K_weights[i + 1].transpose(1, 2)) + 1.0e-7)
+        #     normalized_K_weights = normalized_K_weights / torch.sum(normalized_K_weights, dim=-1, keepdim=True)
+        # K_weights = normalized_K_weights
 
         # C_weights = outputs["C_weights"].detach()
 
@@ -714,10 +718,14 @@ class SetCriterion(nn.Module):
         #     normalized_KK_weights = normalized_KK_weights / torch.sum(normalized_KK_weights, dim=-1, keepdim=True)
         # target_K_weights = normalized_KK_weights
 
-        C_weights = torch.mean(outputs["C_weights"], dim=0).detach()
-        KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
-        KK_weights = torch.sqrt(KK_weights + 1.0e-7)
-        target_K_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
+        # C_weights = torch.mean(outputs["C_weights"], dim=0).detach()
+        # KK_weights = torch.bmm(C_weights.transpose(1, 2), C_weights)
+        # KK_weights = torch.sqrt(KK_weights + 1.0e-7)
+        # target_K_weights = KK_weights / torch.sum(KK_weights, dim=-1, keepdim=True)
+
+        tgt_KK = outputs["C_weights"].mean(0)
+        tgt_KK = F.normalize(tgt_KK, p=2.0, dim=-1)
+        tgt_KK = torch.bmm(tgt_KK.transpose(1, 2), tgt_KK).softmax(-1).detach()
 
         # target_K_weights = torch.eye(K).unsqueeze(0).repeat(N, 1, 1).to(K_weights.device)
 
@@ -728,8 +736,8 @@ class SetCriterion(nn.Module):
         # print((torch.max(C_weights) - torch.max(target_K_weights)).detach().cpu().numpy())
 
         # NK, K
-        src_KK = (K_weights.flatten(0, 1) + 1.0e-7).log()
-        tgt_KK = (target_K_weights.flatten(0, 1) + 1.0e-7).log()
+        src_KK = (K_weights.flatten(0, 1) + 1.0e-12).log()
+        tgt_KK = (tgt_KK.flatten(0, 1) + 1.0e-12).log()
 
         losses = {}
 
