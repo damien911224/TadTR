@@ -384,10 +384,10 @@ def main(args):
         logging.info('best det result\n{}'.format(best_metric_txt))
         logging.info(log_path)
 
-        break
+        # break
 
-        # if best_metric > 0.573:
-        #     break
+        if best_metric < 0.54:
+            break
 
 
 if __name__ == '__main__':
