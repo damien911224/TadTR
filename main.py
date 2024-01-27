@@ -133,7 +133,7 @@ def main(args):
 
         model_.load_state_dict(model.state_dict())
 
-        checkpoint = torch.load("/mnt/hdd0/VAD/ckpt/kinetics_i3d_v1_scale/pretrain/epoch_015.pth.tar")
+        checkpoint = torch.load("/mnt/hdd0/VAD/ckpt/kinetics_i3d_v1_scale/pretrain/epoch_019.pth.tar")
         # checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_v1_base/pretrain/epoch_015.pth.tar")
         # checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_LTP_Deform_S8_scale_E15/pretrain/epoch_014.pth.tar")
         # checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_v1_S8_scale_deform/pretrain/epoch_019.pth.tar")
@@ -141,7 +141,8 @@ def main(args):
         filtered_ckpt = dict()
         for k, v in checkpoint['state_dict'].items():
             # if "class_embed" not in k:
-            if "class_embed" not in k and "clip_embed" not in k:
+            # if "class_embed" not in k and "clip_embed" not in k:
+            if "input" not in k and "class_embed" not in k and "clip_embed" not in k:
             # if "class_embed" not in k and "clip_embed" not in k and "input_proj" not in k:
             # if "class_embed" not in k and "query_embed" not in k:
             # if "class_embed" not in k and "refpoint_embed" not in k and "query_embed" not in k:
