@@ -8,6 +8,10 @@ import argparse
 from easydict import EasyDict
 import yaml
 
+import argparse
+from easydict import EasyDict
+import yaml
+
 
 def str2bool(x):
     if x.lower() in ['true', 't', '1', 'y']:
@@ -23,12 +27,12 @@ def get_args_parser():
 
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
-    parser.add_argument('--seed', default=2028, type=int) # 42
+    parser.add_argument('--seed', default=42, type=int)
 
     parser.add_argument('--resume', default='', help='resume from checkpoint')
 
     parser.add_argument('--eval', action='store_true', help='perform testing')
-    parser.add_argument('--num_workers', default=24, type=int, help='number of dataloader workers')
+    parser.add_argument('--num_workers', default=2, type=int, help='number of dataloader workers')
 
     # Multi-GPU training
     # We support both DataParallel and Distributed DataParallel (DDP)
@@ -41,14 +45,13 @@ def get_args_parser():
     # Other options
     parser.add_argument('opt', nargs=argparse.REMAINDER,
                         help='Command arguments that override configs')
-
     return parser
 
 
 cfg = EasyDict()
 # ---- Basic option ----
 # whether to enable tensorboard
-cfg.tensorboard = True
+cfg.tensorboard = False
 # Disable CUDA extensions so that we can run the model on CPU
 cfg.disable_cuda = False
 # The backend of deformable attention, pytorch or CUDA
@@ -65,7 +68,7 @@ cfg.input_type = 'feature'
 cfg.feature = 'i3d2s'
 # dimension (channels) of the video feature
 cfg.feature_dim = 2048
-# Perform binary detection (proposal generation) only 
+# Perform binary detection (proposal generation) only
 cfg.binary = False
 # Testing on Which subset 'val' or 'test' (For Anet and HACS). Note that we rename the training/validation/testing subsets for all datasets. For example, the validation subset used for training on THUMOS14 is renamed as 'train' subset.
 cfg.test_set = 'val'
@@ -75,11 +78,11 @@ cfg.online_slice = False
 cfg.slice_len = None
 # overlap ratio (=overlap_length/slice_length) between adjacent slices during training
 cfg.slice_overlap = 0
-# overlap ratio between adjacent slices during inference 
+# overlap ratio between adjacent slices during inference
 cfg.test_slice_overlap = 0
 
 # ---- Model option --------
-# Name of the convolutional backbone to use. If we use video features as input, backbone should be 'none' 
+# Name of the convolutional backbone to use. If we use video features as input, backbone should be 'none'
 cfg.backbone = 'none'
 
 # whether to use position embedding
@@ -110,7 +113,7 @@ cfg.activation = 'relu'
 # Whether to enable segment refinement mechanism
 cfg.seg_refine = True
 # Whether to enable actionness regression head
-cfg.act_reg = False  # True
+cfg.act_reg = True
 # whether to disable self-attention between action queries
 cfg.disable_query_self_att = False
 
@@ -118,9 +121,9 @@ cfg.disable_query_self_att = False
 # Enable auxiliary decoding losses (loss at each layer)
 cfg.aux_loss = True
 
-# Loss weight 
+# Loss weight
 cfg.act_loss_coef = 4
-cfg.cls_loss_coef = 2 # 2
+cfg.cls_loss_coef = 2
 cfg.seg_loss_coef = 5
 cfg.iou_loss_coef = 2
 # Relative classification weight of the no-action class
@@ -129,7 +132,7 @@ cfg.eos_coef = 0.1
 cfg.focal_alpha = 0.25
 
 # Set cost weight
-cfg.set_cost_class = 6  # 6, Class coefficient
+cfg.set_cost_class = 6  # Class coefficient
 cfg.set_cost_seg = 5  # Segment L1 coefficient
 cfg.set_cost_iou = 2  # Segment IoU coefficient
 
@@ -144,22 +147,21 @@ cfg.lr_backbone_names = ['backbone']
 cfg.lr_backbone = 1e-5
 
 # special linear projection layers that need to use smaller lr
-# cfg.lr_linear_proj_names = ['reference_points', 'sampling_offsets']
-cfg.lr_linear_proj_names = []
+cfg.lr_linear_proj_names = ['reference_points', 'sampling_offsets']
 cfg.lr_linear_proj_mult = 0.1
 
 # which optimizer to use, choose from ['AdamW', 'Adam', 'SGD']
 cfg.optimizer = 'AdamW'
 cfg.batch_size = 16
-cfg.weight_decay = 2e-4
+cfg.weight_decay = 1e-4
 # gradient clipping max norm
 cfg.clip_max_norm = 0.1
 
 # maximum number of training epochs
-cfg.epochs = 300  # 16
+cfg.epochs = 16
 
 # when to decay lr
-cfg.lr_step = [260, 290]  # [14]
+cfg.lr_step = [14]
 # save checkpoint every N epochs. Set it to a small value if you want to save intermediate models
 cfg.ckpt_interval = 10
 # update parameters every N forward-backward passes. N=1 (default)
@@ -168,7 +170,7 @@ cfg.iter_size = 1
 cfg.test_interval = 1
 
 # ----- Postproc option -------
-# How to rank the predicted instances. 
+# How to rank the predicted instances.
 # 1: for each query, generate a instance for each class; then pick top-scored instance from the whole set
 # 2: pick top classes for each query
 cfg.postproc_rank = 1

@@ -13,9 +13,7 @@ import pdb
 import traceback
 import logging
 
-
 from joblib import Parallel, delayed
-
 
 logger_initilized = False
 
@@ -29,8 +27,8 @@ def setup_logger(log_file_path, name=None, level=logging.INFO):
     # logging settings
     #   log_formatter = logging.Formatter("%(asctime)s [%(levelname)-5.5s]  %(message)s")
     log_formatter = logging.Formatter(
-            "[%(asctime)s][%(levelname)s] %(pathname)s: %(lineno)4d: %(message)s",
-            datefmt="%m/%d %H:%M:%S")
+        "[%(asctime)s][%(levelname)s] %(pathname)s: %(lineno)4d: %(message)s",
+        datefmt="%m/%d %H:%M:%S")
     root_logger = logging.getLogger(name)
 
     if name:
@@ -41,10 +39,10 @@ def setup_logger(log_file_path, name=None, level=logging.INFO):
         log_file_handler = logging.FileHandler(log_file_path)
         log_file_handler.setFormatter(log_formatter)
         root_logger.addHandler(log_file_handler)
- 
+
     log_formatter = logging.Formatter(
-            "[%(asctime)s][%(levelname)s]: %(message)s",
-            datefmt="%m/%d %H:%M:%S")
+        "[%(asctime)s][%(levelname)s]: %(message)s",
+        datefmt="%m/%d %H:%M:%S")
     log_stream_handler = logging.StreamHandler(sys.stdout)
     log_stream_handler.setFormatter(log_formatter)
     # log_stream_handler.setLevel(logging.INFO)
@@ -60,7 +58,7 @@ def get_classes(anno_dict):
     if 'classes' in anno_dict:
         classes = anno_dict['classes']
     else:
-        
+
         database = anno_dict['database']
         all_gts = []
         for vid in database:
@@ -70,17 +68,16 @@ def get_classes(anno_dict):
 
 
 class ANETdetection(object):
-
     GROUND_TRUTH_FIELDS = ['database', 'taxonomy', 'version']
     PREDICTION_FIELDS = ['results', 'version', 'external_data']
 
     def __init__(self, ground_truth_filename=None, prediction_filename=None,
                  ground_truth_fields=GROUND_TRUTH_FIELDS,
                  prediction_fields=PREDICTION_FIELDS,
-                 tiou_thresholds=np.linspace(0.5, 0.95, 10), 
-                 subset='validation', verbose=False, 
+                 tiou_thresholds=np.linspace(0.5, 0.95, 10),
+                 subset='validation', verbose=False,
                  check_status=False, log_path=None, exclude_videos=None):
-        
+
         if not ground_truth_filename:
             raise IOError('Please input a valid ground truth file.')
         if not prediction_filename:
@@ -93,14 +90,14 @@ class ANETdetection(object):
         else:
             logger = logging.getLogger()
         self.logger = logger
-        
+
         self.tiou_thresholds = tiou_thresholds
         self.verbose = verbose
         self.gt_fields = ground_truth_fields
         self.pred_fields = prediction_fields
         self.ap = None
         self.check_status = check_status
-        
+
         self.blocked_videos = exclude_videos if exclude_videos else list()
         # self.blocked_videos = ['video_test_0000270', 'video_test_0001292', 'video_test_0001496']
         # Import ground truth and predictions.
@@ -168,7 +165,7 @@ class ANETdetection(object):
                                      'label': label_lst,
                                      'difficult': difficult_lst})
         self.class_list = [x for x in class_list]
-        
+
         return ground_truth, activity_index
 
     def _import_prediction(self, prediction_filename):
@@ -249,16 +246,17 @@ class ANETdetection(object):
         prediction_by_label = self.prediction.groupby('label')
 
         results = Parallel(n_jobs=len(self.activity_index))(
-                    delayed(compute_average_precision_detection)(
-                        ground_truth=ground_truth_by_label.get_group(cidx).reset_index(drop=True),
-                        prediction=self._get_predictions_with_label(prediction_by_label, label_name, cidx),
-                        tiou_thresholds=self.tiou_thresholds,
-                    ) for label_name, cidx in self.activity_index.items())
+            delayed(compute_average_precision_detection)(
+                ground_truth=ground_truth_by_label.get_group(cidx).reset_index(drop=True),
+                prediction=self._get_predictions_with_label(prediction_by_label, label_name, cidx),
+                tiou_thresholds=self.tiou_thresholds,
+            ) for label_name, cidx in self.activity_index.items())
 
         for i, cidx in enumerate(self.activity_index.values()):
-            ap[:,cidx] = results[i]
+            ap[:, cidx] = results[i]
 
         return ap
+
     #################################################################################
 
     def evaluate(self):
@@ -272,6 +270,7 @@ class ANETdetection(object):
             self.logger.info('[RESULTS] Performance on ActivityNet detection task.')
             self.logger.info('\n{}'.format(' '.join(['%.4f' % (x * 1) for x in self.mAP])))
             self.logger.info('\tAverage-mAP: {}'.format(self.mAP.mean()))
+
 
 def compute_average_precision_detection(ground_truth, prediction, tiou_thresholds=np.linspace(0.5, 0.95, 10)):
     """Compute average precision (detection task) between ground truth and
@@ -295,9 +294,9 @@ def compute_average_precision_detection(ground_truth, prediction, tiou_threshold
     ap : float
         Average precision score.
     """
-    
+
     npos = float(len(ground_truth))
-    lock_gt = np.ones((len(tiou_thresholds),len(ground_truth))) * -1
+    lock_gt = np.ones((len(tiou_thresholds), len(ground_truth))) * -1
     # Sort predictions by decreasing score order.
     sort_idx = prediction['score'].values.argsort()[::-1]
     prediction = prediction.loc[sort_idx].reset_index(drop=True)
@@ -336,7 +335,7 @@ def compute_average_precision_detection(ground_truth, prediction, tiou_threshold
                 tp[tidx, idx] = 1
                 lock_gt[tidx, this_gt.loc[jdx]['index']] = idx
                 break
-                    
+
             if fp[tidx, idx] == 0 and tp[tidx, idx] == 0:
                 fp[tidx, idx] = 1
 
@@ -344,8 +343,8 @@ def compute_average_precision_detection(ground_truth, prediction, tiou_threshold
 
     for tidx in range(len(tiou_thresholds)):
         # Computing prec-rec
-        this_tp = np.cumsum(tp[tidx,:]).astype(np.float)
-        this_fp = np.cumsum(fp[tidx,:]).astype(np.float)
+        this_tp = np.cumsum(tp[tidx, :]).astype(np.float)
+        this_fp = np.cumsum(fp[tidx, :]).astype(np.float)
         rec = this_tp / npos
         prec = this_tp / (this_tp + this_fp)
         ap[tidx] = interpolated_prec_rec(prec, rec)
