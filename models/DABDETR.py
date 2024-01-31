@@ -48,6 +48,7 @@ def get_norm(norm_type, dim, num_groups=None):
     else:
         raise NotImplementedError
 
+
 class DABDETR(nn.Module):
     """ This is the TadTR module that performs temporal action detection """
 

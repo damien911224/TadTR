@@ -255,7 +255,8 @@ def main(args):
         # )
 
         data_loader_val = DataLoader(dataset_val, cfg.batch_size, sampler=sampler_val,
-                                     drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers, pin_memory=True)
+                                     drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers,
+                                     pin_memory=True)
 
         base_ds = dataset_val.video_dict
 
@@ -342,11 +343,10 @@ def main(args):
                 test_stats = test(
                     model,
                     # model_ema.module,
-                    criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg, epoch=epoch,
+                    criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg,
+                    epoch=epoch, nms_mode=args.nms_mode,
                 )
-                prime_metric = 'mAP_raw'
-                # prime_metric = 'mAP_nms'
-                # prime_metric = 'mAP_nms' if "nms" in test_stats.keys() else 'mAP_raw'
+                prime_metric = "mAP_{}".format(args.nms_mode)
                 if test_stats[prime_metric] > best_metric:
                     best_metric = test_stats[prime_metric]
                     best_metric_txt = test_stats['stats_summary']

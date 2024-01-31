@@ -2,10 +2,10 @@
 enc_layers: 2
 dec_layers: 4
 dim_feedforward: 1024
-num_queries: 40 # 40
-#num_queries_enc: -1 # -1
-num_queries_one2one: -1 # 40
-#num_queries_one2many: 167 # 167
+#num_queries: 40 # 40
+num_queries_enc: -1 # -1
+num_queries_one2one: 40 # 40
+num_queries_one2many: 167 # 167
 
 # data setting
 dataset_name: thumos14
@@ -26,10 +26,12 @@ postproc_cls_topk: 1 # 1
 postproc_ins_topk: 200 # 200
 nms_thr: 0.4 # 0.4
 
+nms_mode: nms
+
 act_reg: False
 aux_loss: True
 
-# use_QK: True
+use_QK: True
 use_KK: True
 use_QQ: True
 
