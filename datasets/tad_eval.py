@@ -43,11 +43,11 @@ def apply_nms(dets_arr, nms_thr=0.4, use_soft_nms=True):
             # this_cls_dets_kept = soft_nms(this_cls_dets, 0.8, 0, 0, 200)
             # this_cls_dets_kept = np.concatenate((this_cls_dets_kept, classes), -1)
 
-            b = this_cls_dets[..., :2]
-            s = this_cls_dets[..., 2]
-            l = this_cls_dets[..., 3]
+            b = torch.from_numpy(this_cls_dets[..., :2])
+            s = torch.from_numpy(this_cls_dets[..., 2])
+            l = torch.from_numpy(this_cls_dets[..., 3])
             b, s, l = SoftNMSop.apply(b, s, l, 0.1, 0.5, 0.001, 2, 200)
-            this_cls_dets_kept = np.concatenate((b, s, l), -1)
+            this_cls_dets_kept = torch.cat((b, s, l), -1).numpy()
 
         output_dets.append(this_cls_dets_kept)
     output_dets = np.concatenate(output_dets, axis=0)
