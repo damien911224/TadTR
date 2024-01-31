@@ -149,13 +149,15 @@ def soft_nms(proposals, alpha, low_threshold, high_threshold, top_k):
     Returns:
         np.ndarray: The updated proposals.
     """
-    proposals = proposals[proposals[:, -1].argsort()[::-1]]
+    proposals = proposals[proposals[:, 2].argsort()[::-1]]
     tstart = list(proposals[:, 0])
     tend = list(proposals[:, 1])
     tscore = list(proposals[:, 2])
+    tclass = list(proposals[:, 3])
     rstart = []
     rend = []
     rscore = []
+    rclass = []
 
     while len(tscore) > 0 and len(rscore) <= top_k:
         max_index = np.argmax(tscore)
@@ -174,14 +176,17 @@ def soft_nms(proposals, alpha, low_threshold, high_threshold, top_k):
         rstart.append(tstart[max_index])
         rend.append(tend[max_index])
         rscore.append(tscore[max_index])
+        rclass.append(tclass[max_index])
         tstart.pop(max_index)
         tend.pop(max_index)
         tscore.pop(max_index)
+        tclass.pop(max_index)
 
     rstart = np.array(rstart).reshape(-1, 1)
     rend = np.array(rend).reshape(-1, 1)
     rscore = np.array(rscore).reshape(-1, 1)
-    new_proposals = np.concatenate((rstart, rend, rscore), axis=1)
+    rclass = np.array(rclass).reshape(-1, 1)
+    new_proposals = np.concatenate((rstart, rend, rscore, rclass), axis=1)
     return new_proposals
 
 
