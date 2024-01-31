@@ -33,9 +33,11 @@ def eval_ap(iou, cls, gt, predition):
 def apply_nms(dets_arr, nms_thr=0.4, use_soft_nms=False):
     # the last column are class ids
     unique_classes = np.unique(dets_arr[:, 3])
+    print(unique_classes)
     output_dets = []
     for cls in unique_classes:
         this_cls_dets = dets_arr[dets_arr[:, 3] == cls]
+        print(this_cls_dets.shape)
         if not use_soft_nms:
             this_cls_dets_kept = temporal_nms(this_cls_dets, nms_thr)
         else:
@@ -171,8 +173,7 @@ class TADEvaluator(object):
             this_dets = self.all_pred['nms'][self.all_pred['nms']['video-id'] == vid][
                 ['t-start', 't-end', 'score', 'cls']].values
             print(this_dets.shape)
-            exit()
-            this_dets = apply_nms(this_dets)[:200, ...]
+            this_dets = apply_nms(this_dets)[:200]
             this_dets = [[vid] + x.tolist() for x in this_dets]
             all_pred += this_dets
         self.all_pred['nms'] = pd.DataFrame(all_pred, columns=["video-id", "t-start", "t-end", "score", "cls"])
