@@ -344,9 +344,9 @@ def main(args):
                     model,
                     # model_ema.module,
                     criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg,
-                    epoch=epoch, nms_mode=args.nms_mode,
+                    epoch=epoch, nms_mode=cfg.nms_mode,
                 )
-                prime_metric = "mAP_{}".format(args.nms_mode)
+                prime_metric = "mAP_{}".format(cfg.nms_mode)
                 if test_stats[prime_metric] > best_metric:
                     best_metric = test_stats[prime_metric]
                     best_metric_txt = test_stats['stats_summary']
