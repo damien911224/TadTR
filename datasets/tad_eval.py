@@ -170,7 +170,8 @@ class TADEvaluator(object):
         for vid in video_ids:
             this_dets = self.all_pred['nms'][self.all_pred['nms']['video-id'] == vid][
                 ['t-start', 't-end', 'score', 'cls']].values
-
+            print(this_dets.shape)
+            exit()
             this_dets = apply_nms(this_dets)[:200, ...]
             this_dets = [[vid] + x.tolist() for x in this_dets]
             all_pred += this_dets
