@@ -12,6 +12,7 @@ import sys
 import logging
 # import ipdb as pdb
 import pickle
+import torch
 
 from opts import cfg
 
