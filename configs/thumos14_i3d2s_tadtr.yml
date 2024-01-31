@@ -37,7 +37,7 @@ use_QQ: True
 
 use_dn: False
 
-# QK_loss_coef: 2.0
+QK_loss_coef: 2.0
 KK_loss_coef: 2.0
 QQ_loss_coef: 2.0
 
