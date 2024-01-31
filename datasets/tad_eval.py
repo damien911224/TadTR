@@ -39,7 +39,7 @@ def apply_nms(dets_arr, nms_thr=0.4, use_soft_nms=True):
         if not use_soft_nms:
             this_cls_dets_kept = temporal_nms(this_cls_dets, nms_thr)
         else:
-            classes = this_cls_dets[:, [3]]
+            # classes = this_cls_dets[:, [3]]
             this_cls_dets_kept = soft_nms(this_cls_dets, 0.8, 0, 0, 200)
             # this_cls_dets_kept = np.concatenate((this_cls_dets_kept, classes), -1)
         output_dets.append(this_cls_dets_kept)
