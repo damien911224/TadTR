@@ -41,9 +41,7 @@ def apply_nms(dets_arr, nms_thr=0.4, use_soft_nms=True):
         else:
             classes = this_cls_dets[:, [3]]
             this_cls_dets_kept = soft_nms(this_cls_dets, 0.8, 0, 0, 200)
-            print(classes.shape)
-            print(this_cls_dets_kept.shape)
-            this_cls_dets_kept = np.concatenate((this_cls_dets_kept, classes), -1)
+            # this_cls_dets_kept = np.concatenate((this_cls_dets_kept, classes), -1)
         output_dets.append(this_cls_dets_kept)
     output_dets = np.concatenate(output_dets, axis=0)
     sort_idx = output_dets[:, 2].argsort()[::-1]
