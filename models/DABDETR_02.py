@@ -463,10 +463,7 @@ class SetCriterion(nn.Module):
         src_QQ = (src_QQ.flatten(0, 1) + EPS).log()
         tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
 
-        loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none")
-        loss_QQ = loss_QQ.view(N, Q, Q)
-        mask = (torch.arange(Q).unsqueeze(-1) <= torch.arange(Q).unsqueeze(0)).float().to(loss_QQ.device)
-        loss_QQ = (loss_QQ * mask).sum(-1).mean()
+        loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
 
         loss_QK = loss_QQ
         split = 0
@@ -739,10 +736,7 @@ class SetCriterion(nn.Module):
         src_KK = (src_KK.flatten(0, 1) + EPS).log()
         tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
 
-        loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none")
-        loss_KK = loss_KK.view(N, K, K)
-        mask = (torch.arange(K).unsqueeze(-1) <= torch.arange(K).unsqueeze(0)).float().to(loss_KK.device)
-        loss_KK = (loss_KK * mask).sum(-1).mean()
+        loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
 
         loss_QK = loss_QK + loss_KK
         split = 0
@@ -806,11 +800,7 @@ class SetCriterion(nn.Module):
         src_QQ = (Q_weights.flatten(0, 1) + EPS).log()
         tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
 
-        # loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
-        loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none")
-        loss_QQ = loss_QQ.view(N, Q, Q)
-        mask = (torch.arange(Q).unsqueeze(-1) <= torch.arange(Q).unsqueeze(0)).float().to(loss_QQ.device)
-        loss_QQ = (loss_QQ * mask).sum(-1).mean()
+        loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
         split = 0
         # src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
         #                       outputs['pred_logits'].unsqueeze(0)), dim=0).flatten(0, 1)
@@ -1055,11 +1045,7 @@ class SetCriterion(nn.Module):
         src_KK = (K_weights.flatten(0, 1) + EPS).log()
         tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
 
-        # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
-        loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none")
-        loss_KK = loss_KK.view(N, K, K)
-        mask = (torch.arange(K).unsqueeze(-1) <= torch.arange(K).unsqueeze(0)).float().to(loss_KK.device)
-        loss_KK = (loss_KK * mask).sum(-1).mean()
+        loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
         split = 0
         # tgt_KK = outputs["C_weights"].mean(0)
         # tgt_KK = F.normalize(tgt_KK, p=2.0, dim=-1)
@@ -1373,12 +1359,12 @@ def build(args):
         aux_weight_dict = {}
         for i in range(args.dec_layers - 1):
             aux_weight_dict.update({k + f'_{i}': v for k, v in weight_dict.items()})
-        # for i in range(args.enc_layers):
-        #     if i < 1 - args.enc_layers:
-        #         aux_weight_dict.update({k + f'_enc_{i}': v for k, v in weight_dict.items()})
-        #     else:
-        #         aux_weight_dict.update({k + f'_enc': v for k, v in weight_dict.items()})
-        aux_weight_dict.update({k + "_enc": v for k, v in weight_dict.items()})
+        for i in range(args.enc_layers):
+            if i < 1 - args.enc_layers:
+                aux_weight_dict.update({k + f'_enc_{i}': v for k, v in weight_dict.items()})
+            else:
+                aux_weight_dict.update({k + f'_enc': v for k, v in weight_dict.items()})
+        # aux_weight_dict.update({k + "_enc": v for k, v in weight_dict.items()})
         weight_dict.update(aux_weight_dict)
 
     # new_dict = dict()
