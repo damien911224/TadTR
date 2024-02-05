@@ -135,9 +135,9 @@ class Transformer(nn.Module):
                  num_feature_levels=1,
                  two_stage=False,
                  two_stage_num_proposals=40,
-                 proposal_feature_levels=1,
-                 proposal_in_stride=16,
-                 proposal_tgt_strides=[8, 16, 32, 64],
+                 proposal_feature_levels=4,
+                 proposal_in_stride=1,
+                 proposal_tgt_strides=[1, 2, 4, 8],
                  ):
 
         super().__init__()
@@ -176,11 +176,13 @@ class Transformer(nn.Module):
         self.num_feature_levels = num_feature_levels
         self.two_stage = two_stage
         self.two_stage_num_proposals = two_stage_num_proposals
-        self.level_embed = nn.Parameter(torch.Tensor(num_encoder_layers, d_model))
+        self.level_embed = nn.Parameter(torch.Tensor(num_feature_levels, d_model))
 
         if two_stage:
             self.enc_output = nn.Linear(d_model, d_model)
             self.enc_output_norm = nn.LayerNorm(d_model)
+            # self.enc_outputs = nn.ModuleList([nn.Linear(d_model, d_model) for _ in range(self.enc_layers)])
+            # self.enc_output_norms = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(self.enc_layers)])
             self.pos_trans = nn.Linear(d_model * 2, d_model * 2)
             self.pos_trans_norm = nn.LayerNorm(d_model * 2)
         self.proposal_feature_levels = proposal_feature_levels
@@ -190,33 +192,69 @@ class Transformer(nn.Module):
         if two_stage and proposal_feature_levels > 1:
             assert len(proposal_tgt_strides) == proposal_feature_levels
 
+            # self.proposal_in_stride = proposal_in_stride
+            # self.enc_output_proj = nn.ModuleList([])
+            # for stride in proposal_tgt_strides:
+            #     if stride == proposal_in_stride:
+            #         self.enc_output_proj.append(nn.Identity())
+            #     elif stride > proposal_in_stride:
+            #         scale = int(math.log2(stride / proposal_in_stride))
+            #         layers = []
+            #         for _ in range(scale - 1):
+            #             layers += [
+            #                 nn.Conv1d(d_model, d_model, kernel_size=2, stride=2),
+            #                 nn.LayerNorm(d_model),
+            #                 nn.GELU()
+            #             ]
+            #         layers.append(nn.Conv1d(d_model, d_model, kernel_size=2, stride=2))
+            #         self.enc_output_proj.append(nn.Sequential(*layers))
+            #     else:
+            #         scale = int(math.log2(proposal_in_stride / stride))
+            #         layers = []
+            #         for _ in range(scale - 1):
+            #             layers += [
+            #                 nn.ConvTranspose1d(d_model, d_model, kernel_size=2, stride=2),
+            #                 nn.LayerNorm(d_model),
+            #                 nn.GELU()
+            #             ]
+            #         layers.append(nn.ConvTranspose1d(d_model, d_model, kernel_size=2, stride=2))
+            #         self.enc_output_proj.append(nn.Sequential(*layers))
+
             self.proposal_in_stride = proposal_in_stride
-            self.enc_output_proj = nn.ModuleList([])
-            for stride in proposal_tgt_strides:
-                if stride == proposal_in_stride:
-                    self.enc_output_proj.append(nn.Identity())
-                elif stride > proposal_in_stride:
-                    scale = int(math.log2(stride / proposal_in_stride))
-                    layers = []
-                    for _ in range(scale - 1):
-                        layers += [
-                            nn.Conv1d(d_model, d_model, kernel_size=2, stride=2),
-                            nn.LayerNorm(d_model),
-                            nn.GELU()
-                        ]
-                    layers.append(nn.Conv1d(d_model, d_model, kernel_size=2, stride=2))
-                    self.enc_output_proj.append(nn.Sequential(*layers))
-                else:
-                    scale = int(math.log2(proposal_in_stride / stride))
-                    layers = []
-                    for _ in range(scale - 1):
-                        layers += [
-                            nn.ConvTranspose1d(d_model, d_model, kernel_size=2, stride=2),
-                            nn.LayerNorm(d_model),
-                            nn.GELU()
-                        ]
-                    layers.append(nn.ConvTranspose1d(d_model, d_model, kernel_size=2, stride=2))
-                    self.enc_output_proj.append(nn.Sequential(*layers))
+            self.enc_output_projs = nn.ModuleList([])
+            for e_i in range(self.enc_layers):
+                enc_output_proj = nn.ModuleList([])
+                for stride in proposal_tgt_strides:
+                    if stride == proposal_in_stride:
+                        enc_output_proj.append(nn.Identity())
+                    elif stride > proposal_in_stride:
+                        scale = int(math.log2(stride / proposal_in_stride))
+                        layers = []
+                        for _ in range(scale - 1):
+                            layers += [
+                                nn.Conv1d(d_model, d_model, kernel_size=2, stride=2),
+                                nn.GroupNorm(32, d_model),
+                                # LayerNorm1D(d_model),
+                                # nn.GELU(),
+                                nn.PReLU()
+                            ]
+                        layers.append(nn.Conv1d(d_model, d_model, kernel_size=2, stride=2))
+                        enc_output_proj.append(nn.Sequential(*layers))
+                    else:
+                        scale = int(math.log2(proposal_in_stride / stride))
+                        layers = []
+                        for _ in range(scale - 1):
+                            layers += [
+                                nn.ConvTranspose1d(d_model, d_model, kernel_size=2, stride=2),
+                                nn.GroupNorm(32, d_model),
+                                # LayerNorm1D(d_model),
+                                # nn.GELU(),
+                                nn.PReLU()
+                            ]
+                        layers.append(nn.ConvTranspose1d(d_model, d_model, kernel_size=2, stride=2))
+                        enc_output_proj.append(nn.Sequential(*layers))
+                self.enc_output_projs.append(enc_output_proj)
+            # self.enc_output_projs[1] = self.enc_output_projs[0]
 
         self.fusion_proj = MLP(d_model * num_encoder_layers, d_model, d_model, 2)
 
@@ -247,10 +285,10 @@ class Transformer(nn.Module):
         ).flatten(2)
         return pos
 
-    def gen_encoder_output_proposals(self, memory, memory_padding_mask, temporal_shapes):
+    def gen_encoder_output_proposals(self, memory, memory_padding_mask, temporal_shapes, layer_idx=0):
         if self.proposal_feature_levels > 1:
-            memory, memory_padding_mask, spatial_shapes = self.expand_encoder_output(
-                memory, memory_padding_mask, temporal_shapes
+            memory, memory_padding_mask, temporal_shapes = self.expand_encoder_output(
+                memory, memory_padding_mask, temporal_shapes, layer_idx
             )
         N_, S_, C_ = memory.shape
         # base_scale = 4.0
@@ -279,6 +317,7 @@ class Transformer(nn.Module):
         output_memory = output_memory.masked_fill(memory_padding_mask.unsqueeze(-1), float(0))
         output_memory = output_memory.masked_fill(~output_proposals_valid, float(0))
         output_memory = self.enc_output_norm(self.enc_output(output_memory))
+        # output_memory = self.enc_output_norms[layer_idx](self.enc_outputs[layer_idx](output_memory))
 
         return output_memory, output_proposals
 
@@ -288,7 +327,7 @@ class Transformer(nn.Module):
         valid_ratio = valid_T.float() / T
         return valid_ratio
 
-    def expand_encoder_output(self, memory, memory_padding_mask, temporal_shapes):
+    def expand_encoder_output(self, memory, memory_padding_mask, temporal_shapes, layer_idx=0):
         assert temporal_shapes.size(0) == 1, f'Get encoder output of shape {temporal_shapes}, not sure how to expand'
 
         bs, _, c = memory.shape
@@ -299,7 +338,8 @@ class Transformer(nn.Module):
 
         out_memory, out_memory_padding_mask, out_temporal_shapes = [], [], []
         for i in range(self.proposal_feature_levels):
-            mem = self.enc_output_proj[i](_out_memory)
+            # mem = self.enc_output_proj[i](_out_memory)
+            mem = self.enc_output_projs[layer_idx][i](_out_memory)
             mask = F.interpolate(
                 _out_memory_padding_mask[None].float(), size=mem.shape[-1]
             ).to(torch.bool)
@@ -313,21 +353,21 @@ class Transformer(nn.Module):
         out_spatial_shapes = torch.as_tensor(out_temporal_shapes, dtype=torch.long, device=out_memory.device)
         return out_memory, out_memory_padding_mask, out_spatial_shapes
 
-    def get_reference_points(self, memory, mask_flatten, temporal_shapes):
-        output_memory, output_proposals = self.gen_encoder_output_proposals(memory, mask_flatten, temporal_shapes)
+    def get_reference_points(self, memory, mask_flatten, temporal_shapes, layer_idx=0):
+        output_memory, output_proposals = self.gen_encoder_output_proposals(memory, mask_flatten, temporal_shapes, layer_idx)
 
         # hack implementation for two-stage Deformable DETR
         enc_outputs_class = self.encoder_class_embed(output_memory)
         enc_outputs_coord = (self.encoder_segment_embed(output_memory) + output_proposals)
 
-        topk = self.two_stage_num_proposals
-        if topk > 0:
+        if self.two_stage_num_proposals > 0:
+            topk = self.two_stage_num_proposals
             topk_proposals = torch.topk(enc_outputs_class[..., 0], topk, dim=1)[1]
             topk_coords_unact = torch.gather(enc_outputs_coord, 1, topk_proposals.unsqueeze(-1).repeat(1, 1, 2))
             topk_coords_unact = topk_coords_unact.detach()
             reference_points = topk_coords_unact.sigmoid()
         else:
-            reference_points = enc_outputs_coord.sigmoid().detach()
+            reference_points = None
         return (reference_points, enc_outputs_class, enc_outputs_coord, output_proposals)
 
     def forward(self, src, mask, refpoint_embed, pos_embed):
@@ -339,55 +379,70 @@ class Transformer(nn.Module):
 
         memory, K_weights = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
 
+        # src_flatten = []
         # mask_flatten = []
-        # memory_flatten = []
-        # temporal_shapes = []
         # lvl_pos_embed_flatten = []
-        # for lvl, m_src in enumerate(memory):
-        #     t, bs, c = m_src.shape
+        # temporal_shapes = []
+        # for lvl, (src, mask, pos_embed) in enumerate(zip(srcs, masks, pos_embeds)):
+        #     bs, c, t = src.shape
         #     temporal_shape = (t, )
         #     temporal_shapes.append(temporal_shape)
+        #     src = src.transpose(1, 2)
+        #     pos_embed = pos_embed.transpose(1, 2)
         #     lvl_pos_embed = pos_embed + self.level_embed[lvl].view(1, 1, -1)
         #     lvl_pos_embed_flatten.append(lvl_pos_embed)
-        #     memory_flatten.append(m_src)
+        #     src_flatten.append(src)
         #     mask_flatten.append(mask)
+        # src_flatten = torch.cat(src_flatten, 1)
         # mask_flatten = torch.cat(mask_flatten, 1)
-        # memory_flatten = torch.cat(memory_flatten, 0).transpose(0, 1)
-        # pos_embed = torch.cat(lvl_pos_embed_flatten, 0)
-        # temporal_shapes = torch.as_tensor(temporal_shapes, dtype=torch.long, device=memory_flatten.device)
-        # # level_start_index = torch.cat((temporal_shapes.new_zeros((1,)), temporal_shapes.prod(1).cumsum(0)[:-1]))
-        # # valid_ratios = torch.stack([self.get_valid_ratio(m) for m in masks], 1)
+        # lvl_pos_embed_flatten = torch.cat(lvl_pos_embed_flatten, 1)
+        # temporal_shapes = torch.as_tensor(temporal_shapes, dtype=torch.long, device=src_flatten.device)
+        # level_start_index = torch.cat((temporal_shapes.new_zeros((1,)), temporal_shapes.prod(1).cumsum(0)[:-1]))
+        # valid_ratios = torch.stack([self.get_valid_ratio(m) for m in masks], 1)
 
         # prepare input for decoder
 
-        memory_flatten = torch.cat(memory, dim=0).transpose(0, 1)
-        mask_flatten = mask.repeat((1, self.enc_layers))
-        temporal_shapes = torch.as_tensor([(w, ) for _ in range(self.enc_layers)],
-                                          dtype=torch.long, device=mask_flatten.device)
+        # memory_flatten = torch.cat(memory, dim=0).transpose(0, 1)
+        # mask_flatten = mask.repeat((1, self.enc_layers))
+        # temporal_shapes = torch.as_tensor([(w, ) for _ in range(self.enc_layers)],
+        #                                   dtype=torch.long, device=mask_flatten.device)
 
-        # memory_flatten = memory[0].transpose(0, 1)
+        # memory_flatten = memory[-1].transpose(0, 1)
         # mask_flatten = mask
         # temporal_shapes = torch.as_tensor(((w, ), ), dtype=torch.long, device=mask_flatten.device)
 
-        bs, _, c = memory_flatten.shape
+        # bs, _, c = memory_flatten.shape
+        # if self.two_stage:
+        #     (reference_points, enc_outputs_class, enc_outputs_coord_unact, output_proposals) \
+        #         = self.get_reference_points(memory_flatten, mask_flatten, temporal_shapes)
+        #     # init_reference_out = reference_points
+        #     # pos_trans_out = self.pos_trans_norm(self.pos_trans(self.get_proposal_pos_embed(reference_points)))
+        #     # enc_refpoint_embed = inverse_sigmoid(reference_points).transpose(0, 1)
+        #     # refpoint_embed = torch.cat((refpoint_embed, enc_refpoint_embed), dim=0)
+        # else:
+        #     enc_outputs_class, enc_outputs_coord_unact = None, None
+
         if self.two_stage:
-            (reference_points, enc_outputs_class, enc_outputs_coord_unact, output_proposals) \
-                = self.get_reference_points(memory_flatten, mask_flatten, temporal_shapes)
-            # init_reference_out = reference_points
-            # pos_trans_out = self.pos_trans_norm(self.pos_trans(self.get_proposal_pos_embed(reference_points)))
-            if self.two_stage_num_proposals > 0:
-                enc_refpoint_embed = inverse_sigmoid(reference_points).transpose(0, 1)
-                refpoint_embed[:self.two_stage_num_proposals] = enc_refpoint_embed
-                # refpoint_embed = torch.cat((refpoint_embed, enc_refpoint_embed), dim=0)
-            # enc_refpoint_embed = inverse_sigmoid(reference_points).transpose(0, 1)
-            # refpoint_embed = torch.cat((refpoint_embed[:self.num_queries_one2one], enc_refpoint_embed), dim=0)
+            enc_outputs_class = list()
+            enc_outputs_coord_unact = list()
+            for i in range(self.enc_layers):
+                memory_flatten = memory[i].transpose(0, 1).detach()
+                mask_flatten = mask
+                temporal_shapes = torch.as_tensor([(w,)], dtype=torch.long, device=mask_flatten.device)
+
+                bs, _, c = memory_flatten.shape
+                # self.enc_output_proj = self.enc_output_projs[i]
+                (reference_points, this_enc_outputs_class, this_enc_outputs_coord_unact, output_proposals) \
+                    = self.get_reference_points(memory_flatten, mask_flatten, temporal_shapes, layer_idx=i)
+                enc_outputs_class.append(this_enc_outputs_class)
+                enc_outputs_coord_unact.append(this_enc_outputs_coord_unact)
+            enc_outputs_class = torch.cat(enc_outputs_class, dim=1)
+            enc_outputs_coord_unact = torch.cat(enc_outputs_coord_unact, dim=1)
         else:
             enc_outputs_class, enc_outputs_coord_unact = None, None
 
+        # memory = memory[-1]
         memory = self.fusion_proj(torch.cat(memory, dim=-1))
-
-        # mask = mask_flatten
-        # memory = memory_flatten.transpose(0, 1)
 
         # query_embed = gen_sineembed_for_position(refpoint_embed)
         num_queries = refpoint_embed.shape[0]
