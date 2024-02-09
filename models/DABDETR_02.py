@@ -143,8 +143,8 @@ class DABDETR(nn.Module):
         tmp = self.segment_embed(hs)
         tmp += reference_before_sigmoid
         outputs_coord_all = tmp.sigmoid()
-        before = segment_ops.segment_cw_to_t1t2(reference)
-        after = segment_ops.segment_cw_to_t1t2(outputs_coord_all)
+        # before = segment_ops.segment_cw_to_t1t2(reference)
+        # after = segment_ops.segment_cw_to_t1t2(outputs_coord_all)
 
         outputs_class_all = self.class_embed(hs)
 
@@ -419,6 +419,7 @@ class SetCriterion(nn.Module):
         #
         # loss_QK = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
         split = 0
+        # Prev Main
         src_prob = outputs["pred_logits"].sigmoid()
         src_bbox = outputs["pred_segments"]
         # src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
@@ -430,6 +431,8 @@ class SetCriterion(nn.Module):
 
         IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
                                                segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        # IoUs = segment_ops.generalized_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+        #                                            segment_ops.segment_cw_to_t1t2(tgt_bbox))
 
         # Compute the classification cost.
         # alpha, gamma = 0.25, 2.0
@@ -455,17 +458,67 @@ class SetCriterion(nn.Module):
         src_QQ = torch.mean(outputs["C_weights"], dim=0)
         src_QQ = F.normalize(src_QQ, p=2.0, dim=-1)
         src_QQ = torch.bmm(src_QQ, src_QQ.transpose(1, 2)).softmax(dim=-1)
-        # src_QQ = inverse_sigmoid(torch.bmm(src_QQ, src_QQ.transpose(1, 2))).softmax(dim=-1)
-        # src_QQ = torch.sqrt(torch.bmm(src_QQ, src_QQ.transpose(1, 2)) + EPS)
-        # src_QQ = (src_QQ / torch.sum(src_QQ, dim=-1, keepdim=True))
+        # L, N, Q, K = outputs["C_weights"].shape
+        # src_QQ = outputs["C_weights"].flatten(0, 1)
+        # src_QQ = F.normalize(src_QQ, p=2.0, dim=-1)
+        # src_QQ = torch.bmm(src_QQ, src_QQ.transpose(1, 2))
+        # src_QQ = src_QQ.view(L, N, Q, Q).mean(0).softmax(-1)
 
-        N, Q, Q = src_QQ.shape
+        # N, Q, Q = src_QQ.shape
         src_QQ = (src_QQ.flatten(0, 1) + EPS).log()
         tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
 
         loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
+        # loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none")
+        # loss_QQ = loss_QQ.view(N, Q, Q)
+        # mask = (torch.arange(Q).unsqueeze(-1) <= torch.arange(Q).unsqueeze(0)).float().to(loss_QQ.device)
+        # loss_QQ = (loss_QQ * mask).sum(-1).mean()
 
         loss_QK = loss_QQ
+        split = 0
+        # src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
+        #                       outputs['pred_logits'].unsqueeze(0)), dim=0).flatten(0, 1)
+        # after_bbox = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
+        #                         outputs['pred_segments'].unsqueeze(0)), dim=0)
+        # before_bbox = outputs['references']
+        # # after_bbox = outputs['pred_segments']
+        # # before_bbox = outputs['references'][0]
+        #
+        # after_bbox = segment_ops.segment_cw_to_t1t2(after_bbox)
+        # before_bbox = segment_ops.segment_cw_to_t1t2(before_bbox)
+        #
+        # s_delta = torch.stack((torch.minimum(after_bbox[..., 0], before_bbox[..., 0]),
+        #                        torch.maximum(after_bbox[..., 0], before_bbox[..., 0])), dim=-1)
+        # e_delta = torch.stack((torch.minimum(after_bbox[..., 1], before_bbox[..., 1]),
+        #                        torch.maximum(after_bbox[..., 1], before_bbox[..., 1])), dim=-1)
+        # a_IoU = segment_ops.batched_segment_iou(after_bbox, after_bbox)
+        # b_IoU = segment_ops.batched_segment_iou(before_bbox, before_bbox)
+        # # s_IoU = segment_ops.batched_segment_iou(s_delta, s_delta)
+        # # e_IoU = segment_ops.batched_segment_iou(e_delta, e_delta)
+        # # a_IoU = segment_ops.generalized_segment_iou(after_bbox, after_bbox)
+        # # b_IoU = segment_ops.generalized_segment_iou(before_bbox, before_bbox)
+        # s_IoU = segment_ops.generalized_segment_iou(s_delta, s_delta)
+        # e_IoU = segment_ops.generalized_segment_iou(e_delta, e_delta)
+        # # s_IoU = (s_IoU + 1.0) / 2.0
+        # # e_IoU = (e_IoU + 1.0) / 2.0
+        #
+        # C = (s_IoU + e_IoU) / 2.0
+        # # C = (a_IoU + b_IoU) / 2.0
+        # # C = a_IoU
+        # C = C.mean(0)
+        #
+        # tgt_QQ = C.softmax(dim=-1).detach()
+        #
+        # src_QQ = outputs["C_weights"].mean(0)
+        # # src_QQ = outputs["C_weights"].flatten(0, 1)
+        # src_QQ = F.normalize(src_QQ, p=2.0, dim=-1)
+        # src_QQ = torch.bmm(src_QQ, src_QQ.transpose(1, 2)).softmax(dim=-1)
+        #
+        # src_QQ = (src_QQ.flatten(0, 1) + EPS).log()
+        # tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
+        #
+        # loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
+        # loss_QK = loss_QQ
         split = 0
         # bs, num_queries = outputs["pred_logits"].shape[:2]
         #
@@ -675,6 +728,7 @@ class SetCriterion(nn.Module):
         #
         # loss_QK = loss_QK + F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
         split = 0
+        # Prev Main
         nk = outputs['enc_outputs']["pred_logits"].size(1) // outputs["K_weights"].size(0)
         # src_prob = outputs['enc_outputs']["pred_logits"].sigmoid()
         # src_bbox = outputs['enc_outputs']["pred_segments"]
@@ -695,6 +749,8 @@ class SetCriterion(nn.Module):
 
             IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(this_src_bbox),
                                                    segment_ops.segment_cw_to_t1t2(this_src_bbox))
+            # IoUs = segment_ops.generalized_segment_iou(segment_ops.segment_cw_to_t1t2(this_src_bbox),
+            #                                            segment_ops.segment_cw_to_t1t2(this_src_bbox))
 
             # Compute the classification cost.
             cost_class = torch.bmm(this_src_prob, this_src_prob.transpose(1, 2))
@@ -722,17 +778,27 @@ class SetCriterion(nn.Module):
         # tgt_KK = torch.stack(tgt_KK).mean(0).softmax(-1).detach()
         L, N = outputs["K_weights"].shape[:2]
         # tgt_KK = torch.stack(tgt_KK, dim=1).view(L, N, len(self.enc_ratios), K, K).mean(dim=(0, 2)).softmax(-1).detach()
+        # multi layer
         tgt_conf = torch.stack(tgt_conf, dim=1).view(L, N, len(self.enc_ratios), K, K).softmax(dim=2)
-        # tgt_conf = torch.stack(tgt_conf, dim=1).view(L, N, len(self.enc_ratios), K, 1).softmax(dim=2)
         tgt_KK = (torch.stack(tgt_KK, dim=1).view(L, N, len(self.enc_ratios), K, K) * tgt_conf).mean(0).sum(1).softmax(-1).detach()
+        # tgt_KK = (torch.stack(tgt_KK, dim=1).view(L, N, len(self.enc_ratios), K, K)).mean(0).mean(1).softmax(-1).detach()
+
         # tgt_conf = torch.stack(tgt_conf).softmax(dim=0)
         # tgt_KK = (torch.stack(tgt_KK) * tgt_conf).sum(0).softmax(-1).detach()
+        # single layer
+        # tgt_conf = torch.stack(tgt_conf, dim=1).softmax(dim=1)
+        # tgt_KK = (torch.stack(tgt_KK, dim=1) * tgt_conf).sum(1).softmax(-1).detach()
 
         src_KK = torch.mean(outputs["C_weights"], dim=0)
         src_KK = F.normalize(src_KK, p=2.0, dim=-1)
         src_KK = torch.bmm(src_KK.transpose(1, 2), src_KK).softmax(dim=-1)
+        # L, N, Q, K = outputs["C_weights"].shape
+        # src_KK = outputs["C_weights"].flatten(0, 1)
+        # src_KK = F.normalize(src_KK, p=2.0, dim=-1)
+        # src_KK = torch.bmm(src_KK.transpose(1, 2), src_KK).softmax(dim=-1)
+        # src_KK = src_KK.view(L, N, K, K).mean(0).softmax(-1)
 
-        N, K, K = src_KK.shape
+        # N, K, K = src_KK.shape
         src_KK = (src_KK.flatten(0, 1) + EPS).log()
         tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
 
@@ -764,10 +830,15 @@ class SetCriterion(nn.Module):
         # tgt_QQ = segment_ops.batched_segment_iou(src_boundary, src_boundary).softmax(dim=-1).detach()
         split = 0
         # Prev Main
+        # src_prob = outputs["pred_logits"].sigmoid()
+        # src_bbox = outputs["pred_segments"]
         src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
                               outputs['pred_logits'].unsqueeze(0)), dim=0).flatten(0, 1)
         src_bbox = torch.cat((torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
                               outputs['pred_segments'].unsqueeze(0)), dim=0).flatten(0, 1)
+        # src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
+        #                       outputs['pred_logits'].unsqueeze(0)), dim=0).flatten(0, 1)
+        # src_bbox = outputs['references'].flatten(0, 1)
         tgt_prob = src_prob
         tgt_bbox = src_bbox
 
@@ -776,6 +847,8 @@ class SetCriterion(nn.Module):
 
         IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
                                                segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        # IoUs = segment_ops.generalized_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+        #                                            segment_ops.segment_cw_to_t1t2(tgt_bbox))
 
         # Compute the classification cost.
         # alpha, gamma = 0.25, 2.0
@@ -792,15 +865,27 @@ class SetCriterion(nn.Module):
         C = -(self.cost_bbox * cost_bbox + self.cost_class * cost_class + self.cost_giou * cost_giou) / \
             (self.cost_bbox + self.cost_class + self.cost_giou)
 
+        # L, N, Q = outputs["Q_weights"].shape[:3]
+        # tgt_QQ = C.view(L, N, Q, Q).mean(0).softmax(-1).detach()
         tgt_QQ = C.softmax(dim=-1).detach()
 
+        # self_QQ = outputs["C_weights"].flatten(0, 1)
+        # self_QQ = F.normalize(self_QQ, p=2.0, dim=-1)
+        # self_QQ = torch.bmm(self_QQ, self_QQ.transpose(1, 2))
+        #
+        # tgt_QQ = (C + self_QQ).softmax(dim=-1).detach()
+
+        # Q_weights = outputs["Q_weights"].mean(0)
         Q_weights = outputs["Q_weights"].flatten(0, 1)
 
-        N, Q, Q = Q_weights.shape
         src_QQ = (Q_weights.flatten(0, 1) + EPS).log()
         tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
 
         loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
+        # loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none")
+        # loss_QQ = loss_QQ.view(N, Q, Q)
+        # mask = (torch.arange(Q).unsqueeze(-1) <= torch.arange(Q).unsqueeze(0)).float().to(loss_QQ.device)
+        # loss_QQ = (loss_QQ * mask).sum(-1).mean()
         split = 0
         # src_prob = torch.cat((torch.stack([a_o['pred_logits'] for a_o in outputs['aux_outputs']], dim=0),
         #                       outputs['pred_logits'].unsqueeze(0)), dim=0).flatten(0, 1)
@@ -853,7 +938,7 @@ class SetCriterion(nn.Module):
         # src_QQ = (Q_weights.flatten(0, 1) + EPS).log()
         # tgt_QQ = (tgt_QQ.flatten(0, 1) + EPS).log()
         #
-        # loss_QQ = (loss_QQ + F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()) / 2.0
+        # loss_QQ = F.kl_div(src_QQ, tgt_QQ, log_target=True, reduction="none").sum(-1).mean()
         split = 0
 
         losses = {}
@@ -1009,6 +1094,8 @@ class SetCriterion(nn.Module):
 
             IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(this_src_bbox),
                                                    segment_ops.segment_cw_to_t1t2(this_src_bbox))
+            # IoUs = segment_ops.generalized_segment_iou(segment_ops.segment_cw_to_t1t2(this_src_bbox),
+            #                                            segment_ops.segment_cw_to_t1t2(this_src_bbox))
 
             # Compute the classification cost.
             cost_class = torch.bmm(this_src_prob, this_src_prob.transpose(1, 2))
@@ -1034,18 +1121,34 @@ class SetCriterion(nn.Module):
             tgt_KK.append(this_tgt_KK)
             tgt_conf.append(this_src_conf)
         tgt_conf = torch.stack(tgt_conf).softmax(dim=0)
+        # tgt_KK = (torch.stack(tgt_KK)).mean(0)
         tgt_KK = (torch.stack(tgt_KK) * tgt_conf).sum(0)
+        # multi layer
         tgt_KK = tgt_KK.view(outputs["K_weights"].size(0), outputs["K_weights"].size(1), K, K).mean(0).softmax(-1).detach()
-        # tgt_KK = (torch.stack(tgt_KK) * tgt_conf).sum(0).softmax(-1).detach()
+        # tgt_KK = tgt_KK.softmax(-1).detach()
+        # single layer
+        # tgt_KK = tgt_KK.softmax(-1).detach()
 
-        K_weights = outputs["K_weights"].mean(0)
-        # K_weights = outputs["K_weights"].flatten(0, 1)
+        # tgt_KK = tgt_KK.view(outputs["K_weights"].size(0), outputs["K_weights"].size(1), K, K).mean(0)
 
-        N, K, K = K_weights.shape
+        # self_KK = outputs["C_weights"].mean(0)
+        # self_KK = F.normalize(self_KK, p=2.0, dim=-1)
+        # self_KK = torch.bmm(self_KK.transpose(1, 2), self_KK)
+        #
+        # tgt_KK = (tgt_KK + self_KK).softmax(dim=-1).detach()
+
+        # K_weights = outputs["K_weights"].mean(0)
+        K_weights = outputs["K_weights"].flatten(0, 1)
+
+        # N, K, K = K_weights.shape
         src_KK = (K_weights.flatten(0, 1) + EPS).log()
         tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
 
         loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
+        # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none")
+        # loss_KK = loss_KK.view(N, K, K)
+        # mask = (torch.arange(K).unsqueeze(-1) <= torch.arange(K).unsqueeze(0)).float().to(loss_KK.device)
+        # loss_KK = (loss_KK * mask).sum(-1).mean()
         split = 0
         # tgt_KK = outputs["C_weights"].mean(0)
         # tgt_KK = F.normalize(tgt_KK, p=2.0, dim=-1)
@@ -1056,7 +1159,7 @@ class SetCriterion(nn.Module):
         # src_KK = (K_weights.flatten(0, 1) + EPS).log()
         # tgt_KK = (tgt_KK.flatten(0, 1) + EPS).log()
         #
-        # loss_KK = (loss_KK + F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()) / 2.0
+        # loss_KK = F.kl_div(src_KK, tgt_KK, log_target=True, reduction="none").sum(-1).mean()
         split = 0
 
 
