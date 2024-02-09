@@ -1137,8 +1137,8 @@ class SetCriterion(nn.Module):
         #
         # tgt_KK = (tgt_KK + self_KK).softmax(dim=-1).detach()
 
-        # K_weights = outputs["K_weights"].mean(0)
-        K_weights = outputs["K_weights"].flatten(0, 1)
+        K_weights = outputs["K_weights"].mean(0)
+        # K_weights = outputs["K_weights"].flatten(0, 1)
 
         # N, K, K = K_weights.shape
         src_KK = (K_weights.flatten(0, 1) + EPS).log()
