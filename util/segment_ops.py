@@ -119,6 +119,37 @@ def batched_segment_iou(segments1, segments2):
     return iou
 
 
+def generalized_segment_iou(segments1, segments2):
+    """
+    Generalized IoU from https://giou.stanford.edu/
+
+    The boxes should be in [x0, y0, x1, y1] format
+
+    Returns a [N, M] pairwise matrix, where N = len(boxes1)
+    and M = len(boxes2)
+    """
+    # degenerate boxes gives inf / nan results
+    # so do an early check
+    assert (segments1[..., 1] >= segments1[..., 0]).all()
+    assert (segments2[..., 1] >= segments2[..., 0]).all()
+
+    area1 = segment_length(segments1)
+    area2 = segment_length(segments2)
+
+    l = torch.max(segments1[..., 0].unsqueeze(-1), segments2[..., 0].unsqueeze(-2))  # N,M
+    r = torch.min(segments1[..., 1].unsqueeze(-1), segments2[..., 1].unsqueeze(-2))  # N,M
+    inter = (r - l).clamp(min=0)  # [N,M]
+    union = area1.unsqueeze(-1) + area2.unsqueeze(-2) - inter
+    iou = inter / (union + 1.0e-6)
+
+    L = torch.min(segments1[..., 0].unsqueeze(-1), segments2[..., 0].unsqueeze(-2))
+    R = torch.max(segments1[..., 1].unsqueeze(-1), segments2[..., 1].unsqueeze(-2))
+
+    w = (R - L).clamp(min=0)  # [N,M,1]
+    area = w
+
+    return iou - (area - union) / (area + 1e-6)
+
 def temporal_iou_numpy(proposal_min, proposal_max, gt_min, gt_max):
     """Compute IoU score between a groundtruth instance and the proposals.
     Args:
