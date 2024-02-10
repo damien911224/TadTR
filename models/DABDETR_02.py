@@ -12,7 +12,7 @@ from util.misc import (NestedTensor, nested_tensor_from_tensor_list,
 from models.matcher_02 import build_matcher
 from models.position_encoding import build_position_encoding
 from .custom_loss import sigmoid_focal_loss
-from .dab_transformer_02 import build_transformer, build_ST_transformer
+from .dab_transformer_02 import build_transformer
 from opts import cfg
 
 
