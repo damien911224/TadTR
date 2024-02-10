@@ -4,8 +4,8 @@ dec_layers: 4
 dim_feedforward: 1024
 #num_queries: 40 # 40
 num_queries_enc: -1 # -1
-num_queries_one2one: 40 # 33
-num_queries_one2many: 200 # 167
+num_queries_one2one: 33 # 33
+num_queries_one2many: 167 # 167
 
 # data setting
 dataset_name: thumos14
@@ -41,7 +41,7 @@ cls_loss_coef: 2
 seg_loss_coef: 5
 iou_loss_coef: 2
 
-set_cost_class: 2  # Class coefficient
+set_cost_class: 6  # Class coefficient
 set_cost_seg: 5  # Segment L1 coefficient
 set_cost_iou: 2  # Segment IoU coefficient
 
