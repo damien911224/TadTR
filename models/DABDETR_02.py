@@ -267,7 +267,7 @@ class SetCriterion(nn.Module):
         max_IoUs = torch.max(IoUs, dim=-1, keepdims=True)[0]
         squared_IoUs = torch.square(IoUs)
         max_squared_IoUs = torch.max(squared_IoUs, dim=-1, keepdims=True)[0]
-        IoUs = ((squared_IoUs / max_squared_IoUs) * max_IoUs).unsqueeze(-1).detach()
+        IoUs = ((squared_IoUs / (max_squared_IoUs + 1.0e-12)) * max_IoUs).unsqueeze(-1).detach()
 
         target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
         target_classes[idx] = target_classes_o
