@@ -796,7 +796,7 @@ class TransformerDecoderLayer(nn.Module):
                 query_sine_embed=None,
                 is_first=False):
 
-        if True:
+        if False:
             # ========== Begin of Cross-Attention =============
             # Apply projections here
             # shape: num_queries x batch_size x 256
@@ -854,7 +854,7 @@ class TransformerDecoderLayer(nn.Module):
             tgt = tgt + self.dropout1(tgt2)
             tgt = self.norm1(tgt)
 
-        if False:
+        if True:
             # ========== Begin of Cross-Attention =============
             # Apply projections here
             # shape: num_queries x batch_size x 256

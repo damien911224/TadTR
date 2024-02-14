@@ -17,8 +17,8 @@ slice_overlap: 0.75 # 0.75
 test_slice_overlap: 0.25 # 0.25
 
 batch_size: 16 # 16
-epochs: 300 # 120, 16
-lr_step: [250, 290] # [80, 100], [14]
+epochs: 120 # 120, 16
+lr_step: [80, 100] # [80, 100], [14]
 #lr_step : [14]
 
 postproc_rank: 1 # 1
@@ -51,7 +51,7 @@ QQ_loss_coef: 2.0
 
 k_one2many: 6 # 6
 lambda_one2many: 1.0 # 1.0
-random_refpoints_xy: True
+random_refpoints_xy: False
 two_stage: True
 
 # output
