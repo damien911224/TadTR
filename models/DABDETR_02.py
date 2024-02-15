@@ -264,17 +264,17 @@ class SetCriterion(nn.Module):
         IoUs = segment_ops.segment_iou(segment_ops.segment_cw_to_t1t2(src_segments),
                                        segment_ops.segment_cw_to_t1t2(target_segments))
         IoUs = torch.diag(IoUs)
-        # max_IoUs = torch.max(IoUs, dim=-1, keepdims=True)[0]
-        # squared_IoUs = torch.square(IoUs)
-        # max_squared_IoUs = torch.max(squared_IoUs, dim=-1, keepdims=True)[0]
-        # IoUs = ((squared_IoUs / (max_squared_IoUs + 1.0e-12)) * max_IoUs).unsqueeze(-1).detach()
+        max_IoUs = torch.max(IoUs, dim=-1, keepdims=True)[0]
+        squared_IoUs = torch.square(IoUs)
+        max_squared_IoUs = torch.max(squared_IoUs, dim=-1, keepdims=True)[0]
+        IoUs = ((squared_IoUs / (max_squared_IoUs + 1.0e-12)) * max_IoUs).unsqueeze(-1).detach()
 
         target_classes_o = torch.cat([t["labels"][J] for t, (_, J) in zip(targets, indices)])
         target_classes[idx] = target_classes_o
         target_classes_onehot.scatter_(2, target_classes.unsqueeze(-1), 1)
         # target_classes_onehot[idx] = target_classes_onehot[idx]
-        # target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs
-        target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1).detach()
+        target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs
+        # target_classes_onehot[idx] = target_classes_onehot[idx] * IoUs.unsqueeze(-1).detach()
 
         target_classes_onehot = target_classes_onehot[:, :, :-1]
         loss_ce = sigmoid_focal_loss(src_logits, target_classes_onehot, num_segments,
