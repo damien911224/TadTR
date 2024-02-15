@@ -87,7 +87,7 @@ def segment_iou(segments1, segments2):
 
     union = area1[:, None] + area2 - inter
 
-    iou = torch.where(union > 0.0, inter / (union + 1.0e-12), torch.zeros_like(union))
+    iou = torch.where(union > 0.0, inter / (union + 1.0e-7), torch.zeros_like(union))
     iou = torch.where(torch.isnan(union), torch.zeros_like(iou), iou)
 
     return iou
@@ -113,7 +113,7 @@ def batched_segment_iou(segments1, segments2):
 
     union = area1.unsqueeze(-1) + area2.unsqueeze(-2) - inter
 
-    iou = torch.where(union > 0.0, inter / (union + 1.0e-12), torch.zeros_like(union))
+    iou = torch.where(union > 0.0, inter / (union + 1.0e-7), torch.zeros_like(union))
     iou = torch.where(torch.isnan(union), torch.zeros_like(iou), iou)
 
     return iou

@@ -69,8 +69,8 @@ class HungarianMatcher(nn.Module):
             # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
             # cost_class = pos_cost_class[:, tgt_ids] - neg_cost_class[:, tgt_ids]
 
-            # out_prob = out_prob[:, tgt_ids]
-            out_prob = out_prob[:, tgt_ids] * torch.sqrt(IoUs)
+            out_prob = out_prob[:, tgt_ids]
+            # out_prob = out_prob[:, tgt_ids] * torch.sqrt(IoUs)
             neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
             pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
             cost_class = pos_cost_class - neg_cost_class
