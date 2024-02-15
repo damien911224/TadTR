@@ -37,7 +37,7 @@ use_QQ: True
 
 use_dn: False
 
-cls_loss_coef: 6 # 6
+cls_loss_coef: 2 # 6
 seg_loss_coef: 5 # 5
 iou_loss_coef: 2 # 2
 
@@ -51,7 +51,7 @@ QQ_loss_coef: 2.0 # 2
 
 k_one2many: 6 # 6
 lambda_one2many: 1.0 # 1.0
-random_refpoints_xy: False
+random_refpoints_xy: True
 two_stage: True
 
 # output
