@@ -17,8 +17,8 @@ slice_overlap: 0.75 # 0.75
 test_slice_overlap: 0.25 # 0.25
 
 batch_size: 16 # 16
-epochs: 120 # 120, 16
-lr_step: [80, 100] # [80, 100], [14]
+epochs: 80 # 120, 16
+lr_step: [40, 60] # [80, 100], [14]
 #lr_step : [14]
 
 postproc_rank: 1 # 1
@@ -41,7 +41,7 @@ cls_loss_coef: 2
 seg_loss_coef: 5
 iou_loss_coef: 2
 
-set_cost_class: 6  # Class coefficient
+set_cost_class: 2  # Class coefficient
 set_cost_seg: 5  # Segment L1 coefficient
 set_cost_iou: 2  # Segment IoU coefficient
 
