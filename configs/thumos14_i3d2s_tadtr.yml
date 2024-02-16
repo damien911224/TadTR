@@ -4,8 +4,8 @@ dec_layers: 4
 dim_feedforward: 1024
 #num_queries: 40 # 40
 num_queries_enc: -1 # -1
-num_queries_one2one: 33 # 33
-num_queries_one2many: 200 # 167
+num_queries_one2one: 40 # 40
+num_queries_one2many: 200 # 200
 
 # data setting
 dataset_name: thumos14
