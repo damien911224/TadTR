@@ -37,7 +37,7 @@ use_QQ: True
 
 use_dn: False
 
-cls_loss_coef: 6
+cls_loss_coef: 2
 seg_loss_coef: 5
 iou_loss_coef: 2
 
