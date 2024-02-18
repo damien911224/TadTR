@@ -247,9 +247,9 @@ def main(args):
                                            collate_fn=utils.collate_fn, num_workers=args.num_workers, pin_memory=True)
 
         max_steps = cfg.epochs * len(data_loader_train)
-        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            optimizer, cfg.lr_step, last_epoch=last_epoch)
-        # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, max_steps, last_epoch=last_epoch)
+        # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        #     optimizer, cfg.lr_step, last_epoch=last_epoch)
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, max_steps, last_epoch=last_epoch)
 
         data_loader_val = DataLoader(dataset_val, cfg.batch_size, sampler=sampler_val,
                                      drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers,
