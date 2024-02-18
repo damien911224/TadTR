@@ -337,8 +337,8 @@ def main(args):
 
             if (epoch + 1) % cfg.test_interval == 0:
                 test_stats = test(
-                    # model,
-                    model_ema.module,
+                    model,
+                    # model_ema.module,
                     criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg,
                     epoch=epoch, nms_mode=cfg.nms_mode,
                 )

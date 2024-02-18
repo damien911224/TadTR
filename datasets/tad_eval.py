@@ -31,7 +31,7 @@ def eval_ap(iou, cls, gt, predition):
     return cls, ap
 
 
-def apply_nms(dets_arr, nms_thr=0.4, use_soft_nms=False):
+def apply_nms(dets_arr, nms_thr=0.4, use_soft_nms=True):
     # the last column are class ids
     unique_classes = np.unique(dets_arr[:, 3])
     output_dets = []
@@ -224,7 +224,9 @@ class TADEvaluator(object):
                     overlap_dets_arr = overlap_dets[['t-start', 't-end', 'score', 'cls']].values
                     if len(overlap_dets) > 0:
                         kept_dets_arr = apply_nms(
-                            np.concatenate((overlap_dets_arr, np.arange(len(overlap_dets_arr))[:, None]), axis=1))
+                            np.concatenate((overlap_dets_arr, np.arange(len(overlap_dets_arr))[:, None]), axis=1),
+                            use_soft_nms=self.nms_mode == "nms"
+                        )
                         processed_dets.append(overlap_dets.iloc[kept_dets_arr[:, -1].astype('int64')])
 
                     if mask_union is not None:
