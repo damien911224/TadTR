@@ -241,9 +241,9 @@ class SetCriterion(nn.Module):
         self.losses = losses
         self.focal_alpha = focal_alpha
 
-        self.cost_giou = 1.0
-        self.cost_bbox = 0.0
-        self.cost_class = 0.0
+        self.cost_giou = 5.0
+        self.cost_bbox = 2.0
+        self.cost_class = 2.0
 
         self.enc_ratios = [1, 2, 4, 8]
 
@@ -441,9 +441,9 @@ class SetCriterion(nn.Module):
         # neg_cost_class = (1 - alpha) * (out_prob ** gamma) * (-(1 - out_prob + 1e-8).log())
         # pos_cost_class = alpha * ((1 - out_prob) ** gamma) * (-(out_prob + 1e-8).log())
         # cost_class = pos_cost_class - neg_cost_class
-        # cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
-        cost_class = torch.clamp(torch.max(tgt_prob, dim=-1)[0].unsqueeze(-2) -
-                                 torch.max(src_prob, dim=-1)[0].unsqueeze(-1), min=0.0)
+        cost_class = torch.bmm(src_prob, tgt_prob.transpose(1, 2))
+        # cost_class = torch.clamp(torch.max(tgt_prob, dim=-1)[0].unsqueeze(-2) -
+        #                          torch.max(src_prob, dim=-1)[0].unsqueeze(-1), min=0.0)
 
         # Compute the L1 cost between boxes
         cost_bbox = torch.cdist(src_bbox, tgt_bbox, p=1)
