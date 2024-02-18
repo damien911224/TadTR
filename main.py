@@ -134,22 +134,23 @@ def main(args):
         model_.load_state_dict(model.state_dict())
 
         # checkpoint = torch.load("/mnt/hdd0/VAD/ckpt/kinetics_i3d_v1_scale/pretrain/epoch_015.pth.tar")
-        # # checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_v1_base/pretrain/epoch_015.pth.tar")
-        # # checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_LTP_Deform_S8_scale_E15/pretrain/epoch_014.pth.tar")
-        # # checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_v1_S8_scale_deform/pretrain/epoch_019.pth.tar")
-        # # checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_slowfast_deformable_IoU/pretrain/epoch_024.pth.tar")
-        # filtered_ckpt = dict()
-        # for k, v in checkpoint['state_dict'].items():
-        #     # if "class_embed" not in k:
-        #     if "class_embed" not in k and "clip_embed" not in k:
-        #     # if "input" not in k and "class_embed" not in k and "clip_embed" not in k:
-        #     # if "class_embed" not in k and "clip_embed" not in k and "input_proj" not in k:
-        #     # if "class_embed" not in k and "query_embed" not in k:
-        #     # if "class_embed" not in k and "refpoint_embed" not in k and "query_embed" not in k:
-        #     # if "class_embed" not in k and "clip_embed" not in k \
-        #     #         and "query_embed" not in k and "refpoint_embed" not in k:
-        #         filtered_ckpt[k] = v
-        # model.load_state_dict(filtered_ckpt, strict=False)
+        # # # checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_v1_base/pretrain/epoch_015.pth.tar")
+        # # # checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_LTP_Deform_S8_scale_E15/pretrain/epoch_014.pth.tar")
+        # # # checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_i3d_v1_S8_scale_deform/pretrain/epoch_019.pth.tar")
+        # # # checkpoint = torch.load("/mnt/ssd0/VAD/ckpt/kinetics_slowfast_deformable_IoU/pretrain/epoch_024.pth.tar")
+        # # filtered_ckpt = dict()
+        # # for k, v in checkpoint['state_dict'].items():
+        # #     # if "class_embed" not in k:
+        # #     if "class_embed" not in k and "clip_embed" not in k:
+        # #     # if "input" not in k and "class_embed" not in k and "clip_embed" not in k:
+        # #     # if "class_embed" not in k and "clip_embed" not in k and "input_proj" not in k:
+        # #     # if "class_embed" not in k and "query_embed" not in k:
+        # #     # if "class_embed" not in k and "refpoint_embed" not in k and "query_embed" not in k:
+        # #     # if "class_embed" not in k and "clip_embed" not in k \
+        # #     #         and "query_embed" not in k and "refpoint_embed" not in k:
+        # #         filtered_ckpt[k] = v
+        # # model.load_state_dict(filtered_ckpt, strict=False)
+        # model.load_state_dict(checkpoint['state_dict_ema'], strict=False)
         # del checkpoint
 
         model.to(device)
@@ -288,26 +289,22 @@ def main(args):
 
             return
 
+        # test_stats = test(
+        #     model_ema.module,
+        #     clip_model,
+        #     criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg, epoch=epoch
+        # )
+        # prime_metric = 'mAP_raw'
+        # if test_stats[prime_metric] > best_metric:
+        #     best_metric = test_stats[prime_metric]
+        #     best_metric_txt = test_stats['stats_summary']
+        #     logging.info(
+        #         'new_best_metric {:.4f}@epoch{}|seed{}'.format(best_metric, epoch, seed))
+        # exit()
+
         logging.info("Start training")
         start_time = time.time()
         for epoch in range(start_epoch, cfg.epochs):
-            # if (epoch + 1) % cfg.test_interval == 0:
-            #     test_stats = test(
-            #         model_ema.module,
-            #         clip_model,
-            #         criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg, epoch=epoch
-            #     )
-            #     prime_metric = 'mAP_raw'
-            #     if test_stats[prime_metric] > best_metric:
-            #         best_metric = test_stats[prime_metric]
-            #         best_metric_txt = test_stats['stats_summary']
-            #         logging.info(
-            #             'new_best_metric {:.4f}@epoch{}|seed{}'.format(best_metric, epoch, seed))
-            #         if cfg.output_dir:
-            #             ckpt['best_metric'] = best_metric
-            #             best_ckpt_path = output_dir / 'model_best.pth'
-            #             utils.save_on_master(ckpt, best_ckpt_path)
-
             if args.distributed:
                 sampler_train.set_epoch(epoch)
 
@@ -337,8 +334,8 @@ def main(args):
 
             if (epoch + 1) % cfg.test_interval == 0:
                 test_stats = test(
-                    model,
-                    # model_ema.module,
+                    # model,
+                    model_ema.module,
                     criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg,
                     epoch=epoch, nms_mode=cfg.nms_mode,
                 )

@@ -240,19 +240,19 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 #     plt.savefig(os.path.join(attention_dir, "K_N{:02d}_L{:02d}.png".format(a_i + 1, l_i + 1)))
                 #     plt.close()
 
-                entire_map = outputs["Q_weights"][:, 0].detach().cpu().numpy()
-                L, H, W = entire_map.shape
-                # for l_i in range(L):
-                for l_i in range(1):
-                    map = entire_map[l_i]
-                    H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
-                    W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
-                    # map -= np.min(map)
-                    # map /= np.max(map)
-                    df = pd.DataFrame(map, H_labels, W_labels)
-                    ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
-                    plt.savefig(os.path.join(attention_dir, "Q_N{:02d}_L{:02d}.png".format(a_i + 1, l_i + 1)))
-                    plt.close()
+                # entire_map = outputs["Q_weights"][:, 0].detach().cpu().numpy()
+                # L, H, W = entire_map.shape
+                # # for l_i in range(L):
+                # for l_i in range(1):
+                #     map = entire_map[l_i]
+                #     H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
+                #     W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+                #     # map -= np.min(map)
+                #     # map /= np.max(map)
+                #     df = pd.DataFrame(map, H_labels, W_labels)
+                #     ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+                #     plt.savefig(os.path.join(attention_dir, "Q_N{:02d}_L{:02d}.png".format(a_i + 1, l_i + 1)))
+                #     plt.close()
 
                 # entire_map = outputs["C_weights"][:, 0].detach().cpu().numpy()
                 # L, H, W = entire_map.shape
@@ -274,6 +274,147 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
                 #     #                 vmin=0.0, vmax=0.25)
                 #     plt.savefig(os.path.join(attention_dir, "C_N{:02d}_L{:02d}.png".format(a_i + 1, l_i + 1)))
                 #     plt.close()
+
+                entire_map = outputs["K_weights"][:, 0].detach().cpu().numpy()
+                L, H, W = entire_map.shape
+                for l_i in range(L):
+                    map = entire_map[l_i]
+                    KK_box = np.zeros(dtype=np.float32, shape=(1 + max(H // 40, 1), W))
+                    for box in this_targets:
+                        s_i = round((box[0] - box[1] / 2) * (W - 1))
+                        e_i = round((box[0] + box[1] / 2) * (W - 1))
+                        KK_box[1:, s_i:e_i + 1] = np.max(map)
+                    map = np.concatenate((map, KK_box), axis=0)
+                    H_labels = ["{}".format(x) for x in range(1, H + 1, 1)] + [""] + ["GT"] * max(H // 40, 1)
+                    W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+                    # map -= np.min(map)
+                    # map /= np.max(map)
+                    df = pd.DataFrame(map, H_labels, W_labels)
+                    ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+                    # ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True,
+                    #                 vmin=0.0, vmax=0.25)
+                    plt.savefig(os.path.join(attention_dir, "K_N{:02d}_L{:02d}.png".format(iter_idx + 1, l_i + 1)))
+                    plt.close()
+
+                entire_map = outputs["Q_weights"][:, 0].detach().cpu().numpy()
+                L, H, W = entire_map.shape
+                # for l_i in range(L):
+                for l_i in range(L):
+                    map = entire_map[l_i]
+                    H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
+                    W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+                    # map -= np.min(map)
+                    # map /= np.max(map)
+                    df = pd.DataFrame(map, H_labels, W_labels)
+                    ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+                    plt.savefig(os.path.join(attention_dir, "Q_N{:02d}_L{:02d}.png".format(iter_idx + 1, l_i + 1)))
+                    plt.close()
+
+                entire_map = outputs["C_weights"][:, 0].detach().cpu().numpy()
+                L, H, W = entire_map.shape
+                for l_i in range(L):
+                    map = entire_map[l_i]
+                    QK_box = np.zeros(dtype=np.float32, shape=(1 + max(H // 40, 1), W))
+                    for box in this_targets:
+                        s_i = round((box[0] - box[1] / 2) * (W - 1))
+                        e_i = round((box[0] + box[1] / 2) * (W - 1))
+                        QK_box[1:, s_i:e_i + 1] = np.max(map)
+                    map = np.concatenate((map, QK_box), axis=0)
+                    H_labels = ["{}".format(x) for x in range(1, H + 1, 1)] + [""] + ["GT"] * max(H // 40, 1)
+                    W_labels = ["{}".format(x) for x in range(1, W + 1, 1)]
+                    # map -= np.min(map)
+                    # map /= np.max(map)
+                    df = pd.DataFrame(map, H_labels, W_labels)
+                    ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+                    # ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True,
+                    #                 vmin=0.0, vmax=0.25)
+                    plt.savefig(os.path.join(attention_dir, "C_N{:02d}_L{:02d}.png".format(iter_idx + 1, l_i + 1)))
+                    plt.close()
+
+                pred_idx = 0
+                nk = outputs["K_weights"][:, 0].size(1)
+                enc_preds = outputs["enc_outputs"]["pred_segments"][0].detach().cpu()
+                # enc_preds = torch.stack(detr_predictions["enc_outputs"]["pred_segments"][0].split(nk, dim=0)).detach().cpu()
+                # L, H, _ = enc_preds.shape
+                # for l_i in range(L):
+                for l_i in range(4):
+                    this_nk = nk // (2 ** l_i)
+                    this_enc_preds = enc_preds[pred_idx:pred_idx + this_nk]
+                    map = np.zeros(dtype=np.float32, shape=(this_nk, this_nk))
+                    # for m_i, box in enumerate(enc_preds[l_i].numpy()):
+                    for m_i, box in enumerate(this_enc_preds.numpy()):
+                        s_i = round((box[0] - box[1] / 2) * (this_nk - 1))
+                        e_i = round((box[0] + box[1] / 2) * (this_nk - 1))
+                        map[m_i, s_i:e_i + 1] = 1.0
+                    KK_box = np.zeros(dtype=np.float32, shape=(1 + max(this_nk // 40, 1), this_nk))
+                    for box in this_targets:
+                        s_i = round((box[0] - box[1] / 2) * (this_nk - 1))
+                        e_i = round((box[0] + box[1] / 2) * (this_nk - 1))
+                        KK_box[1:, s_i:e_i + 1] = np.max(map)
+                    map = np.concatenate((map, KK_box), axis=0)
+                    H_labels = ["{}".format(x) for x in range(1, this_nk + 1, 1)] + [""] + ["GT"] * max(this_nk // 40,
+                                                                                                        1)
+                    W_labels = ["{}".format(x) for x in range(1, this_nk + 1, 1)]
+                    df = pd.DataFrame(map, H_labels, W_labels)
+                    ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+                    plt.savefig(
+                        os.path.join(attention_dir, "EncPred_N{:02d}_L{:02d}.png".format(iter_idx + 1, l_i + 1)))
+                    plt.close()
+
+                    # IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(enc_preds[l_i]),
+                    #                                        segment_ops.segment_cw_to_t1t2(enc_preds[l_i]))
+                    IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(this_enc_preds),
+                                                           segment_ops.segment_cw_to_t1t2(this_enc_preds))
+                    map = IoUs.softmax(dim=-1).numpy()
+                    KK_box = np.zeros(dtype=np.float32, shape=(1 + max(this_nk // 40, 1), this_nk))
+                    for box in this_targets:
+                        s_i = round((box[0] - box[1] / 2) * (this_nk - 1))
+                        e_i = round((box[0] + box[1] / 2) * (this_nk - 1))
+                        KK_box[1:, s_i:e_i + 1] = np.max(map)
+                    map = np.concatenate((map, KK_box), axis=0)
+                    H_labels = ["{}".format(x) for x in range(1, this_nk + 1, 1)] + [""] + ["GT"] * max(this_nk // 40,
+                                                                                                        1)
+                    W_labels = ["{}".format(x) for x in range(1, this_nk + 1, 1)]
+                    df = pd.DataFrame(map, H_labels, W_labels)
+                    ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+                    plt.savefig(os.path.join(attention_dir, "EncIoU_N{:02d}_L{:02d}.png".format(iter_idx + 1, l_i + 1)))
+                    plt.close()
+                    pred_idx += this_nk
+
+                nk = outputs["K_weights"][:, 0].size(1)
+                dec_preds = torch.cat(
+                    (torch.stack([a_o['pred_segments'] for a_o in outputs['aux_outputs']], dim=0),
+                     outputs['pred_segments'].unsqueeze(0)), dim=0)[:, 0].detach().cpu()
+                L, H, _ = dec_preds.shape
+                for l_i in range(L):
+                    map = np.zeros(dtype=np.float32, shape=(H, nk))
+                    for m_i, box in enumerate(dec_preds[l_i].numpy()):
+                        s_i = round((box[0] - box[1] / 2) * (nk - 1))
+                        e_i = round((box[0] + box[1] / 2) * (nk - 1))
+                        map[m_i, s_i:e_i + 1] = 1.0
+                    KK_box = np.zeros(dtype=np.float32, shape=(1 + max(H // 40, 1), nk))
+                    for box in this_targets:
+                        s_i = round((box[0] - box[1] / 2) * (nk - 1))
+                        e_i = round((box[0] + box[1] / 2) * (nk - 1))
+                        KK_box[1:, s_i:e_i + 1] = np.max(map)
+                    map = np.concatenate((map, KK_box), axis=0)
+                    H_labels = ["{}".format(x) for x in range(1, H + 1, 1)] + [""] + ["GT"] * max(H // 40, 1)
+                    W_labels = ["{}".format(x) for x in range(1, nk + 1, 1)]
+                    df = pd.DataFrame(map, H_labels, W_labels)
+                    ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+                    plt.savefig(
+                        os.path.join(attention_dir, "DecPred_N{:02d}_L{:02d}.png".format(iter_idx + 1, l_i + 1)))
+                    plt.close()
+
+                    IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(dec_preds[l_i]),
+                                                           segment_ops.segment_cw_to_t1t2(dec_preds[l_i]))
+                    map = IoUs.softmax(dim=-1).numpy()
+                    H_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
+                    W_labels = ["{}".format(x) for x in range(1, H + 1, 1)]
+                    df = pd.DataFrame(map, H_labels, W_labels)
+                    ax = sn.heatmap(df, cbar=True, xticklabels=False, yticklabels=False, square=True)
+                    plt.savefig(os.path.join(attention_dir, "DecIoU_N{:02d}_L{:02d}.png".format(iter_idx + 1, l_i + 1)))
+                    plt.close()
 
                 a_i += 1
 
