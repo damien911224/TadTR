@@ -109,8 +109,8 @@ def main(args):
         # best_metric_txt = ''
 
         # fix the seed
-        # seed = random.randint(0, 10000) + utils.get_rank()
-        seed = 42
+        seed = random.randint(0, 10000) + utils.get_rank()
+        # seed = 42
         torch.manual_seed(seed)
         np.random.seed(seed)
         random.seed(seed)
@@ -247,9 +247,9 @@ def main(args):
                                            collate_fn=utils.collate_fn, num_workers=args.num_workers, pin_memory=True)
 
         max_steps = cfg.epochs * len(data_loader_train)
-        # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        #     optimizer, cfg.lr_step, last_epoch=last_epoch)
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, max_steps, last_epoch=last_epoch)
+        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            optimizer, cfg.lr_step, last_epoch=last_epoch)
+        # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, max_steps, last_epoch=last_epoch)
 
         data_loader_val = DataLoader(dataset_val, cfg.batch_size, sampler=sampler_val,
                                      drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers,
@@ -381,7 +381,7 @@ def main(args):
         logging.info('best det result\n{}'.format(best_metric_txt))
         logging.info(log_path)
 
-        break
+        # break
 
         # if best_metric > 0.573:
         #     break
