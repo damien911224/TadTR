@@ -26,7 +26,7 @@ postproc_cls_topk: 1 # 1
 postproc_ins_topk: 200 # 200
 nms_thr: 0.4 # 0.4
 
-nms_mode: raw
+nms_mode: nms # nms
 
 act_reg: False
 aux_loss: True
