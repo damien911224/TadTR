@@ -109,8 +109,8 @@ def main(args):
         # best_metric_txt = ''
 
         # fix the seed
-        # seed = random.randint(0, 10000) + utils.get_rank()
-        seed = 42
+        seed = random.randint(0, 10000) + utils.get_rank()
+        # seed = 42
         torch.manual_seed(seed)
         np.random.seed(seed)
         random.seed(seed)
@@ -381,7 +381,7 @@ def main(args):
         logging.info('best det result\n{}'.format(best_metric_txt))
         logging.info(log_path)
 
-        break
+        # break
 
         # if best_metric > 0.573:
         #     break
