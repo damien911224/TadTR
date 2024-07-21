@@ -34,8 +34,6 @@ from models import build_model
 if cfg.tensorboard:
     from tensorboardX import SummaryWriter
 
-import clip
-
 class ModelEma(torch.nn.Module):
     def __init__(self, model, decay=0.999, device=None, copy_model=True):
         super().__init__()
@@ -126,7 +124,6 @@ def main(args):
         raise NotImplementedError
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    clip_model, preprocess = clip.load("ViT-B/16", device=device)
 
     model, criterion, postprocessors = build_model(cfg)
     model_, _, _ = build_model(cfg)
