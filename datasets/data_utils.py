@@ -84,7 +84,7 @@ def get_dataset_dict(video_info_path, video_anno_path, subset, mode='test', excl
             video_info = video_ft_info[video_name]
 
             print(video_info["feature_length"], video_info["feature_second"], video_info["feature_fps"])
-            duration = anno_data[video_name]
+            duration = anno_data[video_name]["duration"]
             feature_second = duration
             feature_length = len(np.load("/mnt/hdd2/THUMOS14/thumos/i3d_features/{}.npy".format(video_name)))
             feature_fps = feature_second / feature_length
