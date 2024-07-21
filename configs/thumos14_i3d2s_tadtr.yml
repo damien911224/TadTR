@@ -1,7 +1,7 @@
 # model setting
 enc_layers: 2
 dec_layers: 4
-nheads: 4
+nheads: 8
 hidden_dim: 256
 dim_feedforward: 1024
 #num_queries: 40 # 40
