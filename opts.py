@@ -101,7 +101,7 @@ cfg.hidden_dim = 256
 # Dropout applied in the transformer
 cfg.dropout = 0.1
 # Number of attention heads inside the transformer's attentions
-cfg.nheads = 8
+cfg.nheads = 4
 # Number of sampled points per head for deformable attention in the encoder
 cfg.enc_n_points = 4
 # Number of sampled points per head for deformable attention in the decoder
