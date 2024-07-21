@@ -97,7 +97,6 @@ def get_dataset_dict(video_info_path, video_anno_path, subset, mode='test', excl
             feature_length = int(video_info['feature_length'])   
             feature_fps = video_info['feature_fps']
             feature_second = video_info['feature_second']
-            exit()
         else:
             continue
 
