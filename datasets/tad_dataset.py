@@ -205,6 +205,13 @@ class TADDataset(torch.utils.data.Dataset):
         video_data = self._get_video_data(index)
         video_name = self.video_list[index]
 
+        feature_length = len(video_data)
+        duration = video_info["duration"]
+        video_info["feature_seconds"] = duration
+        feature_fps = duration / feature_length
+        video_info["feature_fps"] = feature_fps
+        video_info["feature_length"] = feature_length
+
         target = self._get_train_label(video_name)
         
         return video_data, target
