@@ -43,13 +43,13 @@ cls_loss_coef: 2
 seg_loss_coef: 5
 iou_loss_coef: 2
 
-set_cost_class: 6  # Class coefficient
+set_cost_class: 2  # Class coefficient
 set_cost_seg: 5  # Segment L1 coefficient
 set_cost_iou: 2  # Segment IoU coefficient
 
-QK_loss_coef: 2.0
-KK_loss_coef: 2.0
-QQ_loss_coef: 2.0
+QK_loss_coef: 5.0
+KK_loss_coef: 5.0
+QQ_loss_coef: 5.0
 
 k_one2many: 6 # 6
 lambda_one2many: 1.0 # 1.0
