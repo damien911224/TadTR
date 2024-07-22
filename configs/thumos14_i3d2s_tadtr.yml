@@ -14,9 +14,9 @@ dataset_name: thumos14
 feature: i3d2s
 feature_dim: 2048
 online_slice: True
-slice_len: 384 # 192
-slice_overlap: 0.875 # 0.75
-test_slice_overlap: 0.875 # 0.25
+slice_len: 768 # 192
+slice_overlap: 0.9375 # 0.75
+test_slice_overlap: 0.9375 # 0.25
 
 batch_size: 16 # 16
 epochs: 20 # 120, 16
