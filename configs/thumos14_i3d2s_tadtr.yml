@@ -6,17 +6,17 @@ hidden_dim: 256
 dim_feedforward: 1024
 #num_queries: 40 # 40
 num_queries_enc: -1 # -1
-num_queries_one2one: 40 # 40
-num_queries_one2many: 200 # 200
+num_queries_one2one: 33 # 40
+num_queries_one2many: 167 # 200
 
 # data setting
 dataset_name: thumos14
 feature: i3d2s
 feature_dim: 2048
 online_slice: True
-slice_len: 768 # 192
-slice_overlap: 0.9375 # 0.75
-test_slice_overlap: 0.9375 # 0.75
+slice_len: 192 # 192
+slice_overlap: 0.75 # 0.75
+test_slice_overlap: 0.75 # 0.75
 
 batch_size: 16 # 16
 epochs: 20 # 120, 16
