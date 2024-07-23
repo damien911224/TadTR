@@ -1,5 +1,5 @@
 # model setting
-enc_layers: 3
+enc_layers: 2
 dec_layers: 4
 nheads: 8
 hidden_dim: 256
