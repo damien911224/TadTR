@@ -31,7 +31,7 @@ def eval_ap(iou, cls, gt, predition):
     return cls, ap
 
 
-def apply_nms(dets_arr, nms_thr=0.4, use_soft_nms=True):
+def apply_nms(dets_arr, nms_thr=0.4, use_soft_nms=False):
     # the last column are class ids
     unique_classes = np.unique(dets_arr[:, 3])
     output_dets = []
@@ -44,17 +44,17 @@ def apply_nms(dets_arr, nms_thr=0.4, use_soft_nms=True):
             # this_cls_dets_kept = soft_nms(this_cls_dets, 0.8, 0, 0, 200)
             # this_cls_dets_kept = np.concatenate((this_cls_dets_kept, classes), -1)
 
-            # b = torch.from_numpy(np.ascontiguousarray(this_cls_dets[..., :2])).float()
-            # s = torch.from_numpy(np.ascontiguousarray(this_cls_dets[..., 2])).float()
-            # l = torch.from_numpy(np.ascontiguousarray(this_cls_dets[..., 3])).float()
-            # b, s, l = SoftNMSop.apply(b, s, l, 0.1, 0.5, 0.001, 2, 200)
-            # this_cls_dets_kept = torch.cat((b, s.unsqueeze(-1), l.unsqueeze(-1)), -1).numpy()
-
             b = torch.from_numpy(np.ascontiguousarray(this_cls_dets[..., :2])).float()
             s = torch.from_numpy(np.ascontiguousarray(this_cls_dets[..., 2])).float()
             l = torch.from_numpy(np.ascontiguousarray(this_cls_dets[..., 3])).float()
-            b, s, l = batched_nms(b, s, l, multiclass=False, sigma=0.75, max_seg_num=200, voting_thresh=0.9)
+            b, s, l = SoftNMSop.apply(b, s, l, 0.1, 0.5, 0.001, 2, 200)
             this_cls_dets_kept = torch.cat((b, s.unsqueeze(-1), l.unsqueeze(-1)), -1).numpy()
+
+            # b = torch.from_numpy(np.ascontiguousarray(this_cls_dets[..., :2])).float()
+            # s = torch.from_numpy(np.ascontiguousarray(this_cls_dets[..., 2])).float()
+            # l = torch.from_numpy(np.ascontiguousarray(this_cls_dets[..., 3])).float()
+            # b, s, l = batched_nms(b, s, l, multiclass=False, sigma=0.75, max_seg_num=200, voting_thresh=0.9)
+            # this_cls_dets_kept = torch.cat((b, s.unsqueeze(-1), l.unsqueeze(-1)), -1).numpy()
 
         output_dets.append(this_cls_dets_kept)
     output_dets = np.concatenate(output_dets, axis=0)
