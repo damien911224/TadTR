@@ -1,13 +1,13 @@
 # model setting
-enc_layers: 2
+enc_layers: 3
 dec_layers: 4
 nheads: 8
 hidden_dim: 256
 dim_feedforward: 1024
-#num_queries: 40 # 40
+# num_queries: 40 # 40
 num_queries_enc: -1 # -1
-num_queries_one2one: 33 # 40
-num_queries_one2many: 167 # 200
+num_queries_one2one: 40 # 40
+num_queries_one2many: 200 # 200
 
 # data setting
 dataset_name: thumos14
