@@ -31,7 +31,7 @@ def eval_ap(iou, cls, gt, predition):
     return cls, ap
 
 
-def apply_nms(dets_arr, nms_thr=0.4, use_soft_nms=False):
+def apply_nms(dets_arr, nms_thr=0.4, use_soft_nms=True):
     # the last column are class ids
     unique_classes = np.unique(dets_arr[:, 3])
     output_dets = []
