@@ -25,6 +25,7 @@ import os.path as osp
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, DistributedSampler
+from util.lr_schedulers import LinearWarmupCosineAnnealingLR
 
 from opts import get_args_parser, cfg, update_cfg_with_args, update_cfg_from_file
 import util.misc as utils
@@ -243,9 +244,21 @@ def main(args):
                                        batch_sampler=batch_sampler_train,
                                        collate_fn=utils.collate_fn, num_workers=args.num_workers, pin_memory=True)
 
-    max_steps = cfg.epochs * len(data_loader_train)
-    lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, cfg.lr_step, last_epoch=last_epoch)
+    # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+    #     optimizer, cfg.lr_step, last_epoch=last_epoch)
+
+    max_epochs = cfg.epochs + optimizer_config["warmup_epochs"]
+    max_steps = max_epochs * len(data_loader_train)
+    # get warmup params
+    warmup_epochs = optimizer_config["warmup_epochs"]
+    warmup_steps = warmup_epochs * num_iters_per_epoch
+    # Cosine
+    lr_scheduler = LinearWarmupCosineAnnealingLR(
+        optimizer,
+        warmup_steps,
+        max_steps,
+    )
+
     # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, max_steps, last_epoch=last_epoch)
 
     data_loader_val = DataLoader(dataset_val, cfg.batch_size, sampler=sampler_val,
