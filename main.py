@@ -259,6 +259,7 @@ def main(args):
         warmup_steps,
         max_steps,
     )
+    cfg.epochs += warmup_epochs
 
     # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, max_steps, last_epoch=last_epoch)
 
