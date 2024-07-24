@@ -322,10 +322,10 @@ def main(args):
         for group in optimizer.param_groups:
             logging.info('lr={}'.format(group['lr']))
         train_stats = train_one_epoch(
-            model, model_ema, criterion, data_loader_train, optimizer, device, epoch, cfg,
-            cfg.clip_max_norm)
+            model, model_ema, criterion, data_loader_train, optimizer, lr_scheduler,
+            device, epoch, cfg, cfg.clip_max_norm)
 
-        lr_scheduler.step()
+        # lr_scheduler.step()
 
         if cfg.output_dir:
             # save checkpoint every `cfg.ckpt_interval` epochs, also when reducing the learning rate

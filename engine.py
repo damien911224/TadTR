@@ -36,6 +36,7 @@ from thop import profile, clever_format
 def train_one_epoch(model: torch.nn.Module,
                     model_ema,
                     criterion: torch.nn.Module,
+                    scheduler: torch.optim.lr_scheduler,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
                     device: torch.device, epoch: int, cfg, max_norm: float = 0):
     model.train()
@@ -79,6 +80,7 @@ def train_one_epoch(model: torch.nn.Module,
             sys.exit(1)
 
         losses.backward()
+        scheduler.step()
         if (cnt + 1) % cfg.iter_size == 0:
             # scale gradients when iter size is functioning
             if cfg.iter_size != 1:
