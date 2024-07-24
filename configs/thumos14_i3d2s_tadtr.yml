@@ -21,7 +21,7 @@ test_slice_overlap: 0.875 # 0.75
 batch_size: 16 # 16
 epochs: 30 # 20
 lr: 2.0e-4
-weight_decay: 0.05
+weight_decay: 1.0e-4
 lr_step: [17] # [17]
 
 postproc_rank: 1 # 1
