@@ -36,8 +36,9 @@ from thop import profile, clever_format
 def train_one_epoch(model: torch.nn.Module,
                     model_ema,
                     criterion: torch.nn.Module,
+                    data_loader: Iterable,
+                    optimizer: torch.optim.Optimizer,
                     scheduler: torch.optim.lr_scheduler,
-                    data_loader: Iterable, optimizer: torch.optim.Optimizer,
                     device: torch.device, epoch: int, cfg, max_norm: float = 0):
     model.train()
     criterion.train()
