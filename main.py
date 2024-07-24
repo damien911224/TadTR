@@ -247,10 +247,11 @@ def main(args):
     # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
     #     optimizer, cfg.lr_step, last_epoch=last_epoch)
 
-    max_epochs = cfg.epochs + optimizer_config["warmup_epochs"]
-    max_steps = max_epochs * len(data_loader_train)
+    num_iters_per_epoch = len(data_loader_train)
+    max_epochs = cfg.epochs + 5 # warm-up epochs
+    max_steps = max_epochs * num_iters_per_epoch
     # get warmup params
-    warmup_epochs = optimizer_config["warmup_epochs"]
+    warmup_epochs = 5
     warmup_steps = warmup_epochs * num_iters_per_epoch
     # Cosine
     lr_scheduler = LinearWarmupCosineAnnealingLR(
