@@ -36,7 +36,7 @@ aux_loss: True
 
 use_QK: True
 use_KK: False
-use_QQ: False
+use_QQ: True
 
 use_dn: False
 
