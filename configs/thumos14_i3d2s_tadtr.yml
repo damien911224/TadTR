@@ -35,8 +35,8 @@ act_reg: False
 aux_loss: True
 
 use_QK: False
-use_KK: True
-use_QQ: False
+use_KK: False
+use_QQ: True
 
 use_dn: False
 
@@ -54,7 +54,7 @@ QQ_loss_coef: 5.0
 
 k_one2many: 6 # 6
 lambda_one2many: 1.0 # 1.0
-random_refpoints_xy: False # False
+random_refpoints_xy: True # False
 two_stage: True
 
 # output
