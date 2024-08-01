@@ -15,8 +15,8 @@ feature: i3d2s
 feature_dim: 2048
 online_slice: True
 slice_len: 192 # 192
-slice_overlap: 0.75 # 0.875
-test_slice_overlap: 0.25 # 0.875
+slice_overlap: 0.875 # 0.875
+test_slice_overlap: 0.875 # 0.875
 
 batch_size: 16 # 16
 epochs: 30 # 20
@@ -35,7 +35,7 @@ act_reg: False
 aux_loss: True
 
 use_QK: False
-use_KK: False
+use_KK: True
 use_QQ: False
 
 use_dn: False
@@ -54,7 +54,7 @@ QQ_loss_coef: 5.0
 
 k_one2many: 6 # 6
 lambda_one2many: 1.0 # 1.0
-random_refpoints_xy: True # False
+random_refpoints_xy: False # False
 two_stage: True
 
 # output
