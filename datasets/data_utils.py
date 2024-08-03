@@ -83,14 +83,14 @@ def get_dataset_dict(video_info_path, video_anno_path, subset, mode='test', excl
             # video_info records the length in snippets, duration and fps (#frames per second) of the feature/image sequence
             video_info = video_ft_info[video_name]
 
-            duration = anno_data[video_name]["duration"]
-            feature_second = duration
-            # feature_second = video_info["feature_second"]
-            feature_length = len(np.load("/mnt/hdd2/THUMOS14/thumos/i3d_features/{}.npy".format(video_name)))
-            feature_fps = feature_length / feature_second
-            video_info["feature_length"] = feature_length
-            video_info["feature_second"] = feature_second
-            video_info["feature_fps"] = feature_fps
+            # duration = anno_data[video_name]["duration"]
+            # feature_second = duration
+            # # feature_second = video_info["feature_second"]
+            # feature_length = len(np.load("/mnt/hdd2/THUMOS14/thumos/i3d_features/{}.npy".format(video_name)))
+            # feature_fps = feature_length / feature_second
+            # video_info["feature_length"] = feature_length
+            # video_info["feature_second"] = feature_second
+            # video_info["feature_fps"] = feature_fps
 
             # number of frames or snippets
             feature_length = int(video_info['feature_length'])   
