@@ -846,10 +846,10 @@ class SetCriterion(nn.Module):
         src_prob = src_prob.sigmoid()
         tgt_prob = tgt_prob.sigmoid()
 
-        # IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
-        #                                        segment_ops.segment_cw_to_t1t2(tgt_bbox))
-        IoUs = segment_ops.generalized_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
-                                                   segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        IoUs = segment_ops.batched_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+                                               segment_ops.segment_cw_to_t1t2(tgt_bbox))
+        # IoUs = segment_ops.generalized_segment_iou(segment_ops.segment_cw_to_t1t2(src_bbox),
+        #                                            segment_ops.segment_cw_to_t1t2(tgt_bbox))
 
         # Compute the classification cost.
         # alpha, gamma = 0.25, 2.0
