@@ -1426,7 +1426,7 @@ def build(args):
     transformer = build_transformer(args)
 
     model = DABDETR(
-        args.input_dim,
+        args.feature_dim,
         pos_embed,
         transformer,
         num_classes=num_classes,
