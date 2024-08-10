@@ -33,7 +33,7 @@ def get_norm(norm_type, dim, num_groups=None):
 class DABDETR(nn.Module):
     """ This is the TadTR module that performs temporal action detection """
 
-    def __init__(self, position_embedding, transformer, num_classes, num_queries_one2one,
+    def __init__(self, input_dim, position_embedding, transformer, num_classes, num_queries_one2one,
                  num_queries_one2many=0, aux_loss=True, with_segment_refine=True,
                  random_refpoints_xy=False, query_dim=2,
                  two_stage=False, num_queries_enc=40):
@@ -83,7 +83,7 @@ class DABDETR(nn.Module):
 
         self.input_proj = nn.ModuleList([
             nn.Sequential(
-                nn.Conv1d(2048, hidden_dim, kernel_size=1),
+                nn.Conv1d(input_dim, hidden_dim, kernel_size=1),
                 nn.GroupNorm(32, hidden_dim),
             )])
         self.position_embedding = position_embedding
@@ -1426,6 +1426,7 @@ def build(args):
     transformer = build_transformer(args)
 
     model = DABDETR(
+        args.input_dim,
         pos_embed,
         transformer,
         num_classes=num_classes,
