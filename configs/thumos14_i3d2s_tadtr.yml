@@ -12,7 +12,7 @@ num_queries_one2many: 200 # 200
 # data setting
 dataset_name: thumos14
 feature: slowfast # i3d2s
-feature_dim: 2048
+feature_dim: 3200
 online_slice: True
 slice_len: 192 # 192
 slice_overlap: 0.875 # 0.875
