@@ -65,7 +65,7 @@ def get_dataset_dict(video_info_path, video_anno_path, subset, mode='test', excl
     id_list = []
     cnt = 0
 
-    if "train" in subset:
+    if "val" in subset:
         subset = "training"
     elif "test" in subset:
         subset = "validation"
