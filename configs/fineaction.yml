@@ -1,0 +1,61 @@
+# model setting
+enc_layers: 2
+dec_layers: 4
+nheads: 8
+hidden_dim: 256
+dim_feedforward: 1024
+# num_queries: 40 # 40
+num_queries_enc: -1 # -1
+num_queries_one2one: 40 # 40
+num_queries_one2many: 200 # 200
+
+# data setting
+dataset_name: thumos14
+feature: videoMAE # i3d2s
+feature_dim: 1408
+online_slice: True
+slice_len: 192 # 192
+slice_overlap: 0.875 # 0.875
+test_slice_overlap: 0.875 # 0.875
+
+batch_size: 16 # 16
+epochs: 30 # 20
+lr: 2.0e-4
+weight_decay: 1.0e-4
+lr_step: [17] # [17]
+
+postproc_rank: 1 # 1
+postproc_cls_topk: 1 # 1
+postproc_ins_topk: 200 # 200
+nms_thr: 0.4 # 0.4
+
+nms_mode: nms # raw
+
+act_reg: False
+aux_loss: True
+
+use_QK: True
+use_KK: True
+use_QQ: True
+
+use_dn: False
+
+cls_loss_coef: 2
+seg_loss_coef: 5
+iou_loss_coef: 2
+
+set_cost_class: 2  # Class coefficient
+set_cost_seg: 5  # Segment L1 coefficient
+set_cost_iou: 2  # Segment IoU coefficient
+
+QK_loss_coef: 2.0
+KK_loss_coef: 5.0
+QQ_loss_coef: 5.0
+
+k_one2many: 6 # 6
+lambda_one2many: 1.0 # 1.0
+random_refpoints_xy: False # False
+two_stage: True
+
+# output
+output_dir: outputs/thumos14_i3d2s_tadtr
