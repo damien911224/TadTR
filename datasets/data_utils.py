@@ -65,6 +65,12 @@ def get_dataset_dict(video_info_path, video_anno_path, subset, mode='test', excl
     id_list = []
     cnt = 0
 
+    if "train" in subset:
+        subset = "training"
+    elif "val" in subset:
+        subset = "validation"
+    print(subset)
+    exit()
     video_set = set([x for x in anno_data if anno_data[x]['subset'] in subset])
     # video_set = video_set.intersection(video_ft_info.keys())
 
