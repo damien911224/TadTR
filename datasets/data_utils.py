@@ -93,8 +93,6 @@ def get_dataset_dict(video_info_path, video_anno_path, subset, mode='test', excl
             feature_second = duration
             # feature_second = video_info["feature_second"]
             # feature_length = len(np.load("/mnt/hdd2/THUMOS14/thumos/i3d_features/{}.npy".format(video_name)))
-            print(torch.load("/mnt/hdd0/FineAction/videoMAE_features/{}_spatial_pool_feature_5.pt".format(video_name)).shape)
-            exit()
             feature_length = len(torch.load("/mnt/hdd0/FineAction/videoMAE_features/{}_spatial_pool_feature_5.pt".format(video_name)))
             feature_fps = feature_length / feature_second
             video_info["feature_length"] = feature_length
