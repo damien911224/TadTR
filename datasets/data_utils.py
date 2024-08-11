@@ -92,7 +92,8 @@ def get_dataset_dict(video_info_path, video_anno_path, subset, mode='test', excl
             duration = anno_data[video_name]["duration"]
             feature_second = duration
             # feature_second = video_info["feature_second"]
-            feature_length = len(np.load("/mnt/hdd2/THUMOS14/thumos/i3d_features/{}.npy".format(video_name)))
+            # feature_length = len(np.load("/mnt/hdd2/THUMOS14/thumos/i3d_features/{}.npy".format(video_name)))
+            feature_length = len(np.load("/mnt/hdd2/THUMOS14/thumos/videoMAE_features/{}_spatial_pool_feature_5.pt".format(video_name)))
             feature_fps = feature_length / feature_second
             video_info["feature_length"] = feature_length
             video_info["feature_second"] = feature_second
@@ -197,9 +198,6 @@ def get_dataset_info(dataset, feature):
         subset_mapping = {'train': 'val', 'val': 'test'}
         ann_file = path_info['thumos14']['ann_file']
 
-        print(feature)
-        exit()
-
         if feature == 'i3d2s':
             # feature_info = {'local_path': path_info['thumos14'][feature]['local_path'], 'format': 'torch', 'fn_templ': '%s'}
             feature_info = {'local_path': path_info['thumos14'][feature]['local_path'], 'format': 'npy', 'fn_templ': '%s.npy'}
@@ -208,7 +206,7 @@ def get_dataset_info(dataset, feature):
             feature_info = {'local_path': path_info['thumos14'][feature]['local_path'], 'format': 'torch', 'fn_templ': '%s_spatial_feature.pt'}
             ft_info_file = path_info['thumos14'][feature]['ft_info_file']
         elif feature == "videoMAE":
-            feature_info = {'local_path': path_info['thumos14'][feature]['local_path'], 'format': 'torch', 'fn_templ': 'v_%s_spatial_pool_feature_5.pt'}
+            feature_info = {'local_path': path_info['thumos14'][feature]['local_path'], 'format': 'torch', 'fn_templ': '%s_spatial_pool_feature_5.pt'}
             ft_info_file = path_info['thumos14'][feature]['ft_info_file']
         else:
             raise ValueError('unsupported feature, should be one of [i3d2s]')
