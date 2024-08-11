@@ -7,7 +7,7 @@ dim_feedforward: 1024
 # num_queries: 40 # 40
 num_queries_enc: -1 # -1
 num_queries_one2one: 40 # 40
-num_queries_one2many: -1 # 200
+num_queries_one2many: 200 # 200
 
 # data setting
 dataset_name: thumos14
@@ -34,7 +34,7 @@ nms_mode: nms # raw
 act_reg: False
 aux_loss: True
 
-use_QK: False
+use_QK: True
 use_KK: True
 use_QQ: True
 
@@ -55,7 +55,7 @@ QQ_loss_coef: 5.0
 k_one2many: 6 # 6
 lambda_one2many: 1.0 # 1.0
 random_refpoints_xy: False # False
-two_stage: False
+two_stage: True
 
 # output
 output_dir: outputs/thumos14_i3d2s_tadtr
