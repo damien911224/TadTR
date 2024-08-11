@@ -320,6 +320,14 @@ def main(args):
         if args.distributed:
             sampler_train.set_epoch(epoch)
 
+        test_stats = test(
+            # model,
+            model_ema.module,
+            criterion, postprocessors, data_loader_val, base_ds, device, cfg.output_dir, cfg,
+            epoch=epoch, nms_mode=cfg.nms_mode,
+        )
+        exit()
+
         for group in optimizer.param_groups:
             logging.info('lr={}'.format(group['lr']))
         train_stats = train_one_epoch(

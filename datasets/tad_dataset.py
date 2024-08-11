@@ -81,7 +81,7 @@ class TADDataset(torch.utils.data.Dataset):
         # video_list = self.video_dict.keys()
         # self.video_list = list(sorted(video_list))
      
-        logging.info("{} subset video numbers: {}".format(self.subset,len(self.video_list)))
+        logging.info("{} subset video numbers: {}".format(self.subset, len(self.video_list)))
         self.anno_dict = anno_dict
 
         self.cached_data = {}

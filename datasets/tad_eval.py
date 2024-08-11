@@ -79,7 +79,8 @@ class TADEvaluator(object):
         self.ignored_videos = list()
 
         if dataset_name == 'thumos14':
-            subset_mapping = {'train': 'val', 'val': 'test'}
+            # subset_mapping = {'train': 'val', 'val': 'test'}
+            subset_mapping = {'training': 'val', 'validation': 'test'}
             # anno_file = 'data/thumos14/th14_annotations_with_fps_duration.json'
             anno_file = '/mnt/hdd0/FineAction/annotations/fineaction_annotations_gt_filter.json'
             # follow SSN/PGCN/AFSD/MUSES to remove three falsely annotated videos
