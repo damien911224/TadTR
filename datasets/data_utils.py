@@ -70,7 +70,6 @@ def get_dataset_dict(video_info_path, video_anno_path, subset, mode='test', excl
     elif "test" in subset:
         subset = "validation"
     print(subset)
-    exit()
     video_set = set([x for x in anno_data if anno_data[x]['subset'] in subset])
     # video_set = video_set.intersection(video_ft_info.keys())
 
