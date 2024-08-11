@@ -52,7 +52,7 @@ def get_norm(norm_type, dim, num_groups=None):
 class TadTR(nn.Module):
     """ This is the TadTR module that performs temporal action detection """
 
-    def __init__(self, position_embedding, transformer, num_classes, num_queries, aux_loss=True,
+    def __init__(self, input_dim, position_embedding, transformer, num_classes, num_queries, aux_loss=True,
                  with_segment_refine=True, with_act_reg=False, clip_dim=512):
         """ Initializes the model.
         Parameters:
@@ -75,7 +75,7 @@ class TadTR(nn.Module):
 
         self.input_proj = nn.ModuleList([
             nn.Sequential(
-                nn.Conv1d(2048, hidden_dim, kernel_size=1),
+                nn.Conv1d(input_dim, hidden_dim, kernel_size=1),
                 nn.GroupNorm(32, hidden_dim),
             )])
         # self.backbone = backbone
@@ -470,6 +470,7 @@ def build(args):
     transformer = build_deformable_transformer(args)
 
     model = TadTR(
+        args.feature_dim,
         pos_embed,
         transformer,
         num_classes=num_classes,
