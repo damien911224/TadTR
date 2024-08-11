@@ -124,7 +124,6 @@ class TADEvaluator(object):
         if 'classes' in anno_dict:
             classes = anno_dict['classes']
         else:
-
             database = anno_dict['database']
             all_gts = []
             for vid in database:
