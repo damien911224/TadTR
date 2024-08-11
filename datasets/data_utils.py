@@ -33,7 +33,10 @@ def get_valid_anno(gt_instances, slice, thr=0.75,
             # clamped inst
             new_start = max(start_getter(inst), start)
             new_end = min(end_getter(inst), end)
-            integrity = (new_end - new_start) * 1.0 / (end_getter(inst) - start_getter(inst))
+            if end_getter(inst) - start_getter(inst) >= 1:
+                integrity = (new_end - new_start) * 1.0 / (end_getter(inst) - start_getter(inst))
+            else:
+                integrity = 0
             
             if integrity >= thr:
                 new_inst = {k:v for k,v in inst.items()}
