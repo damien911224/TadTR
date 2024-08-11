@@ -15,8 +15,8 @@ feature: videoMAE # i3d2s
 feature_dim: 1408
 online_slice: True
 slice_len: 192 # 192
-slice_overlap: 0.875 # 0.875
-test_slice_overlap: 0.875 # 0.875
+slice_overlap: 0.75 # 0.875
+test_slice_overlap: 0.25 # 0.875
 
 batch_size: 16 # 16
 epochs: 30 # 20
