@@ -198,6 +198,9 @@ def get_dataset_info(dataset, feature):
         elif feature == "slowfast":
             feature_info = {'local_path': path_info['thumos14'][feature]['local_path'], 'format': 'torch', 'fn_templ': '%s_spatial_feature.pt'}
             ft_info_file = path_info['thumos14'][feature]['ft_info_file']
+        elif feature == "videoMAE":
+            feature_info = {'local_path': path_info['thumos14'][feature]['local_path'], 'format': 'torch', 'fn_templ': 'v_%s_spatial_pool_feature_5.pt'}
+            ft_info_file = path_info['thumos14'][feature]['ft_info_file']
         else:
             raise ValueError('unsupported feature, should be one of [i3d2s]')
 
