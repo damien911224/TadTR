@@ -464,6 +464,8 @@ def build(args):
         else:
             raise ValueError('unknown dataset {}'.format(args.dataset_name))
 
+    num_classes = 106
+
     pos_embed = build_position_encoding(args)
     transformer = build_deformable_transformer(args)
 
