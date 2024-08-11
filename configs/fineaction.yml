@@ -31,7 +31,7 @@ nms_thr: 0.4 # 0.4
 
 nms_mode: nms # raw
 
-act_reg: True
+act_reg: False
 aux_loss: True
 
 use_QK: False
