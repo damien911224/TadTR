@@ -69,10 +69,8 @@ def get_dataset_dict(video_info_path, video_anno_path, subset, mode='test', excl
         subset = "training"
     elif "test" in subset:
         subset = "validation"
-    print(subset)
     video_set = set([x for x in anno_data if anno_data[x]['subset'] in subset])
     # video_set = video_set.intersection(video_ft_info.keys())
-    print(len(video_set))
 
     if exclude_videos is not None:
         assert isinstance(exclude_videos, (list, tuple))
@@ -85,9 +83,11 @@ def get_dataset_dict(video_info_path, video_anno_path, subset, mode='test', excl
         annotations = [x for x in anno_data[video_name]['annotations'] if x['label'] != 'Ambiguous']
         annotations = list(sorted(annotations, key=lambda x: sum(x['segment'])))
 
-        if video_name in video_ft_info:
+        # if video_name in video_ft_info:
+        if video_name in anno_data:
             # video_info records the length in snippets, duration and fps (#frames per second) of the feature/image sequence
-            video_info = video_ft_info[video_name]
+            # video_info = video_ft_info[video_name]
+            video_info = dict()
 
             duration = anno_data[video_name]["duration"]
             feature_second = duration
