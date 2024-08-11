@@ -196,7 +196,10 @@ def get_dataset_info(dataset, feature):
     if dataset == 'thumos14':
         subset_mapping = {'train': 'val', 'val': 'test'}
         ann_file = path_info['thumos14']['ann_file']
-    
+
+        print(feature)
+        exit()
+
         if feature == 'i3d2s':
             # feature_info = {'local_path': path_info['thumos14'][feature]['local_path'], 'format': 'torch', 'fn_templ': '%s'}
             feature_info = {'local_path': path_info['thumos14'][feature]['local_path'], 'format': 'npy', 'fn_templ': '%s.npy'}
