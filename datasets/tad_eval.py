@@ -80,6 +80,7 @@ class TADEvaluator(object):
 
         if dataset_name == 'thumos14':
             # subset_mapping = {'train': 'val', 'val': 'test'}
+            # FineAction
             subset_mapping = {'train': 'training', 'val': 'validation'}
             # anno_file = 'data/thumos14/th14_annotations_with_fps_duration.json'
             anno_file = '/mnt/hdd0/FineAction/annotations/fineaction_annotations_gt_filter.json'
