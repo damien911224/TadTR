@@ -285,12 +285,12 @@ class TADEvaluator(object):
 
     def summarize(self):
         '''Compute mAP and collect stats'''
-        if self.dataset_name in ['thumos14', 'muses']:
-            # 0.3~0.7 avg
-            display_iou_thr_inds = [0, 1, 2, 3, 4]
-        else:
-            # 0.5 0.75 0.95 avg
-            display_iou_thr_inds = [0, 5, 9]
+        # if self.dataset_name in ['thumos14', 'muses']:
+        #     # 0.3~0.7 avg
+        #     display_iou_thr_inds = [0, 1, 2, 3, 4]
+        # else:
+        # 0.5 0.75 0.95 avg
+        display_iou_thr_inds = [0, 5, 9]
 
         for nms_mode in self.nms_mode:
             logging.info(
