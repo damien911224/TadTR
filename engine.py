@@ -57,8 +57,8 @@ def train_one_epoch(model: torch.nn.Module,
 
         outputs = model((samples.tensors, samples.mask))
 
-        loss_dict = criterion(outputs, targets)
-        # loss_dict = train_hybrid(outputs, targets, criterion)
+        # loss_dict = criterion(outputs, targets)
+        loss_dict = train_hybrid(outputs, targets, criterion)
 
         weight_dict = criterion.weight_dict
         losses = sum(loss_dict[k] * weight_dict[k]
@@ -159,9 +159,9 @@ def test(model, criterion, postprocessor, data_loader, base_ds, device, output_d
     metric_logger.add_meter('class_error', utils.SmoothedValue(
         window_size=1, fmt='{value:.2f}'))
 
-    # iou_range = [0.3, 0.4, 0.5, 0.6, 0.7] if cfg.dataset_name == 'thumos14' else [
-    #     num/100 for num in range(50, 100, 5)]
-    iou_range = [num/100 for num in range(50, 100, 5)]
+    iou_range = [0.3, 0.4, 0.5, 0.6, 0.7] if cfg.dataset_name == 'thumos14' else [
+        num/100 for num in range(50, 100, 5)]
+    # iou_range = [num/100 for num in range(50, 100, 5)]
     # logging.info('iou range {}'.format(iou_range))
 
     # action_evaluator = None

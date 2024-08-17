@@ -79,11 +79,11 @@ class TADEvaluator(object):
         self.ignored_videos = list()
 
         if dataset_name == 'thumos14':
-            # subset_mapping = {'train': 'val', 'val': 'test'}
+            subset_mapping = {'train': 'val', 'val': 'test'}
             # FineAction
-            subset_mapping = {'train': 'training', 'val': 'validation'}
-            # anno_file = 'data/thumos14/th14_annotations_with_fps_duration.json'
-            anno_file = '/mnt/hdd0/FineAction/annotations/fineaction_annotations_gt_filter.json'
+            # subset_mapping = {'train': 'training', 'val': 'validation'}
+            anno_file = 'data/thumos14/th14_annotations_with_fps_duration.json'
+            # anno_file = '/mnt/hdd0/FineAction/annotations/fineaction_annotations_gt_filter.json'
             # follow SSN/PGCN/AFSD/MUSES to remove three falsely annotated videos
             self.ignored_videos = ['video_test_0000270', 'video_test_0001292', 'video_test_0001496']
         else:
@@ -285,12 +285,12 @@ class TADEvaluator(object):
 
     def summarize(self):
         '''Compute mAP and collect stats'''
-        # if self.dataset_name in ['thumos14', 'muses']:
-        #     # 0.3~0.7 avg
-        #     display_iou_thr_inds = [0, 1, 2, 3, 4]
-        # else:
-        # 0.5 0.75 0.95 avg
-        display_iou_thr_inds = [0, 5, 9]
+        if self.dataset_name in ['thumos14', 'muses']:
+            # 0.3~0.7 avg
+            display_iou_thr_inds = [0, 1, 2, 3, 4]
+        else:
+            # 0.5 0.75 0.95 avg
+            display_iou_thr_inds = [0, 5, 9]
 
         for nms_mode in self.nms_mode:
             logging.info(
